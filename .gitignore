@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.next
+coverage
+.env
+.env.*
+!.env.example
+
+.DS_Store
+
+apps/web/.next
+apps/api/dist
+
+npm-debug.log*
