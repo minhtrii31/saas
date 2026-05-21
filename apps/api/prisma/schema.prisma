@@ -1,13 +1,76 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum AnalysisType {
+  CV_ANALYSIS
+  JD_MATCH
+
+  @@map("analysis_type")
+}
+
+model User {
+  id           String  @id @default(uuid()) @db.Uuid
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  name         String?
+  cvs          Cv[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Cv {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  title           String?
+  originalName    String  @map("original_name")
+  mimeType        String  @map("mime_type")
+  sizeBytes       Int     @map("size_bytes")
+  storageProvider String  @map("storage_provider")
+  storageKey      String  @map("storage_key")
+  storageUrl      String? @map("storage_url")
+
+  extractedText String?      @map("extracted_text")
+  analyses      CvAnalysis[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("cvs")
+}
+
+model CvAnalysis {
+  id   String @id @default(uuid()) @db.Uuid
+  cvId String @map("cv_id") @db.Uuid
+  cv   Cv     @relation(fields: [cvId], references: [id], onDelete: Restrict)
+
+  type               AnalysisType
+  jobDescriptionText String?      @map("job_description_text")
+
+  aiProvider String? @map("ai_provider")
+  aiModel    String? @map("ai_model")
+  result     Json
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([cvId])
+  @@index([type])
+  @@index([deletedAt])
+  @@map("cv_analyses")
 }
