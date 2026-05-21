@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: cv_ai_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cvai
+      POSTGRES_PASSWORD: cvai
+      POSTGRES_DB: cv_ai_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - cv_ai_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  cv_ai_postgres_data:
