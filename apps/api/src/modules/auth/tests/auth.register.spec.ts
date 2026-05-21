@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../../../app.module';
@@ -29,6 +29,13 @@ describe('POST /auth/register', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
   });
 
@@ -50,7 +57,7 @@ describe('POST /auth/register', () => {
       }),
     );
 
-    const response = await request(app.getHttpAdapter().getInstance())
+    const response = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
         email: 'user@example.com',
@@ -100,7 +107,7 @@ describe('POST /auth/register', () => {
       createdAt,
     });
 
-    const response = await request(app.getHttpAdapter().getInstance())
+    const response = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
         email: 'user@example.com',
@@ -135,7 +142,7 @@ describe('POST /auth/register', () => {
       email: 'user@example.com',
     });
 
-    const response = await request(app.getHttpAdapter().getInstance())
+    const response = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
         email: 'user@example.com',
@@ -151,5 +158,90 @@ describe('POST /auth/register', () => {
       meta: {},
     });
     expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid email addresses', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'not-an-email',
+        password: 'correct-horse-battery-staple',
+      })
+      .expect(400);
+
+    expect(response.body.message).toEqual(['email must be an email']);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects short passwords', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'user@example.com',
+        password: 'short',
+      })
+      .expect(400);
+
+    expect(response.body.message).toEqual([
+      'password must be longer than or equal to 8 characters',
+    ]);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid password types', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'user@example.com',
+        password: 12345678,
+      })
+      .expect(400);
+
+    expect(response.body.message).toContain('password must be a string');
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects unknown fields', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'user@example.com',
+        password: 'correct-horse-battery-staple',
+        role: 'admin',
+      })
+      .expect(400);
+
+    expect(response.body.message).toEqual(['property role should not exist']);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('maps Prisma unique constraint errors on create to duplicate email responses', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockRejectedValue({
+      code: 'P2002',
+      meta: {
+        target: ['email'],
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'user@example.com',
+        password: 'correct-horse-battery-staple',
+      })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'EMAIL_ALREADY_REGISTERED',
+        message: 'Email is already registered',
+      },
+      meta: {},
+    });
   });
 });

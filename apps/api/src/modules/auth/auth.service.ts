@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { randomBytes, scrypt as scryptCallback } from 'crypto';
 import { promisify } from 'util';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,11 +17,17 @@ type PublicUser = {
   createdAt: Date;
 };
 
+type PrismaKnownError = {
+  code?: string;
+};
+
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async register(dto: RegisterDto): Promise<{ data: PublicUser; meta: Record<string, never> }> {
+  async register(
+    dto: RegisterDto,
+  ): Promise<{ data: PublicUser; meta: Record<string, never> }> {
     const email = this.normalizeEmail(dto.email);
     const password = this.validatePassword(dto.password);
     const name = this.normalizeName(dto.name);
@@ -27,28 +37,33 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException({
-        error: {
-          code: 'EMAIL_ALREADY_REGISTERED',
-          message: 'Email is already registered',
-        },
-        meta: {},
-      });
+      throw this.emailAlreadyRegistered();
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash: await this.hashPassword(password),
-        name,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-      },
-    });
+    const passwordHash = await this.hashPassword(password);
+    let user: PublicUser;
+
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          name,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+        },
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw this.emailAlreadyRegistered();
+      }
+
+      throw error;
+    }
 
     return {
       data: {
@@ -105,4 +120,21 @@ export class AuthService {
     return `scrypt:${salt}:${derivedKey.toString('hex')}`;
   }
 
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      (error as PrismaKnownError).code === 'P2002'
+    );
+  }
+
+  private emailAlreadyRegistered(): ConflictException {
+    return new ConflictException({
+      error: {
+        code: 'EMAIL_ALREADY_REGISTERED',
+        message: 'Email is already registered',
+      },
+      meta: {},
+    });
+  }
 }
