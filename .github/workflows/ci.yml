@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    name: Check monorepo
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: cvai
+          POSTGRES_PASSWORD: cvai
+          POSTGRES_DB: cv_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cvai -d cv_ai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      AI_PROVIDER: mock
+      DATABASE_URL_TEST: postgresql://cvai:cvai@localhost:5432/cv_ai_test?schema=public
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+
+      - name: Check API
+        run: npm run check:api
+
+      - name: Check Web
+        run: npm run check:web
+
+      - name: Clean generated test artifacts
+        if: always()
+        run: |
+          rm -rf apps/api/uploads
+          rm -rf apps/api/coverage
+          rm -rf apps/web/.next
+          rm -rf apps/web/playwright-report
+          rm -rf apps/web/test-results
