@@ -1,152 +1,35 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
-import { EnvironmentService } from '../../config/environment.service';
-import { PrismaService } from '../../prisma/prisma.service';
-import { AnalysisService } from '../analysis/analysis.service';
-import type {
-  CoverLetterResult,
-  CvAnalysisResult,
-  JdMatchResult,
-} from '../analysis/types/cv-analysis-provider';
-import {
-  CreateCvDto,
-  type SupportedCvMimeType,
-  supportedCvMimeTypes,
-} from './dto/create-cv.dto';
+import { Injectable } from '@nestjs/common';
+import { CreateCvDto } from './dto/create-cv.dto';
 import { GenerateCoverLetterDto } from './dto/generate-cover-letter.dto';
 import { MatchCvDto } from './dto/match-cv.dto';
-import { FileStorageService } from './services/file-storage.service';
-import { PdfTextExtractor } from './services/pdf-text-extractor.service';
+import { cvNotFound } from './cvs.errors';
+import {
+  type CreatedCoverLetterAnalysis,
+  type CreatedCv,
+  type CreatedCvAnalysis,
+  type CreatedJdMatchAnalysis,
+  type CvAnalysisHistoryItem,
+  type CvDetail,
+  type CvListItem,
+  type DeletedCv,
+} from './cvs.types';
+import { CvAnalysisWorkflowService } from './services/cv-analysis-workflow.service';
+import { CvRecordsService } from './services/cv-records.service';
+import { CvUploadService } from './services/cv-upload.service';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
-
-type CreatedCv = {
-  id: string;
-  title: string | null;
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
-  storageProvider: string;
-  storageKey: string;
-  storageUrl: string | null;
-  extractedText: string | null;
-  createdAt: Date;
-};
-
-type CvListItem = CreatedCv;
-type CvDetail = CreatedCv;
-type DeletedCv = {
-  id: string;
-  deletedAt: Date | null;
-};
-type CreatedCvAnalysis = {
-  id: string;
-  cvId: string;
-  type: string;
-  aiProvider: string | null;
-  aiModel: string | null;
-  result: CvAnalysisResult;
-  createdAt: Date;
-};
-type CreatedJdMatchAnalysis = {
-  id: string;
-  cvId: string;
-  type: string;
-  jobDescriptionText: string | null;
-  aiProvider: string | null;
-  aiModel: string | null;
-  result: JdMatchResult;
-  createdAt: Date;
-};
-type CreatedCoverLetterAnalysis = {
-  id: string;
-  cvId: string;
-  type: string;
-  jobDescriptionText: string | null;
-  aiProvider: string | null;
-  aiModel: string | null;
-  result: CoverLetterResult;
-  createdAt: Date;
-};
-type CvAnalysisHistoryItem = {
-  id: string;
-  cvId: string;
-  type: string;
-  jobDescriptionText: string | null;
-  aiProvider: string | null;
-  aiModel: string | null;
-  result: unknown;
-  createdAt: Date;
-};
-
-const cvSelect = {
-  id: true,
-  title: true,
-  originalName: true,
-  mimeType: true,
-  sizeBytes: true,
-  storageProvider: true,
-  storageKey: true,
-  storageUrl: true,
-  extractedText: true,
-  createdAt: true,
-};
-const cvAnalysisSelect = {
-  id: true,
-  cvId: true,
-  type: true,
-  aiProvider: true,
-  aiModel: true,
-  result: true,
-  createdAt: true,
-};
-const jdMatchAnalysisSelect = {
-  id: true,
-  cvId: true,
-  type: true,
-  jobDescriptionText: true,
-  aiProvider: true,
-  aiModel: true,
-  result: true,
-  createdAt: true,
-};
-const cvAnalysisHistorySelect = {
-  id: true,
-  cvId: true,
-  type: true,
-  jobDescriptionText: true,
-  aiProvider: true,
-  aiModel: true,
-  result: true,
-  createdAt: true,
-};
 
 @Injectable()
 export class CvsService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly fileStorageService: FileStorageService,
-    private readonly pdfTextExtractor: PdfTextExtractor,
-    private readonly environmentService: EnvironmentService,
-    private readonly analysisService: AnalysisService,
+    private readonly cvRecordsService: CvRecordsService,
+    private readonly cvUploadService: CvUploadService,
+    private readonly cvAnalysisWorkflowService: CvAnalysisWorkflowService,
   ) {}
 
   async findMany(
     userId: string,
   ): Promise<{ data: CvListItem[]; meta: Record<string, never> }> {
-    const cvs = await this.prisma.cv.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: cvSelect,
-    });
+    const cvs = await this.cvRecordsService.findMany(userId);
 
     return {
       data: cvs,
@@ -158,17 +41,10 @@ export class CvsService {
     userId: string,
     id: string,
   ): Promise<{ data: CvDetail; meta: Record<string, never> }> {
-    const cv = await this.prisma.cv.findFirst({
-      where: {
-        id,
-        userId,
-        deletedAt: null,
-      },
-      select: cvSelect,
-    });
+    const cv = await this.cvRecordsService.findOneOwned(userId, id);
 
     if (!cv) {
-      throw this.cvNotFound();
+      throw cvNotFound();
     }
 
     return {
@@ -181,31 +57,13 @@ export class CvsService {
     userId: string,
     id: string,
   ): Promise<{ data: CvAnalysisHistoryItem[]; meta: Record<string, never> }> {
-    const cv = await this.prisma.cv.findFirst({
-      where: {
-        id,
-        userId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const cv = await this.cvRecordsService.findOwnedId(userId, id);
 
     if (!cv) {
-      throw this.cvNotFound();
+      throw cvNotFound();
     }
 
-    const analyses = await this.prisma.cvAnalysis.findMany({
-      where: {
-        cvId: cv.id,
-        deletedAt: null,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: cvAnalysisHistorySelect,
-    });
+    const analyses = await this.cvRecordsService.findAnalyses(cv.id);
 
     return {
       data: analyses,
@@ -217,21 +75,7 @@ export class CvsService {
     userId: string,
     dto: CreateCvDto,
   ): Promise<{ data: CreatedCv; meta: Record<string, never> }> {
-    const cv = await this.prisma.cv.create({
-      data: {
-        userId,
-        title: dto.title ?? null,
-        originalName: dto.originalName,
-        mimeType: dto.mimeType,
-        sizeBytes: dto.sizeBytes,
-        storageProvider: dto.storageProvider,
-        storageKey: dto.storageKey,
-        storageUrl: dto.storageUrl ?? null,
-        extractedText: null,
-        deletedAt: null,
-      },
-      select: cvSelect,
-    });
+    const cv = await this.cvRecordsService.create(userId, dto);
 
     return {
       data: cv,
@@ -244,61 +88,12 @@ export class CvsService {
     file: UploadedCvFile | undefined,
     title?: string,
   ): Promise<{ data: CreatedCv; meta: Record<string, never> }> {
-    const validFile = this.validateUploadFile(file);
-    const uploadResult = await this.fileStorageService.uploadLocal(
-      userId,
-      validFile,
-    );
-    const mimeType = validFile.mimetype as SupportedCvMimeType;
-    let extractedText: string | null = null;
+    const cv = await this.cvUploadService.uploadFile(userId, file, title);
 
-    if (mimeType === 'application/pdf') {
-      try {
-        const filePath = this.fileStorageService.getLocalPath(
-          uploadResult.storageKey,
-        );
-        extractedText = await this.pdfTextExtractor.extractFromFile(filePath);
-      } catch {
-        await this.fileStorageService.deleteFile(uploadResult.storageKey);
-        throw new UnprocessableEntityException({
-          error: {
-            code: 'PDF_TEXT_EXTRACTION_FAILED',
-            message: 'Could not extract text from PDF file',
-          },
-          meta: {},
-        });
-      }
-    }
-
-    try {
-      const originalName = validFile.originalname ?? 'file';
-      const sizeBytes = validFile.size ?? 0;
-
-      const cv = await this.prisma.cv.create({
-        data: {
-          userId,
-          title: title ?? originalName,
-          originalName,
-          mimeType,
-          sizeBytes,
-          storageProvider: 'local',
-          storageKey: uploadResult.storageKey,
-          storageUrl: uploadResult.storageUrl ?? null,
-          extractedText,
-          deletedAt: null,
-        },
-        select: cvSelect,
-      });
-
-      return {
-        data: cv,
-        meta: {},
-      };
-    } catch (error) {
-      // Cleanup uploaded file if Cv creation fails
-      await this.fileStorageService.deleteFile(uploadResult.storageKey);
-      throw error;
-    }
+    return {
+      data: cv,
+      meta: {},
+    };
   }
 
   async remove(
@@ -306,19 +101,14 @@ export class CvsService {
     id: string,
   ): Promise<{ data: DeletedCv; meta: Record<string, never> }> {
     const deletedAt = new Date();
-    const result = await this.prisma.cv.updateMany({
-      where: {
-        id,
-        userId,
-        deletedAt: null,
-      },
-      data: {
-        deletedAt,
-      },
-    });
+    const deletedCount = await this.cvRecordsService.softDeleteOwned(
+      userId,
+      id,
+      deletedAt,
+    );
 
-    if (result.count === 0) {
-      throw this.cvNotFound();
+    if (deletedCount === 0) {
+      throw cvNotFound();
     }
 
     return {
@@ -334,46 +124,10 @@ export class CvsService {
     userId: string,
     id: string,
   ): Promise<{ data: CreatedCvAnalysis; meta: Record<string, never> }> {
-    const cv = await this.prisma.cv.findFirst({
-      where: {
-        id,
-        userId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        extractedText: true,
-      },
-    });
-
-    if (!cv) {
-      throw this.cvNotFound();
-    }
-
-    if (!cv.extractedText?.trim()) {
-      throw new UnprocessableEntityException({
-        error: {
-          code: 'CV_TEXT_NOT_EXTRACTED',
-          message: 'CV text has not been extracted',
-        },
-        meta: {},
-      });
-    }
-
-    const cvAnalysis = await this.analysisService.analyzeCv(cv.extractedText);
-    const analysis = await this.prisma.cvAnalysis.create({
-      data: {
-        cvId: cv.id,
-        type: 'CV_ANALYSIS',
-        aiProvider: cvAnalysis.aiProvider,
-        aiModel: cvAnalysis.aiModel,
-        result: cvAnalysis.result,
-      },
-      select: cvAnalysisSelect,
-    });
+    const analysis = await this.cvAnalysisWorkflowService.analyze(userId, id);
 
     return {
-      data: analysis as CreatedCvAnalysis,
+      data: analysis,
       meta: {},
     };
   }
@@ -383,50 +137,14 @@ export class CvsService {
     id: string,
     dto: MatchCvDto,
   ): Promise<{ data: CreatedJdMatchAnalysis; meta: Record<string, never> }> {
-    const cv = await this.prisma.cv.findFirst({
-      where: {
-        id,
-        userId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        extractedText: true,
-      },
-    });
-
-    if (!cv) {
-      throw this.cvNotFound();
-    }
-
-    if (!cv.extractedText?.trim()) {
-      throw new UnprocessableEntityException({
-        error: {
-          code: 'CV_TEXT_NOT_EXTRACTED',
-          message: 'CV text has not been extracted',
-        },
-        meta: {},
-      });
-    }
-
-    const cvAnalysis = await this.analysisService.matchJobDescription(
-      cv.extractedText,
-      dto.jobDescriptionText,
+    const analysis = await this.cvAnalysisWorkflowService.matchJobDescription(
+      userId,
+      id,
+      dto,
     );
-    const analysis = await this.prisma.cvAnalysis.create({
-      data: {
-        cvId: cv.id,
-        type: 'JD_MATCH',
-        jobDescriptionText: dto.jobDescriptionText,
-        aiProvider: cvAnalysis.aiProvider,
-        aiModel: cvAnalysis.aiModel,
-        result: cvAnalysis.result,
-      },
-      select: jdMatchAnalysisSelect,
-    });
 
     return {
-      data: analysis as CreatedJdMatchAnalysis,
+      data: analysis,
       meta: {},
     };
   }
@@ -439,149 +157,15 @@ export class CvsService {
     data: CreatedCoverLetterAnalysis;
     meta: Record<string, never>;
   }> {
-    const cv = await this.prisma.cv.findFirst({
-      where: {
-        id,
-        userId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        extractedText: true,
-      },
-    });
-
-    if (!cv) {
-      throw this.cvNotFound();
-    }
-
-    if (!cv.extractedText?.trim()) {
-      throw new UnprocessableEntityException({
-        error: {
-          code: 'CV_TEXT_NOT_EXTRACTED',
-          message: 'CV text has not been extracted',
-        },
-        meta: {},
-      });
-    }
-
-    const cvAnalysis = await this.analysisService.generateCoverLetter(
-      cv.extractedText,
+    const analysis = await this.cvAnalysisWorkflowService.generateCoverLetter(
+      userId,
+      id,
       dto,
     );
-    const analysis = await this.prisma.cvAnalysis.create({
-      data: {
-        cvId: cv.id,
-        type: 'COVER_LETTER',
-        jobDescriptionText: dto.jobDescriptionText,
-        aiProvider: cvAnalysis.aiProvider,
-        aiModel: cvAnalysis.aiModel,
-        result: cvAnalysis.result,
-      },
-      select: jdMatchAnalysisSelect,
-    });
 
     return {
-      data: analysis as unknown as CreatedCoverLetterAnalysis,
+      data: analysis,
       meta: {},
     };
-  }
-
-  private cvNotFound(): NotFoundException {
-    return new NotFoundException({
-      error: {
-        code: 'CV_NOT_FOUND',
-        message: 'CV not found',
-      },
-      meta: {},
-    });
-  }
-
-  private validateUploadFile(file: UploadedCvFile | undefined): UploadedCvFile {
-    if (!file) {
-      throw new BadRequestException({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'File is required',
-        },
-        meta: {},
-      });
-    }
-
-    const mimeType = file.mimetype ?? '';
-    if (!this.isSupportedCvMimeType(mimeType)) {
-      throw new BadRequestException({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Only PDF, DOC, and DOCX files are supported',
-        },
-        meta: {},
-      });
-    }
-
-    const maxFileSize = this.environmentService.optionalInt(
-      'CV_MAX_FILE_SIZE_BYTES',
-      5242880,
-    );
-    const fileSize = file.size ?? 0;
-    if (fileSize > maxFileSize) {
-      const maxSizeMb = Math.round(maxFileSize / 1024 / 1024);
-      throw new BadRequestException({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: `File size exceeds maximum of ${maxSizeMb} MB`,
-        },
-        meta: {},
-      });
-    }
-
-    if (!this.contentMatchesMimeType(file.buffer, mimeType)) {
-      throw new BadRequestException({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'File content does not match the declared file type',
-        },
-        meta: {},
-      });
-    }
-
-    return file;
-  }
-
-  private isSupportedCvMimeType(
-    mimeType: string,
-  ): mimeType is SupportedCvMimeType {
-    return supportedCvMimeTypes.includes(mimeType as SupportedCvMimeType);
-  }
-
-  private contentMatchesMimeType(
-    buffer: Buffer,
-    mimeType: SupportedCvMimeType,
-  ): boolean {
-    if (mimeType === 'application/pdf') {
-      return buffer.subarray(0, 5).toString('ascii') === '%PDF-';
-    }
-
-    if (mimeType === 'application/msword') {
-      const docMagic = Buffer.from([
-        0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
-      ]);
-
-      return buffer.subarray(0, docMagic.length).equals(docMagic);
-    }
-
-    const zipHeader = buffer.subarray(0, 4);
-    if (!zipHeader.equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) {
-      return false;
-    }
-
-    const searchablePrefix = buffer
-      .subarray(0, Math.min(buffer.length, 4096))
-      .toString('utf8');
-
-    return (
-      searchablePrefix.includes('[Content_Types].xml') &&
-      searchablePrefix.includes('word/')
-    );
   }
 }
