@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/authenticated-request';
@@ -19,6 +27,12 @@ export class CvsController {
   @UseGuards(JwtAuthGuard)
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.cvsService.findOne(user.id, id);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.cvsService.remove(user.id, id);
   }
 
   @Post()

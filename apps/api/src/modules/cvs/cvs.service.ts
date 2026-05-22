@@ -17,6 +17,10 @@ type CreatedCv = {
 
 type CvListItem = CreatedCv;
 type CvDetail = CreatedCv;
+type DeletedCv = {
+  id: string;
+  deletedAt: Date | null;
+};
 
 const cvSelect = {
   id: true,
@@ -69,13 +73,7 @@ export class CvsService {
     });
 
     if (!cv) {
-      throw new NotFoundException({
-        error: {
-          code: 'CV_NOT_FOUND',
-          message: 'CV not found',
-        },
-        meta: {},
-      });
+      throw this.cvNotFound();
     }
 
     return {
@@ -108,5 +106,53 @@ export class CvsService {
       data: cv,
       meta: {},
     };
+  }
+
+  async remove(
+    userId: string,
+    id: string,
+  ): Promise<{ data: DeletedCv; meta: Record<string, never> }> {
+    const cv = await this.prisma.cv.findFirst({
+      where: {
+        id,
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!cv) {
+      throw this.cvNotFound();
+    }
+
+    const deletedCv = await this.prisma.cv.update({
+      where: {
+        id: cv.id,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+      select: {
+        id: true,
+        deletedAt: true,
+      },
+    });
+
+    return {
+      data: deletedCv,
+      meta: {},
+    };
+  }
+
+  private cvNotFound(): NotFoundException {
+    return new NotFoundException({
+      error: {
+        code: 'CV_NOT_FOUND',
+        message: 'CV not found',
+      },
+      meta: {},
+    });
   }
 }
