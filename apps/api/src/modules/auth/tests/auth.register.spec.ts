@@ -1,7 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../../../app.module';
+import { configureApp } from '../../../app.setup';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('POST /auth/register', () => {
@@ -31,13 +32,7 @@ describe('POST /auth/register', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
+    configureApp(app);
     await app.init();
   });
 
@@ -172,7 +167,13 @@ describe('POST /auth/register', () => {
       })
       .expect(400);
 
-    expect(response.body.message).toEqual(['email must be an email']);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'email must be an email',
+      },
+      meta: {},
+    });
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
@@ -186,9 +187,13 @@ describe('POST /auth/register', () => {
       })
       .expect(400);
 
-    expect(response.body.message).toEqual([
-      'password must be longer than or equal to 8 characters',
-    ]);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'password must be longer than or equal to 8 characters',
+      },
+      meta: {},
+    });
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
@@ -202,7 +207,13 @@ describe('POST /auth/register', () => {
       })
       .expect(400);
 
-    expect(response.body.message).toContain('password must be a string');
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'password must be longer than or equal to 8 characters',
+      },
+      meta: {},
+    });
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
@@ -217,7 +228,13 @@ describe('POST /auth/register', () => {
       })
       .expect(400);
 
-    expect(response.body.message).toEqual(['property role should not exist']);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'property role should not exist',
+      },
+      meta: {},
+    });
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
     expect(prisma.user.create).not.toHaveBeenCalled();
   });

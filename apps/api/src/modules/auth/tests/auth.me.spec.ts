@@ -1,7 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../../../app.module';
+import { configureApp } from '../../../app.setup';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { TokenService } from '../token.service';
 
@@ -35,13 +36,7 @@ describe('GET /auth/me', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
+    configureApp(app);
     await app.init();
 
     tokenService = app.get(TokenService);
@@ -77,6 +72,7 @@ describe('GET /auth/me', () => {
         name: 'Ada Lovelace',
         createdAt: createdAt.toISOString(),
       },
+      meta: {},
     });
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: {

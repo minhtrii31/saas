@@ -1,8 +1,9 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createHmac } from 'crypto';
 import request from 'supertest';
 import { AppModule } from '../../../app.module';
+import { configureApp } from '../../../app.setup';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('POST /auth/login', () => {
@@ -34,13 +35,7 @@ describe('POST /auth/login', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
+    configureApp(app);
     await app.init();
   });
 
@@ -79,6 +74,7 @@ describe('POST /auth/login', () => {
         },
         accessToken: expect.any(String),
       },
+      meta: {},
     });
     expect(response.body.data.accessToken.split('.')).toHaveLength(3);
     expect(isTokenSignedWithSecret(response.body.data.accessToken)).toBe(true);
@@ -182,7 +178,13 @@ describe('POST /auth/login', () => {
       })
       .expect(400);
 
-    expect(response.body.message).toEqual(['email must be an email']);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'email must be an email',
+      },
+      meta: {},
+    });
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
   });
 
@@ -195,9 +197,13 @@ describe('POST /auth/login', () => {
       })
       .expect(400);
 
-    expect(response.body.message).toEqual([
-      'password must be longer than or equal to 8 characters',
-    ]);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'password must be longer than or equal to 8 characters',
+      },
+      meta: {},
+    });
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
   });
 
@@ -211,9 +217,13 @@ describe('POST /auth/login', () => {
       })
       .expect(400);
 
-    expect(response.body.message).toEqual([
-      'property refreshToken should not exist',
-    ]);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'property refreshToken should not exist',
+      },
+      meta: {},
+    });
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
   });
 
@@ -272,6 +282,7 @@ describe('POST /auth/login', () => {
       createdAt: createdAt.toISOString(),
     });
     expect(response.body.data.accessToken).toEqual(expect.any(String));
+    expect(response.body.meta).toEqual({});
   });
 
   function isTokenSignedWithSecret(token: string): boolean {
