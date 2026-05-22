@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -82,6 +83,12 @@ export default function DashboardPage() {
               {displayName}
             </h2>
             <p className="mt-1 text-sm text-zinc-600">{user.email}</p>
+            <Link
+              href="/dashboard/cvs"
+              className="mt-6 inline-flex rounded-md bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Manage CVs
+            </Link>
           </div>
         ) : (
           <div

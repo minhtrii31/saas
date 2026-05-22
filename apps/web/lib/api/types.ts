@@ -33,3 +33,26 @@ export type AuthResponse = {
   user: AuthUser;
   accessToken: string;
 };
+
+export type CvItem = {
+  id: string;
+  title?: string | null;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageProvider: string;
+  storageKey: string;
+  storageUrl?: string | null;
+  extractedText?: string | null;
+  createdAt: string;
+};
+
+export type CreateCvRequest = {
+  title?: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageProvider: string;
+  storageKey: string;
+  storageUrl?: string;
+};

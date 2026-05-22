@@ -7,4 +7,6 @@ export type {
   ApiSuccessEnvelope,
   AuthResponse,
   AuthUser,
+  CreateCvRequest,
+  CvItem,
 } from "./types";
