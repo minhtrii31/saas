@@ -26,6 +26,7 @@ test("CV management redirects to login when token is missing", async ({
 test("CV management loads and displays CV list with a valid token", async ({
   page,
 }) => {
+  await mockAuthMe(page);
   await page.route("**://*/cvs", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("GET");
@@ -54,6 +55,7 @@ test("CV management loads and displays CV list with a valid token", async ({
 });
 
 test("CV management shows empty state", async ({ page }) => {
+  await mockAuthMe(page);
   await page.route("**://*/cvs", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -70,41 +72,24 @@ test("CV management shows empty state", async ({ page }) => {
   await page.goto("/dashboard/cvs");
 
   await expect(
-    page.getByText("No CVs yet. Create CV metadata to start your library."),
+    page.getByText("No CVs yet. Upload your first CV to start your library."),
   ).toBeVisible();
 });
 
-test("CV management creates metadata and refreshes CV list", async ({
+test("CV management uploads a file and refreshes CV list", async ({
   page,
 }) => {
   let getCount = 0;
 
-  await page.route("**://*/cvs", async (route) => {
+  await mockAuthMe(page);
+  await page.route("**://*/cvs/upload", async (route) => {
     const request = route.request();
-    expect(request.headers().authorization).toBe("Bearer valid-token");
-
-    if (request.method() === "GET") {
-      getCount += 1;
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
-          data: getCount === 1 ? [] : cvList,
-          meta: {},
-        }),
-      });
-      return;
-    }
-
     expect(request.method()).toBe("POST");
-    expect(request.postDataJSON()).toEqual({
-      title: "Backend CV",
-      originalName: "ada-cv.pdf",
-      mimeType: "application/pdf",
-      sizeBytes: 123456,
-      storageProvider: "s3",
-      storageKey: "users/ada/ada-cv.pdf",
-      storageUrl: "https://storage.example.com/users/ada/ada-cv.pdf",
-    });
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.headers()["content-type"]).toContain("multipart/form-data");
+    expect(request.postDataBuffer()?.toString()).toContain(
+      'name="file"; filename="ada-cv.pdf"',
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -117,35 +102,61 @@ test("CV management creates metadata and refreshes CV list", async ({
       }),
     });
   });
+  await page.route("**://*/cvs", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    getCount += 1;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: getCount === 1 ? [] : cvList,
+        meta: {},
+      }),
+    });
+  });
   await page.addInitScript(() => {
     localStorage.setItem("accessToken", "valid-token");
   });
 
   await page.goto("/dashboard/cvs");
-  await page.getByLabel("Title").fill("Backend CV");
-  await page.getByLabel("Original file name").fill("ada-cv.pdf");
-  await page.getByLabel("Size in bytes").fill("123456");
-  await page.getByLabel("Storage key").fill("users/ada/ada-cv.pdf");
-  await page
-    .getByLabel("Storage URL")
-    .fill("https://storage.example.com/users/ada/ada-cv.pdf");
-  await page.getByRole("button", { name: "Create CV" }).click();
+  await page.getByLabel("CV file").setInputFiles({
+    name: "ada-cv.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 test cv"),
+  });
+  await page.getByRole("button", { name: "Upload CV" }).click();
 
-  await expect(page.getByRole("button", { name: "Creating..." })).toBeDisabled();
-  await expect(page.getByText("CV metadata created successfully.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Uploading..." })).toBeDisabled();
+  await expect(page.getByText("CV uploaded successfully.")).toBeVisible();
   await expect(page.getByText("Backend CV")).toBeVisible();
   expect(getCount).toBe(2);
 });
 
-test("CV management shows API error message", async ({ page }) => {
+test("CV management shows upload API error message", async ({ page }) => {
+  await mockAuthMe(page);
   await page.route("**://*/cvs", async (route) => {
     await route.fulfill({
-      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [],
+        meta: {},
+      }),
+    });
+  });
+  await page.route("**://*/cvs/upload", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      status: 400,
       contentType: "application/json",
       body: JSON.stringify({
         error: {
-          code: "CV_LIST_FAILED",
-          message: "Unable to list CVs.",
+          code: "UNSUPPORTED_CV_FILE",
+          message: "Only PDF, DOC, and DOCX files are supported.",
         },
         meta: {},
       }),
@@ -156,8 +167,38 @@ test("CV management shows API error message", async ({ page }) => {
   });
 
   await page.goto("/dashboard/cvs");
+  await page.getByLabel("CV file").setInputFiles({
+    name: "ada-cv.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 test cv"),
+  });
+  await page.getByRole("button", { name: "Upload CV" }).click();
 
   await expect(
-    page.getByRole("alert").filter({ hasText: "Unable to list CVs." }),
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Only PDF, DOC, and DOCX files are supported." }),
   ).toBeVisible();
 });
+
+async function mockAuthMe(page: import("@playwright/test").Page) {
+  await page.route("**://*/auth/me", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          user: {
+            id: "user_1",
+            email: "ada@example.com",
+            name: "Ada Lovelace",
+          },
+        },
+        meta: {},
+      }),
+    });
+  });
+}

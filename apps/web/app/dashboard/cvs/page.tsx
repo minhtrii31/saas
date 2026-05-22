@@ -6,20 +6,23 @@ import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import { ApiClientError, apiClient } from "../../../lib/api";
-import type { CreateCvRequest, CvItem } from "../../../lib/api";
+import type { AuthUser, CvItem } from "../../../lib/api";
 
 type PageStatus =
   | { type: "loading" }
   | { type: "ready" }
   | { type: "error"; message: string };
 
-type CreateStatus =
+type UploadStatus =
   | { type: "idle" }
   | { type: "success"; message: string }
   | { type: "error"; message: string };
 
-const defaultMimeType = "application/pdf";
-const defaultStorageProvider = "s3";
+type AuthMeResponse = {
+  user: AuthUser;
+};
+
+const acceptedCvFileTypes = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export default function CvsPage() {
   const router = useRouter();
@@ -27,10 +30,10 @@ export default function CvsPage() {
   const [pageStatus, setPageStatus] = useState<PageStatus>({
     type: "loading",
   });
-  const [createStatus, setCreateStatus] = useState<CreateStatus>({
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
     type: "idle",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const redirectToLogin = useCallback(() => {
     localStorage.removeItem("accessToken");
@@ -50,6 +53,7 @@ export default function CvsPage() {
 
     async function loadInitialCvs() {
       try {
+        await validateSession(accessToken);
         const nextCvs = await fetchCvs(accessToken);
 
         if (isActive) {
@@ -126,41 +130,31 @@ export default function CvsPage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const title = String(formData.get("title") ?? "").trim();
-    const storageUrl = String(formData.get("storageUrl") ?? "").trim();
-    const payload: CreateCvRequest = {
-      originalName: String(formData.get("originalName") ?? "").trim(),
-      mimeType: String(formData.get("mimeType") ?? defaultMimeType),
-      sizeBytes: Number(formData.get("sizeBytes") ?? 0),
-      storageProvider: String(
-        formData.get("storageProvider") ?? defaultStorageProvider,
-      ),
-      storageKey: String(formData.get("storageKey") ?? "").trim(),
-    };
+    const file = formData.get("file");
 
-    if (title) {
-      payload.title = title;
+    if (!(file instanceof File) || file.size === 0) {
+      setUploadStatus({
+        type: "error",
+        message: "Choose a CV file before uploading.",
+      });
+      return;
     }
 
-    if (storageUrl) {
-      payload.storageUrl = storageUrl;
-    }
-
-    setIsSubmitting(true);
-    setCreateStatus({ type: "idle" });
+    setIsUploading(true);
+    setUploadStatus({ type: "idle" });
 
     try {
-      await apiClient.request<CvItem>("/cvs", {
+      await apiClient.request<CvItem>("/cvs/upload", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: payload,
+        body: formData,
       });
 
-      setCreateStatus({
+      setUploadStatus({
         type: "success",
-        message: "CV metadata created successfully.",
+        message: "CV uploaded successfully.",
       });
       form.reset();
       setCvs(await fetchCvs(token));
@@ -171,15 +165,15 @@ export default function CvsPage() {
         return;
       }
 
-      setCreateStatus({
+      setUploadStatus({
         type: "error",
         message: getApiErrorMessage(
           error,
-          "Unable to create CV metadata. Please try again.",
+          "Unable to upload CV. Please try again.",
         ),
       });
     } finally {
-      setIsSubmitting(false);
+      setIsUploading(false);
     }
   }
 
@@ -193,7 +187,7 @@ export default function CvsPage() {
               CVs
             </h1>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Create and review CV metadata before file upload is connected.
+              Upload and review your saved CV files.
             </p>
           </div>
 
@@ -237,7 +231,7 @@ export default function CvsPage() {
 
             {pageStatus.type === "ready" && cvs.length === 0 ? (
               <div className="mt-6 rounded-md border border-dashed border-zinc-300 p-6 text-sm text-zinc-600">
-                No CVs yet. Create CV metadata to start your library.
+                No CVs yet. Upload your first CV to start your library.
               </div>
             ) : null}
 
@@ -280,159 +274,58 @@ export default function CvsPage() {
 
           <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-zinc-950">
-              Add CV metadata
+              Upload CV
             </h2>
 
             <form
-              aria-label="Create CV metadata form"
+              aria-label="Upload CV form"
               className="mt-6 space-y-4"
               onSubmit={handleSubmit}
             >
               <div>
                 <label
-                  htmlFor="title"
+                  htmlFor="file"
                   className="block text-sm font-medium text-zinc-800"
                 >
-                  Title
+                  CV file
                 </label>
                 <input
-                  id="title"
-                  name="title"
-                  type="text"
-                  maxLength={120}
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="originalName"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  Original file name
-                </label>
-                <input
-                  id="originalName"
-                  name="originalName"
-                  type="text"
-                  required
-                  maxLength={255}
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="mimeType"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  File type
-                </label>
-                <select
-                  id="mimeType"
-                  name="mimeType"
-                  defaultValue={defaultMimeType}
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                >
-                  <option value="application/pdf">PDF</option>
-                  <option value="application/msword">DOC</option>
-                  <option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                    DOCX
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="sizeBytes"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  Size in bytes
-                </label>
-                <input
-                  id="sizeBytes"
-                  name="sizeBytes"
-                  type="number"
-                  min={1}
+                  id="file"
+                  name="file"
+                  type="file"
+                  accept={acceptedCvFileTypes}
                   required
                   className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
                 />
+                <p className="mt-2 text-xs text-zinc-500">
+                  Supported formats: PDF, DOC, DOCX.
+                </p>
               </div>
 
-              <div>
-                <label
-                  htmlFor="storageProvider"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  Storage provider
-                </label>
-                <select
-                  id="storageProvider"
-                  name="storageProvider"
-                  defaultValue={defaultStorageProvider}
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                >
-                  <option value="s3">S3</option>
-                  <option value="cloudinary">Cloudinary</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="storageKey"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  Storage key
-                </label>
-                <input
-                  id="storageKey"
-                  name="storageKey"
-                  type="text"
-                  required
-                  maxLength={512}
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="storageUrl"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  Storage URL
-                </label>
-                <input
-                  id="storageUrl"
-                  name="storageUrl"
-                  type="url"
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </div>
-
-              {createStatus.type === "success" ? (
+              {uploadStatus.type === "success" ? (
                 <p
                   role="status"
                   className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
                 >
-                  {createStatus.message}
+                  {uploadStatus.message}
                 </p>
               ) : null}
 
-              {createStatus.type === "error" ? (
+              {uploadStatus.type === "error" ? (
                 <p
                   role="alert"
                   className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
                 >
-                  {createStatus.message}
+                  {uploadStatus.message}
                 </p>
               ) : null}
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isUploading}
                 className="w-full rounded-md bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
               >
-                {isSubmitting ? "Creating..." : "Create CV"}
+                {isUploading ? "Uploading..." : "Upload CV"}
               </button>
             </form>
           </section>
@@ -458,6 +351,15 @@ function formatBytes(bytes: number) {
   }
 
   return `${(kilobytes / 1024).toFixed(1)} MB`;
+}
+
+async function validateSession(token: string) {
+  await apiClient.request<AuthMeResponse>("/auth/me", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 }
 
 async function fetchCvs(token: string) {
