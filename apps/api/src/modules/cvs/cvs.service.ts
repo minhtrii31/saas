@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { EnvironmentService } from '../../config/environment.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalysisService } from '../analysis/analysis.service';
+import type { CvAnalysisResult } from '../analysis/types/cv-analysis-provider';
 import {
   CreateCvDto,
   type SupportedCvMimeType,
@@ -33,12 +35,6 @@ type CvDetail = CreatedCv;
 type DeletedCv = {
   id: string;
   deletedAt: Date | null;
-};
-type CvAnalysisResult = {
-  score: number;
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: string[];
 };
 type CreatedCvAnalysis = {
   id: string;
@@ -79,6 +75,7 @@ export class CvsService {
     private readonly fileStorageService: FileStorageService,
     private readonly pdfTextExtractor: PdfTextExtractor,
     private readonly environmentService: EnvironmentService,
+    private readonly analysisService: AnalysisService,
   ) {}
 
   async findMany(
@@ -271,13 +268,14 @@ export class CvsService {
       });
     }
 
+    const cvAnalysis = await this.analysisService.analyzeCv(cv.extractedText);
     const analysis = await this.prisma.cvAnalysis.create({
       data: {
         cvId: cv.id,
         type: 'CV_ANALYSIS',
-        aiProvider: 'mock',
-        aiModel: 'mock-cv-analyzer-v1',
-        result: this.buildMockCvAnalysisResult(cv.extractedText),
+        aiProvider: cvAnalysis.aiProvider,
+        aiModel: cvAnalysis.aiModel,
+        result: cvAnalysis.result,
       },
       select: cvAnalysisSelect,
     });
@@ -337,29 +335,6 @@ export class CvsService {
     }
 
     return file;
-  }
-
-  private buildMockCvAnalysisResult(extractedText: string): CvAnalysisResult {
-    const normalizedText = extractedText.trim();
-    const wordCount = normalizedText.split(/\s+/).filter(Boolean).length;
-    const score = Math.max(45, Math.min(85, 55 + Math.floor(wordCount / 20)));
-
-    return {
-      score,
-      strengths: [
-        'CV text is available for structured review',
-        'The CV includes enough content to produce initial feedback',
-      ],
-      weaknesses: [
-        'Mock analysis cannot verify role-specific impact or achievements',
-        'Some sections may need stronger measurable outcomes',
-      ],
-      suggestions: [
-        'Add quantified achievements where possible',
-        'Make key skills and recent experience easy to scan',
-        'Tailor the summary and bullet points to the target role',
-      ],
-    };
   }
 
   private isSupportedCvMimeType(

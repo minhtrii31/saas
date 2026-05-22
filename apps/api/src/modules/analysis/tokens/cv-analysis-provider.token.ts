@@ -1,0 +1,1 @@
+export const CV_ANALYSIS_PROVIDER = Symbol('CV_ANALYSIS_PROVIDER');

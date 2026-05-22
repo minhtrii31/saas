@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { AnalysisModule } from '../analysis/analysis.module';
 import { AuthModule } from '../auth/auth.module';
 import { CvsController } from './cvs.controller';
 import { CvsService } from './cvs.service';
@@ -8,7 +9,7 @@ import { EnvironmentService } from '../../config/environment.service';
 import { PdfTextExtractor } from './services/pdf-text-extractor.service';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, AnalysisModule],
   controllers: [CvsController],
   providers: [
     CvsService,
