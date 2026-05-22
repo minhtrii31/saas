@@ -170,13 +170,152 @@ test("login page shows API error after failed submit", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("dashboard page renders placeholder", async ({ page }) => {
+test("dashboard redirects to login when token is missing", async ({ page }) => {
+  await page.goto("/dashboard");
+
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("dashboard shows user info when token is valid", async ({ page }) => {
+  await page.route("**/auth/me", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          user: {
+            id: "user_1",
+            email: "ada@example.com",
+            name: "Ada Lovelace",
+          },
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
   await page.goto("/dashboard");
 
   await expect(
     page.getByRole("heading", { name: "Dashboard", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Dashboard placeholder" }),
+    page.getByText("Ada Lovelace"),
+  ).toBeVisible();
+  await expect(page.getByText("ada@example.com")).toBeVisible();
+});
+
+test("dashboard clears invalid token and redirects to login", async ({ page }) => {
+  await page.route("**/auth/me", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer invalid-token");
+
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Invalid access token.",
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "invalid-token");
+  });
+
+  await page.goto("/dashboard");
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.evaluate(() => localStorage.getItem("accessToken")),
+  ).resolves.toBeNull();
+});
+
+test("dashboard logout clears token and redirects to login", async ({ page }) => {
+  await page.route("**/auth/me", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          user: {
+            id: "user_1",
+            email: "ada@example.com",
+            name: "Ada Lovelace",
+          },
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Log out" }).click();
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.evaluate(() => localStorage.getItem("accessToken")),
+  ).resolves.toBeNull();
+});
+
+test("dashboard clears token and redirects when user check fails", async ({
+  page,
+}) => {
+  await page.route("**/auth/me", async (route) => {
+    await route.abort();
+  });
+
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "network-error-token");
+  });
+
+  await page.goto("/dashboard");
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.evaluate(() => localStorage.getItem("accessToken")),
+  ).resolves.toBeNull();
+});
+
+test("dashboard shows email when user has no name", async ({ page }) => {
+  await page.route("**/auth/me", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          user: {
+            id: "user_1",
+            email: "ada@example.com",
+            name: null,
+          },
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard");
+
+  await expect(
+    page.getByRole("heading", { name: "ada@example.com" }),
   ).toBeVisible();
 });
