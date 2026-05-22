@@ -1,8 +1,8 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { randomBytes } from 'crypto';
-import type { Multer } from 'multer';
+import { randomUUID } from 'crypto';
+import type { UploadedCvFile } from '../types/uploaded-cv-file';
 
 export interface UploadedFile {
   storageKey: string;
@@ -11,7 +11,10 @@ export interface UploadedFile {
 
 @Injectable()
 export class FileStorageService {
-  async uploadLocal(userId: string, file: Multer.File): Promise<UploadedFile> {
+  async uploadLocal(
+    userId: string,
+    file: UploadedCvFile,
+  ): Promise<UploadedFile> {
     const dirPath = path.join(process.cwd(), 'uploads', 'cvs', userId);
 
     try {
@@ -27,15 +30,13 @@ export class FileStorageService {
     }
 
     const timestamp = Date.now();
-    const randomSuffix = randomBytes(4).toString('hex');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    const originalname: string = file.originalname ?? 'file';
-    const sanitized = this.sanitizeFilename(originalname);
-    const filename = `${timestamp}-${randomSuffix}-${sanitized}`;
+    const uuid = randomUUID();
+    const originalName = file.originalname ?? 'file';
+    const sanitized = this.sanitizeFilename(originalName);
+    const filename = `${timestamp}-${uuid}-${sanitized}`;
     const filePath = path.join(dirPath, filename);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
       await fs.writeFile(filePath, file.buffer);
     } catch {
       throw new InternalServerErrorException({
@@ -64,9 +65,12 @@ export class FileStorageService {
   }
 
   private sanitizeFilename(filename: string): string {
-    return filename
+    const basename = path.basename(filename);
+    const sanitized = basename
       .replace(/[^a-z0-9._-]/gi, '_')
       .replace(/_{2,}/g, '_')
       .substring(0, 200);
+
+    return sanitized.length > 0 ? sanitized : 'file';
   }
 }

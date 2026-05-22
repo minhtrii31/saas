@@ -51,7 +51,8 @@ describe('POST /cvs/upload', () => {
 
     // Mock the file storage service
     jest.spyOn(fileStorageService, 'uploadLocal').mockResolvedValue({
-      storageKey: 'cvs/user-id/123456-abc12-resume.pdf',
+      storageKey:
+        'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
       storageUrl: null,
     });
   });
@@ -180,7 +181,8 @@ describe('POST /cvs/upload', () => {
       mimeType: 'application/pdf',
       sizeBytes: pdfBuffer.length,
       storageProvider: 'local',
-      storageKey: 'cvs/user-id/123456-abc12-resume.pdf',
+      storageKey:
+        'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
       storageUrl: null,
       extractedText: null,
       createdAt,
@@ -200,7 +202,8 @@ describe('POST /cvs/upload', () => {
         mimeType: 'application/pdf',
         sizeBytes: pdfBuffer.length,
         storageProvider: 'local',
-        storageKey: 'cvs/user-id/123456-abc12-resume.pdf',
+        storageKey:
+          'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
         storageUrl: null,
         extractedText: null,
         createdAt: createdAt.toISOString(),
@@ -216,7 +219,8 @@ describe('POST /cvs/upload', () => {
         mimeType: 'application/pdf',
         sizeBytes: pdfBuffer.length,
         storageProvider: 'local',
-        storageKey: 'cvs/user-id/123456-abc12-resume.pdf',
+        storageKey:
+          'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
         storageUrl: null,
         extractedText: null,
         deletedAt: null,
@@ -255,7 +259,8 @@ describe('POST /cvs/upload', () => {
       mimeType: 'application/pdf',
       sizeBytes: 123456,
       storageProvider: 'local',
-      storageKey: 'cvs/user-id/123456-abc12-resume.pdf',
+      storageKey:
+        'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
       storageUrl: null,
       extractedText: null,
       createdAt,
@@ -316,5 +321,31 @@ describe('POST /cvs/upload', () => {
     expect(response.body.data.mimeType).toBe(
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
+  });
+
+  it('cleans up the stored file when CV creation fails', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+    const storageKey =
+      'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf';
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+    prisma.cv.create.mockRejectedValue(new Error('database unavailable'));
+
+    const deleteSpy = jest
+      .spyOn(fileStorageService, 'deleteFile')
+      .mockResolvedValue();
+
+    await request(app.getHttpServer())
+      .post('/cvs/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', Buffer.from('PDF content'), 'resume.pdf')
+      .expect(500);
+
+    expect(deleteSpy).toHaveBeenCalledWith(storageKey);
   });
 });
