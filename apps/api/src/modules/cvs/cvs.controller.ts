@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/authenticated-request';
@@ -8,6 +8,12 @@ import { CreateCvDto } from './dto/create-cv.dto';
 @Controller('cvs')
 export class CvsController {
   constructor(private readonly cvsService: CvsService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  findMany(@CurrentUser() user: AuthenticatedUser) {
+    return this.cvsService.findMany(user.id);
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard)

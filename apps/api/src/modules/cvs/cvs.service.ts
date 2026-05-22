@@ -15,9 +15,42 @@ type CreatedCv = {
   createdAt: Date;
 };
 
+type CvListItem = CreatedCv;
+
 @Injectable()
 export class CvsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findMany(
+    userId: string,
+  ): Promise<{ data: CvListItem[]; meta: Record<string, never> }> {
+    const cvs = await this.prisma.cv.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        title: true,
+        originalName: true,
+        mimeType: true,
+        sizeBytes: true,
+        storageProvider: true,
+        storageKey: true,
+        storageUrl: true,
+        extractedText: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      data: cvs,
+      meta: {},
+    };
+  }
 
   async create(
     userId: string,
