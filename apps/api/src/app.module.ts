@@ -6,10 +6,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EnvironmentService } from './config/environment.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { CvsModule } from './modules/cvs/cvs.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, CvsModule],
   controllers: [AppController],
   providers: [
     AppService,
