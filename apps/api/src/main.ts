@@ -7,4 +7,5 @@ async function bootstrap() {
   configureApp(app);
   await app.listen(process.env.PORT ?? 4000);
 }
+
 void bootstrap();

@@ -31,7 +31,7 @@ export default function LoginPage() {
         },
       });
 
-      localStorage.setItem("accessToken", response.data.tokens.accessToken);
+      localStorage.setItem("accessToken", response.data.accessToken);
       router.push("/dashboard");
     } catch (error) {
       setStatus({

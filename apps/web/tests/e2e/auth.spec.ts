@@ -117,8 +117,25 @@ test("login redirects to dashboard after successful submit", async ({ page }) =>
             email: "ada@example.com",
             name: "Ada Lovelace",
           },
-          tokens: {
-            accessToken: "test-access-token",
+          accessToken: "test-access-token",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.route("**/auth/me", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer test-access-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          user: {
+            id: "user_1",
+            email: "ada@example.com",
+            name: "Ada Lovelace",
           },
         },
         meta: {},

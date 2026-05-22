@@ -6,6 +6,11 @@ import {
 import { ValidationError } from 'class-validator';
 
 export function configureApp(app: INestApplication): void {
+  app.enableCors({
+    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
   app.useGlobalPipes(createValidationPipe());
 }
 

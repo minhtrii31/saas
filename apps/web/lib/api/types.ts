@@ -29,12 +29,7 @@ export type AuthUser = {
   name?: string | null;
 };
 
-export type AuthTokens = {
-  accessToken: string;
-  refreshToken?: string;
-};
-
 export type AuthResponse = {
   user: AuthUser;
-  tokens: AuthTokens;
+  accessToken: string;
 };

@@ -6,6 +6,5 @@ export type {
   ApiMeta,
   ApiSuccessEnvelope,
   AuthResponse,
-  AuthTokens,
   AuthUser,
 } from "./types";
