@@ -35,4 +35,26 @@ describe('MockCvAnalysisProvider', () => {
     expect(result.matchingScore).toBeGreaterThanOrEqual(0);
     expect(result.matchingScore).toBeLessThanOrEqual(100);
   });
+
+  it('returns structured mock cover letter content from CV and job description text', async () => {
+    const provider = new MockCvAnalysisProvider();
+
+    const result = await provider.generateCoverLetter(
+      'Backend engineer with TypeScript, NestJS, PostgreSQL, and testing experience.',
+      {
+        jobDescriptionText:
+          'Backend role requiring TypeScript, NestJS, PostgreSQL, Redis, and API testing.',
+        companyName: 'Example Corp',
+        roleTitle: 'Backend Engineer',
+      },
+    );
+
+    expect(result).toEqual({
+      coverLetter: expect.any(String),
+      tone: expect.any(String),
+      highlights: expect.arrayContaining([expect.any(String)]),
+    });
+    expect(result.coverLetter).toContain('Example Corp');
+    expect(result.coverLetter).toContain('Backend Engineer');
+  });
 });

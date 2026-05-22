@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  CoverLetterGenerationInput,
+  CoverLetterResult,
   CvAnalysisProvider,
   CvAnalysisResult,
   JdMatchResult,
@@ -9,6 +11,7 @@ import type {
 export class MockCvAnalysisProvider implements CvAnalysisProvider {
   readonly providerName = 'mock';
   readonly jdMatcherModelName = 'mock-jd-matcher-v1';
+  readonly coverLetterModelName = 'mock-cover-letter-v1';
   private readonly cvAnalyzerModelName = 'mock-cv-analyzer-v1';
 
   get modelName(): string {
@@ -66,6 +69,37 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
         'Add concrete examples for missing job description requirements',
         'Tailor the CV summary to the target job description',
       ],
+    });
+  }
+
+  generateCoverLetter(
+    extractedText: string,
+    input: CoverLetterGenerationInput,
+  ): Promise<CoverLetterResult> {
+    const roleTitle = input.roleTitle || 'the role';
+    const companyName = input.companyName || 'your company';
+    const matchedSkills = this.findKnownSkills(
+      `${extractedText} ${input.jobDescriptionText}`,
+    ).slice(0, 3);
+    const highlights =
+      matchedSkills.length > 0
+        ? matchedSkills.map((skill) => `${skill} experience`)
+        : ['Relevant CV experience', 'Adaptability to role requirements'];
+    const highlightedSentence = highlights.slice(0, 2).join(' and ');
+
+    return Promise.resolve({
+      coverLetter: [
+        `Dear ${companyName} hiring team,`,
+        '',
+        `I am excited to apply for ${roleTitle}. My CV shows ${highlightedSentence}, and I would tailor that experience to the needs described in your job description.`,
+        '',
+        'I would welcome the opportunity to discuss how my background can support your team.',
+        '',
+        'Sincerely,',
+        'Candidate',
+      ].join('\n'),
+      tone: 'professional',
+      highlights,
     });
   }
 

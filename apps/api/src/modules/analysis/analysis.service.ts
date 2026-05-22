@@ -3,6 +3,8 @@ import { CV_ANALYSIS_PROVIDER } from './tokens/cv-analysis-provider.token';
 import type {
   CvAnalysisProvider,
   CvAnalysisResponse,
+  CoverLetterGenerationInput,
+  CoverLetterResponse,
   JdMatchResponse,
 } from './types/cv-analysis-provider';
 
@@ -35,6 +37,22 @@ export class AnalysisService {
     return {
       aiProvider: this.cvAnalysisProvider.providerName,
       aiModel: this.cvAnalysisProvider.jdMatcherModelName,
+      result,
+    };
+  }
+
+  async generateCoverLetter(
+    extractedText: string,
+    input: CoverLetterGenerationInput,
+  ): Promise<CoverLetterResponse> {
+    const result = await this.cvAnalysisProvider.generateCoverLetter(
+      extractedText,
+      input,
+    );
+
+    return {
+      aiProvider: this.cvAnalysisProvider.providerName,
+      aiModel: this.cvAnalysisProvider.coverLetterModelName,
       result,
     };
   }

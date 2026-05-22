@@ -12,12 +12,15 @@ describe('AnalysisService', () => {
       suggestions: ['Add measurable outcomes'],
     });
     const matchJobDescription = jest.fn();
+    const generateCoverLetter = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
+      coverLetterModelName: 'mock-cover-letter-v1',
       analyzeCv,
       matchJobDescription,
+      generateCoverLetter,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,12 +54,15 @@ describe('AnalysisService', () => {
       missingSkills: ['Redis'],
       suggestions: ['Add Redis experience'],
     });
+    const generateCoverLetter = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
+      coverLetterModelName: 'mock-cover-letter-v1',
       analyzeCv,
       matchJobDescription,
+      generateCoverLetter,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -85,5 +91,55 @@ describe('AnalysisService', () => {
       'extracted cv text',
       'job description',
     );
+  });
+
+  it('delegates cover letter generation to the configured provider and returns cover letter model metadata', async () => {
+    const analyzeCv = jest.fn();
+    const matchJobDescription = jest.fn();
+    const generateCoverLetter = jest.fn().mockResolvedValue({
+      coverLetter: 'Dear Example Corp, I am excited to apply.',
+      tone: 'professional',
+      highlights: ['TypeScript experience'],
+    });
+    const provider: CvAnalysisProvider = {
+      providerName: 'mock',
+      modelName: 'mock-cv-analyzer-v1',
+      jdMatcherModelName: 'mock-jd-matcher-v1',
+      coverLetterModelName: 'mock-cover-letter-v1',
+      analyzeCv,
+      matchJobDescription,
+      generateCoverLetter,
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AnalysisService,
+        {
+          provide: CV_ANALYSIS_PROVIDER,
+          useValue: provider,
+        },
+      ],
+    }).compile();
+    const service = module.get(AnalysisService);
+
+    await expect(
+      service.generateCoverLetter('extracted cv text', {
+        jobDescriptionText: 'job description',
+        companyName: 'Example Corp',
+        roleTitle: 'Backend Engineer',
+      }),
+    ).resolves.toEqual({
+      aiProvider: 'mock',
+      aiModel: 'mock-cover-letter-v1',
+      result: {
+        coverLetter: 'Dear Example Corp, I am excited to apply.',
+        tone: 'professional',
+        highlights: ['TypeScript experience'],
+      },
+    });
+    expect(generateCoverLetter).toHaveBeenCalledWith('extracted cv text', {
+      jobDescriptionText: 'job description',
+      companyName: 'Example Corp',
+      roleTitle: 'Backend Engineer',
+    });
   });
 });

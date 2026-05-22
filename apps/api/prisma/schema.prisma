@@ -9,6 +9,7 @@ datasource db {
 enum AnalysisType {
   CV_ANALYSIS
   JD_MATCH
+  COVER_LETTER
 
   @@map("analysis_type")
 }

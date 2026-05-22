@@ -8,6 +8,7 @@ import { EnvironmentService } from '../../config/environment.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalysisService } from '../analysis/analysis.service';
 import type {
+  CoverLetterResult,
   CvAnalysisResult,
   JdMatchResult,
 } from '../analysis/types/cv-analysis-provider';
@@ -16,6 +17,7 @@ import {
   type SupportedCvMimeType,
   supportedCvMimeTypes,
 } from './dto/create-cv.dto';
+import { GenerateCoverLetterDto } from './dto/generate-cover-letter.dto';
 import { MatchCvDto } from './dto/match-cv.dto';
 import { FileStorageService } from './services/file-storage.service';
 import { PdfTextExtractor } from './services/pdf-text-extractor.service';
@@ -57,6 +59,16 @@ type CreatedJdMatchAnalysis = {
   aiProvider: string | null;
   aiModel: string | null;
   result: JdMatchResult;
+  createdAt: Date;
+};
+type CreatedCoverLetterAnalysis = {
+  id: string;
+  cvId: string;
+  type: string;
+  jobDescriptionText: string | null;
+  aiProvider: string | null;
+  aiModel: string | null;
+  result: CoverLetterResult;
   createdAt: Date;
 };
 type CvAnalysisHistoryItem = {
@@ -415,6 +427,62 @@ export class CvsService {
 
     return {
       data: analysis as CreatedJdMatchAnalysis,
+      meta: {},
+    };
+  }
+
+  async generateCoverLetter(
+    userId: string,
+    id: string,
+    dto: GenerateCoverLetterDto,
+  ): Promise<{
+    data: CreatedCoverLetterAnalysis;
+    meta: Record<string, never>;
+  }> {
+    const cv = await this.prisma.cv.findFirst({
+      where: {
+        id,
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        extractedText: true,
+      },
+    });
+
+    if (!cv) {
+      throw this.cvNotFound();
+    }
+
+    if (!cv.extractedText?.trim()) {
+      throw new UnprocessableEntityException({
+        error: {
+          code: 'CV_TEXT_NOT_EXTRACTED',
+          message: 'CV text has not been extracted',
+        },
+        meta: {},
+      });
+    }
+
+    const cvAnalysis = await this.analysisService.generateCoverLetter(
+      cv.extractedText,
+      dto,
+    );
+    const analysis = await this.prisma.cvAnalysis.create({
+      data: {
+        cvId: cv.id,
+        type: 'COVER_LETTER',
+        jobDescriptionText: dto.jobDescriptionText,
+        aiProvider: cvAnalysis.aiProvider,
+        aiModel: cvAnalysis.aiModel,
+        result: cvAnalysis.result,
+      },
+      select: jdMatchAnalysisSelect,
+    });
+
+    return {
+      data: analysis as unknown as CreatedCoverLetterAnalysis,
       meta: {},
     };
   }

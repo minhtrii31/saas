@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/authenticated-request';
 import { CvsService } from './cvs.service';
 import { CreateCvDto } from './dto/create-cv.dto';
+import { GenerateCoverLetterDto } from './dto/generate-cover-letter.dto';
 import { MatchCvDto } from './dto/match-cv.dto';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
 
@@ -92,6 +93,16 @@ export class CvsController {
     @Body() dto: MatchCvDto,
   ) {
     return this.cvsService.matchJobDescription(user.id, id, dto);
+  }
+
+  @Post(':id/cover-letter')
+  @UseGuards(JwtAuthGuard)
+  generateCoverLetter(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+    @Body() dto: GenerateCoverLetterDto,
+  ) {
+    return this.cvsService.generateCoverLetter(user.id, id, dto);
   }
 
   @Post('upload')
