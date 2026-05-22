@@ -49,9 +49,9 @@ export type CvItem = {
 
 export type CvAnalysisResult = {
   score: number;
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: string[];
+  strengths?: string[];
+  weaknesses?: string[];
+  suggestions?: string[];
 };
 
 export type CvAnalysis = {

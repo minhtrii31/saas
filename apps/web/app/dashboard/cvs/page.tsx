@@ -29,6 +29,12 @@ type AnalysisState =
   | { type: "success"; result: CvAnalysisResult }
   | { type: "error"; message: string };
 
+type HistoryState =
+  | { type: "idle" }
+  | { type: "loading" }
+  | { type: "success"; analyses: CvAnalysis[] }
+  | { type: "error"; message: string };
+
 type AuthMeResponse = {
   user: AuthUser;
 };
@@ -47,6 +53,9 @@ export default function CvsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [analysisByCvId, setAnalysisByCvId] = useState<
     Record<string, AnalysisState>
+  >({});
+  const [historyByCvId, setHistoryByCvId] = useState<
+    Record<string, HistoryState>
   >({});
 
   const redirectToLogin = useCallback(() => {
@@ -241,6 +250,48 @@ export default function CvsPage() {
     }
   }
 
+  async function handleViewHistory(cvId: string) {
+    const token = localStorage.getItem("accessToken");
+
+    if (!token) {
+      redirectToLogin();
+      return;
+    }
+
+    setHistoryByCvId((current) => ({
+      ...current,
+      [cvId]: { type: "loading" },
+    }));
+
+    try {
+      const analyses = await fetchCvAnalyses(token, cvId);
+
+      setHistoryByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "success",
+          analyses: sortAnalysesNewestFirst(analyses),
+        },
+      }));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      setHistoryByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "error",
+          message: getApiErrorMessage(
+            error,
+            "Unable to load analysis history. Please try again.",
+          ),
+        },
+      }));
+    }
+  }
+
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-10">
       <section className="mx-auto max-w-5xl">
@@ -305,6 +356,9 @@ export default function CvsPage() {
                   const analysisState = analysisByCvId[cv.id] ?? {
                     type: "idle" as const,
                   };
+                  const historyState = historyByCvId[cv.id] ?? {
+                    type: "idle" as const,
+                  };
                   const title = cv.title || cv.originalName;
 
                   return (
@@ -338,7 +392,7 @@ export default function CvsPage() {
                           <dd className="break-all">{cv.storageKey}</dd>
                         </div>
                       </dl>
-                      <div className="mt-4">
+                      <div className="mt-4 flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -356,12 +410,34 @@ export default function CvsPage() {
                             ? "Analyzing..."
                             : "Analyze"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleViewHistory(cv.id);
+                          }}
+                          disabled={historyState.type === "loading"}
+                          aria-describedby={
+                            historyState.type === "loading"
+                              ? `history-status-${cv.id}`
+                              : undefined
+                          }
+                          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400"
+                        >
+                          {historyState.type === "loading"
+                            ? "Loading history..."
+                            : "View history"}
+                        </button>
                       </div>
 
                       <AnalysisPanel
                         cvId={cv.id}
                         cvTitle={title}
                         state={analysisState}
+                      />
+                      <HistoryPanel
+                        cvId={cv.id}
+                        cvTitle={title}
+                        state={historyState}
                       />
                     </li>
                   );
@@ -433,6 +509,91 @@ export default function CvsPage() {
   );
 }
 
+function HistoryPanel({
+  cvId,
+  cvTitle,
+  state,
+}: {
+  cvId: string;
+  cvTitle: string;
+  state: HistoryState;
+}) {
+  if (state.type === "idle") {
+    return null;
+  }
+
+  if (state.type === "loading") {
+    return (
+      <p
+        id={`history-status-${cvId}`}
+        role="status"
+        className="mt-3 text-sm text-zinc-600"
+      >
+        Loading analysis history for {cvTitle}...
+      </p>
+    );
+  }
+
+  if (state.type === "error") {
+    return (
+      <p
+        role="alert"
+        className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+      >
+        {state.message}
+      </p>
+    );
+  }
+
+  return (
+    <section
+      aria-label={`Analysis history for ${cvTitle}`}
+      className="mt-4 rounded-md border border-zinc-200 bg-white p-4"
+    >
+      <h4 className="text-sm font-semibold text-zinc-950">
+        Analysis history
+      </h4>
+
+      {state.analyses.length === 0 ? (
+        <p className="mt-2 text-sm text-zinc-600">
+          No analysis history yet. Run an analysis to create one.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-4">
+          {state.analyses.map((analysis) => (
+            <li
+              key={analysis.id}
+              className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+            >
+              <p className="text-sm text-zinc-600">
+                {formatDateTime(analysis.createdAt)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-700">
+                Score:{" "}
+                <span className="font-semibold text-zinc-950">
+                  {analysis.result.score}
+                </span>
+              </p>
+              <AnalysisList
+                title="Strengths"
+                items={analysis.result.strengths}
+              />
+              <AnalysisList
+                title="Weaknesses"
+                items={analysis.result.weaknesses}
+              />
+              <AnalysisList
+                title="Suggestions"
+                items={analysis.result.suggestions}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function AnalysisPanel({
   cvId,
   cvTitle,
@@ -495,8 +656,12 @@ function AnalysisList({
   items,
 }: {
   title: string;
-  items: string[];
+  items?: string[];
 }) {
+  if (!items || items.length === 0) {
+    return null;
+  }
+
   return (
     <div className="mt-3">
       <h5 className="text-sm font-medium text-zinc-800">{title}</h5>
@@ -527,6 +692,26 @@ function formatBytes(bytes: number) {
   return `${(kilobytes / 1024).toFixed(1)} MB`;
 }
 
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function sortAnalysesNewestFirst(analyses: CvAnalysis[]) {
+  return [...analyses].sort(
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
+}
+
 async function validateSession(token: string) {
   await apiClient.request<AuthMeResponse>("/auth/me", {
     method: "GET",
@@ -543,6 +728,20 @@ async function fetchCvs(token: string) {
       Authorization: `Bearer ${token}`,
     },
   });
+
+  return response.data;
+}
+
+async function fetchCvAnalyses(token: string, cvId: string) {
+  const response = await apiClient.request<CvAnalysis[]>(
+    `/cvs/${cvId}/analyses`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
 
   return response.data;
 }

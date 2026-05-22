@@ -220,6 +220,143 @@ test("CV analysis API error displays error", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("CV analysis history success displays analysis items", async ({
+  page,
+}) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/analyses", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.url()).toContain(`/cvs/${cvList[0].id}/analyses`);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [
+          {
+            id: "old-analysis",
+            cvId: cvList[0].id,
+            type: "CV_ANALYSIS",
+            aiProvider: "mock",
+            aiModel: "mock-cv-analyzer-v1",
+            result: {
+              score: 71,
+              strengths: ["Readable layout"],
+              weaknesses: ["Missing role impact"],
+              suggestions: ["Add business outcomes"],
+            },
+            createdAt: "2026-05-22T09:00:00.000Z",
+          },
+          {
+            id: "new-analysis",
+            cvId: cvList[0].id,
+            type: "CV_ANALYSIS",
+            aiProvider: "mock",
+            aiModel: "mock-cv-analyzer-v1",
+            result: {
+              score: 86,
+              strengths: ["Strong backend scope"],
+              weaknesses: ["Few metrics"],
+              suggestions: ["Quantify latency improvements"],
+            },
+            createdAt: "2026-05-22T12:00:00.000Z",
+          },
+        ],
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "View history" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Loading history..." }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("region", { name: "Analysis history for Backend CV" }),
+  ).toBeVisible();
+  await expect(page.getByText("Score: 86")).toBeVisible();
+  await expect(page.getByText("Strong backend scope")).toBeVisible();
+  await expect(page.getByText("Few metrics")).toBeVisible();
+  await expect(page.getByText("Quantify latency improvements")).toBeVisible();
+  await expect(page.getByText("Score: 71")).toBeVisible();
+
+  const scores = page
+    .getByRole("region", { name: "Analysis history for Backend CV" })
+    .getByText(/Score: \d+/);
+  await expect(scores).toHaveText(["Score: 86", "Score: 71"]);
+});
+
+test("CV analysis history empty displays empty state", async ({ page }) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/analyses", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [],
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "View history" }).click();
+
+  await expect(
+    page.getByText("No analysis history yet. Run an analysis to create one."),
+  ).toBeVisible();
+});
+
+test("CV analysis history API error displays error", async ({ page }) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/analyses", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "ANALYSIS_HISTORY_UNAVAILABLE",
+          message: "Analysis history is unavailable.",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "View history" }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Analysis history is unavailable." }),
+  ).toBeVisible();
+});
+
 test("CV management clears invalid token and redirects to login", async ({
   page,
 }) => {
