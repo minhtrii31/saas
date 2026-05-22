@@ -249,7 +249,7 @@ describe('POST /cvs', () => {
       error: {
         code: 'VALIDATION_ERROR',
         message:
-          'storageProvider must be one of the following values: s3, cloudinary',
+          'storageProvider must be one of the following values: s3, cloudinary, local',
       },
       meta: {},
     });

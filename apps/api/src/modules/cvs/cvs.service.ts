@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Multer } from 'multer';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCvDto } from './dto/create-cv.dto';
+import { FileStorageService } from './services/file-storage.service';
 
 type CreatedCv = {
   id: string;
@@ -37,7 +39,10 @@ const cvSelect = {
 
 @Injectable()
 export class CvsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fileStorageService: FileStorageService,
+  ) {}
 
   async findMany(
     userId: string,
@@ -106,6 +111,51 @@ export class CvsService {
       data: cv,
       meta: {},
     };
+  }
+
+  async uploadFile(
+    userId: string,
+    file: Multer.File,
+    title?: string,
+  ): Promise<{ data: CreatedCv; meta: Record<string, never> }> {
+    const uploadResult = await this.fileStorageService.uploadLocal(
+      userId,
+      file,
+    );
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const originalName: string = file.originalname ?? 'file';
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const mimeType: string = file.mimetype ?? 'application/octet-stream';
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const sizeBytes: number = file.size ?? 0;
+
+      const cv = await this.prisma.cv.create({
+        data: {
+          userId,
+          title: title ?? originalName,
+          originalName,
+          mimeType,
+          sizeBytes,
+          storageProvider: 'local',
+          storageKey: uploadResult.storageKey,
+          storageUrl: uploadResult.storageUrl ?? null,
+          extractedText: null,
+          deletedAt: null,
+        },
+        select: cvSelect,
+      });
+
+      return {
+        data: cv,
+        meta: {},
+      };
+    } catch (error) {
+      // Cleanup uploaded file if Cv creation fails
+      await this.fileStorageService.deleteFile(uploadResult.storageKey);
+      throw error;
+    }
   }
 
   async remove(

@@ -17,7 +17,7 @@ export const supportedCvMimeTypes = [
 
 export type SupportedCvMimeType = (typeof supportedCvMimeTypes)[number];
 
-export const supportedStorageProviders = ['s3', 'cloudinary'] as const;
+export const supportedStorageProviders = ['s3', 'cloudinary', 'local'] as const;
 
 export type SupportedStorageProvider =
   (typeof supportedStorageProviders)[number];
