@@ -8,6 +8,9 @@
   "scripts": {
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run start:dev -w apps/api",
+    "check": "npm run check:api && npm run check:web",
+    "check:api": "npm run test -w apps/api && npm run lint -w apps/api && npm run build -w apps/api",
+    "check:web": "npm run test:e2e -w apps/web && npm run lint -w apps/web && npm run build -w apps/web",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"
