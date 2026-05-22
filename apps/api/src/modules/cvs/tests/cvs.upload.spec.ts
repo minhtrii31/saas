@@ -11,10 +11,15 @@ import { PdfTextExtractor } from '../services/pdf-text-extractor.service';
 describe('POST /cvs/upload', () => {
   const originalJwtSecret = process.env.JWT_SECRET;
   const originalMaxFileSize = process.env.CV_MAX_FILE_SIZE_BYTES;
+  const validPdfBuffer = Buffer.from('%PDF-1.7\n%test pdf content');
+  const validDocxBuffer = Buffer.from(
+    'PK\u0003\u0004[Content_Types].xml word/document.xml',
+  );
   let app: INestApplication;
   let tokenService: TokenService;
   let fileStorageService: FileStorageService;
   let pdfTextExtractor: PdfTextExtractor;
+  let uploadLocalSpy: jest.SpiedFunction<FileStorageService['uploadLocal']>;
   let extractFromFileSpy: jest.SpiedFunction<
     PdfTextExtractor['extractFromFile']
   >;
@@ -56,11 +61,13 @@ describe('POST /cvs/upload', () => {
     pdfTextExtractor = app.get(PdfTextExtractor);
 
     // Mock the file storage service
-    jest.spyOn(fileStorageService, 'uploadLocal').mockResolvedValue({
-      storageKey:
-        'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
-      storageUrl: null,
-    });
+    uploadLocalSpy = jest
+      .spyOn(fileStorageService, 'uploadLocal')
+      .mockResolvedValue({
+        storageKey:
+          'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
+        storageUrl: null,
+      });
     jest
       .spyOn(fileStorageService, 'getLocalPath')
       .mockReturnValue(
@@ -154,25 +161,83 @@ describe('POST /cvs/upload', () => {
 
     // Create a buffer slightly larger than 5MB (5242880 bytes)
     // 5MB + 1024 bytes = 5243904 bytes
-    const largeBuffer = Buffer.alloc(5242880 + 1024);
+    const largeBuffer = Buffer.concat([
+      Buffer.from('%PDF-1.7\n'),
+      Buffer.alloc(5242880 + 1024),
+    ]);
 
     const response = await request(app.getHttpServer())
       .post('/cvs/upload')
       .set('Authorization', `Bearer ${accessToken}`)
       .attach('file', largeBuffer, 'large.pdf');
 
-    // Accept either 400 (our validation) or 413 (Express payload limit)
-    expect([400, 413]).toContain(response.status);
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'File size exceeds maximum of 5 MB',
+      },
+      meta: {},
+    });
+    expect(uploadLocalSpy).not.toHaveBeenCalled();
+    expect(prisma.cv.create).not.toHaveBeenCalled();
+  });
 
-    if (response.status === 400) {
-      expect(response.body).toEqual({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'File size exceeds maximum of 5 MB',
-        },
-        meta: {},
-      });
-    }
+  it('returns 400 when PDF content is malformed', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      createdAt: new Date(),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', Buffer.from('not a pdf'), 'resume.pdf')
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'File content does not match the declared file type',
+      },
+      meta: {},
+    });
+    expect(uploadLocalSpy).not.toHaveBeenCalled();
+    expect(prisma.cv.create).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when MIME type is spoofed', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      createdAt: new Date(),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', Buffer.from('plain text payload'), {
+        filename: 'resume.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'File content does not match the declared file type',
+      },
+      meta: {},
+    });
+    expect(uploadLocalSpy).not.toHaveBeenCalled();
+    expect(prisma.cv.create).not.toHaveBeenCalled();
   });
 
   it('creates CV record from PDF upload with extracted text', async () => {
@@ -187,7 +252,7 @@ describe('POST /cvs/upload', () => {
     });
 
     const cvId = '57db9a57-197d-40b5-8be5-5a5dfe398912';
-    const pdfBuffer = Buffer.from('PDF content');
+    const pdfBuffer = validPdfBuffer;
     prisma.cv.create.mockResolvedValue({
       id: cvId,
       title: 'resume.pdf',
@@ -283,7 +348,7 @@ describe('POST /cvs/upload', () => {
       createdAt,
     });
 
-    const pdfBuffer = Buffer.from('PDF content');
+    const pdfBuffer = validPdfBuffer;
     const response = await request(app.getHttpServer())
       .post('/cvs/upload')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -328,7 +393,7 @@ describe('POST /cvs/upload', () => {
       createdAt,
     });
 
-    const docxBuffer = Buffer.from('DOCX content');
+    const docxBuffer = validDocxBuffer;
     const response = await request(app.getHttpServer())
       .post('/cvs/upload')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -368,7 +433,7 @@ describe('POST /cvs/upload', () => {
     const response = await request(app.getHttpServer())
       .post('/cvs/upload')
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', Buffer.from('PDF content'), 'resume.pdf')
+      .attach('file', validPdfBuffer, 'resume.pdf')
       .expect(422);
 
     expect(response.body).toEqual({
@@ -402,7 +467,7 @@ describe('POST /cvs/upload', () => {
     await request(app.getHttpServer())
       .post('/cvs/upload')
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', Buffer.from('PDF content'), 'resume.pdf')
+      .attach('file', validPdfBuffer, 'resume.pdf')
       .expect(500);
 
     expect(deleteSpy).toHaveBeenCalledWith(storageKey);

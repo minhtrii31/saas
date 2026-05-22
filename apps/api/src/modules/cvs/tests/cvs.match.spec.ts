@@ -251,6 +251,36 @@ describe('POST /cvs/:id/match', () => {
     expect(prisma.cvAnalysis.create).not.toHaveBeenCalled();
   });
 
+  it('rejects overlong jobDescriptionText', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const cvId = '57db9a57-197d-40b5-8be5-5a5dfe398912';
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      name: null,
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cvId}/match`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ jobDescriptionText: 'x'.repeat(20001) })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message:
+          'jobDescriptionText must be shorter than or equal to 20000 characters',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.findFirst).not.toHaveBeenCalled();
+    expect(prisma.cvAnalysis.create).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid UUID route params', async () => {
     const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
     const accessToken = tokenService.signAccessToken(userId);

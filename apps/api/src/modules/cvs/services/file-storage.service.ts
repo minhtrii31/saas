@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
@@ -48,7 +52,7 @@ export class FileStorageService {
       });
     }
 
-    const storageKey = path.join('cvs', userId, filename);
+    const storageKey = path.posix.join('cvs', userId, filename);
     return {
       storageKey,
       storageUrl: null,
@@ -65,13 +69,46 @@ export class FileStorageService {
   }
 
   getLocalPath(storageKey: string): string {
-    return path.join(process.cwd(), 'uploads', storageKey);
+    const normalizedKey = storageKey.replace(/\\/g, '/');
+    const segments = normalizedKey.split('/');
+
+    if (
+      path.isAbsolute(storageKey) ||
+      normalizedKey.length === 0 ||
+      normalizedKey.includes('\0') ||
+      segments.some((segment) => segment === '..' || segment.length === 0)
+    ) {
+      throw new BadRequestException({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Unsafe storage key',
+        },
+        meta: {},
+      });
+    }
+
+    const uploadRoot = path.resolve(process.cwd(), 'uploads');
+    const filePath = path.resolve(uploadRoot, normalizedKey);
+    const relativePath = path.relative(uploadRoot, filePath);
+
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+      throw new BadRequestException({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Unsafe storage key',
+        },
+        meta: {},
+      });
+    }
+
+    return filePath;
   }
 
   private sanitizeFilename(filename: string): string {
-    const basename = path.basename(filename);
+    const basename = path.posix.basename(filename.replace(/\\/g, '/'));
     const sanitized = basename
       .replace(/[^a-z0-9._-]/gi, '_')
+      .replace(/^\.+/, '')
       .replace(/_{2,}/g, '_')
       .substring(0, 200);
 

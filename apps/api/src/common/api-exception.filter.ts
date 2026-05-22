@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  PayloadTooLargeException,
 } from '@nestjs/common';
 import { Response } from 'express';
 
@@ -37,6 +38,16 @@ export class ApiExceptionFilter implements ExceptionFilter {
   }
 
   private toErrorBody(exception: unknown, status: number): ApiErrorBody {
+    if (exception instanceof PayloadTooLargeException) {
+      return {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: this.maxFileSizeMessage(),
+        },
+        meta: {},
+      };
+    }
+
     if (exception instanceof HttpException) {
       const response = exception.getResponse();
 
@@ -100,5 +111,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
     }
 
     return fallback;
+  }
+
+  private maxFileSizeMessage(): string {
+    const maxFileSize = Number(process.env.CV_MAX_FILE_SIZE_BYTES) || 5242880;
+    const maxSizeMb = Math.round(maxFileSize / 1024 / 1024);
+
+    return `File size exceeds maximum of ${maxSizeMb} MB`;
   }
 }

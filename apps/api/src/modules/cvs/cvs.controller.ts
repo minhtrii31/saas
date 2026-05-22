@@ -13,6 +13,7 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/authenticated-request';
@@ -32,6 +33,22 @@ const cvIdParamPipe = new ParseUUIDPipe({
       meta: {},
     }),
 });
+
+const defaultCvMaxFileSizeBytes = 5242880;
+const cvMaxFileSizeBytes = Number.isSafeInteger(
+  Number(process.env.CV_MAX_FILE_SIZE_BYTES),
+)
+  ? Number(process.env.CV_MAX_FILE_SIZE_BYTES)
+  : defaultCvMaxFileSizeBytes;
+
+const uploadValidationError = (message: string) =>
+  new BadRequestException({
+    error: {
+      code: 'VALIDATION_ERROR',
+      message,
+    },
+    meta: {},
+  });
 
 @Controller('cvs')
 export class CvsController {
@@ -108,7 +125,37 @@ export class CvsController {
   @Post('upload')
   @HttpCode(201)
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: cvMaxFileSizeBytes,
+        files: 1,
+      },
+      fileFilter: (
+        _request: Request,
+        file: { mimetype: string },
+        callback: (error: Error | null, acceptFile: boolean) => void,
+      ) => {
+        const supportedMimeTypes = [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+
+        if (!supportedMimeTypes.includes(file.mimetype)) {
+          callback(
+            uploadValidationError(
+              'Only PDF, DOC, and DOCX files are supported',
+            ),
+            false,
+          );
+          return;
+        }
+
+        callback(null, true);
+      },
+    }),
+  )
   async upload(
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: UploadedCvFile | undefined,

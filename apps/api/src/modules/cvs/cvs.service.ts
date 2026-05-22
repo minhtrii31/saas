@@ -535,6 +535,16 @@ export class CvsService {
       });
     }
 
+    if (!this.contentMatchesMimeType(file.buffer, mimeType)) {
+      throw new BadRequestException({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'File content does not match the declared file type',
+        },
+        meta: {},
+      });
+    }
+
     return file;
   }
 
@@ -542,5 +552,36 @@ export class CvsService {
     mimeType: string,
   ): mimeType is SupportedCvMimeType {
     return supportedCvMimeTypes.includes(mimeType as SupportedCvMimeType);
+  }
+
+  private contentMatchesMimeType(
+    buffer: Buffer,
+    mimeType: SupportedCvMimeType,
+  ): boolean {
+    if (mimeType === 'application/pdf') {
+      return buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+    }
+
+    if (mimeType === 'application/msword') {
+      const docMagic = Buffer.from([
+        0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
+      ]);
+
+      return buffer.subarray(0, docMagic.length).equals(docMagic);
+    }
+
+    const zipHeader = buffer.subarray(0, 4);
+    if (!zipHeader.equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) {
+      return false;
+    }
+
+    const searchablePrefix = buffer
+      .subarray(0, Math.min(buffer.length, 4096))
+      .toString('utf8');
+
+    return (
+      searchablePrefix.includes('[Content_Types].xml') &&
+      searchablePrefix.includes('word/')
+    );
   }
 }

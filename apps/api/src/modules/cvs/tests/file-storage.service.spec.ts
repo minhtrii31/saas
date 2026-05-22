@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { BadRequestException } from '@nestjs/common';
 import { FileStorageService } from '../services/file-storage.service';
 import type { UploadedCvFile } from '../types/uploaded-cv-file';
 
@@ -41,5 +42,16 @@ describe('FileStorageService', () => {
     await expect(
       fs.readFile(path.join(uploadRoot, result.storageKey), 'utf8'),
     ).resolves.toBe('PDF content');
+  });
+
+  it('rejects storage keys that traverse outside the uploads directory', () => {
+    expect(() => service.getLocalPath('../secrets.txt')).toThrow(
+      BadRequestException,
+    );
+    expect(() =>
+      service.getLocalPath(
+        'cvs/43a84c6a-4bcf-47c1-a1e1-215ba79c9404/../../secrets.txt',
+      ),
+    ).toThrow(BadRequestException);
   });
 });

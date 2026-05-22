@@ -247,6 +247,39 @@ describe('POST /cvs/:id/cover-letter', () => {
     expect(prisma.cvAnalysis.create).not.toHaveBeenCalled();
   });
 
+  it('rejects overlong cover letter inputs', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const cvId = '57db9a57-197d-40b5-8be5-5a5dfe398912';
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      name: null,
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cvId}/cover-letter`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        jobDescriptionText: 'Backend TypeScript role',
+        companyName: 'x'.repeat(121),
+        roleTitle: 'Backend Engineer',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'companyName must be shorter than or equal to 120 characters',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.findFirst).not.toHaveBeenCalled();
+    expect(prisma.cvAnalysis.create).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid UUID route params', async () => {
     const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
     const accessToken = tokenService.signAccessToken(userId);

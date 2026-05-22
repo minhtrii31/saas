@@ -46,7 +46,7 @@ function findFirstConstraintMessage(error: ValidationError): string | null {
   const constraints = error.constraints;
 
   if (constraints) {
-    const [message] = Object.values(constraints);
+    const message = firstConstraintMessage(constraints);
 
     if (message) {
       return message;
@@ -62,4 +62,16 @@ function findFirstConstraintMessage(error: ValidationError): string | null {
   }
 
   return null;
+}
+
+function firstConstraintMessage(
+  constraints: Record<string, string>,
+): string | null {
+  if (constraints.isNotEmpty) {
+    return constraints.isNotEmpty;
+  }
+
+  const [message] = Object.values(constraints);
+
+  return message ?? null;
 }
