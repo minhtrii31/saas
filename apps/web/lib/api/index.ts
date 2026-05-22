@@ -7,6 +7,7 @@ export type {
   ApiSuccessEnvelope,
   AuthResponse,
   AuthUser,
+  CoverLetterResult,
   CreateCvRequest,
   CvAnalysis,
   CvAnalysisResult,

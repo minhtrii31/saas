@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiClientError, apiClient } from "../../../lib/api";
 import type {
   AuthUser,
+  CoverLetterResult,
   CvAnalysis,
   CvAnalysisResult,
   CvItem,
@@ -42,6 +43,12 @@ type MatchState =
   | { type: "success"; result: JdMatchResult }
   | { type: "error"; message: string };
 
+type CoverLetterState =
+  | { type: "idle" }
+  | { type: "loading" }
+  | { type: "success"; result: CoverLetterResult; copied: boolean }
+  | { type: "error"; message: string };
+
 type AuthMeResponse = {
   user: AuthUser;
 };
@@ -70,6 +77,12 @@ export default function CvsPage() {
   const [matchByCvId, setMatchByCvId] = useState<Record<string, MatchState>>(
     {},
   );
+  const [coverLetterPanelByCvId, setCoverLetterPanelByCvId] = useState<
+    Record<string, boolean>
+  >({});
+  const [coverLetterByCvId, setCoverLetterByCvId] = useState<
+    Record<string, CoverLetterState>
+  >({});
 
   const redirectToLogin = useCallback(() => {
     localStorage.removeItem("accessToken");
@@ -312,6 +325,13 @@ export default function CvsPage() {
     }));
   }
 
+  function handleToggleCoverLetterPanel(cvId: string) {
+    setCoverLetterPanelByCvId((current) => ({
+      ...current,
+      [cvId]: !current[cvId],
+    }));
+  }
+
   async function handleMatch(cvId: string, jobDescriptionText: string) {
     const token = localStorage.getItem("accessToken");
 
@@ -373,6 +393,116 @@ export default function CvsPage() {
         },
       }));
     }
+  }
+
+  async function handleCoverLetter(
+    cvId: string,
+    input: {
+      jobDescriptionText: string;
+      companyName: string;
+      roleTitle: string;
+    },
+  ) {
+    const token = localStorage.getItem("accessToken");
+
+    if (!token) {
+      redirectToLogin();
+      return;
+    }
+
+    const trimmedJobDescriptionText = input.jobDescriptionText.trim();
+    const trimmedCompanyName = input.companyName.trim();
+    const trimmedRoleTitle = input.roleTitle.trim();
+
+    if (!trimmedJobDescriptionText) {
+      setCoverLetterByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "error",
+          message: "Enter a job description before generating a cover letter.",
+        },
+      }));
+      return;
+    }
+
+    setCoverLetterByCvId((current) => ({
+      ...current,
+      [cvId]: { type: "loading" },
+    }));
+
+    try {
+      const response = await apiClient.request<CvAnalysis>(
+        `/cvs/${cvId}/cover-letter`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: {
+            jobDescriptionText: trimmedJobDescriptionText,
+            ...(trimmedCompanyName
+              ? { companyName: trimmedCompanyName }
+              : {}),
+            ...(trimmedRoleTitle ? { roleTitle: trimmedRoleTitle } : {}),
+          },
+        },
+      );
+
+      setCoverLetterByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "success",
+          result: toCoverLetterResult(response.data.result),
+          copied: false,
+        },
+      }));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      setCoverLetterByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "error",
+          message: getApiErrorMessage(
+            error,
+            "Unable to generate a cover letter. Please try again.",
+          ),
+        },
+      }));
+    }
+  }
+
+  async function handleCopyCoverLetter(cvId: string, coverLetter: string) {
+    if (!navigator.clipboard) {
+      setCoverLetterByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "error",
+          message: "Copy is not available in this browser.",
+        },
+      }));
+      return;
+    }
+
+    await navigator.clipboard.writeText(coverLetter);
+    setCoverLetterByCvId((current) => {
+      const state = current[cvId];
+
+      if (state?.type !== "success") {
+        return current;
+      }
+
+      return {
+        ...current,
+        [cvId]: {
+          ...state,
+          copied: true,
+        },
+      };
+    });
   }
 
   return (
@@ -445,7 +575,12 @@ export default function CvsPage() {
                   const matchState = matchByCvId[cv.id] ?? {
                     type: "idle" as const,
                   };
+                  const coverLetterState = coverLetterByCvId[cv.id] ?? {
+                    type: "idle" as const,
+                  };
                   const isMatchPanelOpen = matchPanelByCvId[cv.id] ?? false;
+                  const isCoverLetterPanelOpen =
+                    coverLetterPanelByCvId[cv.id] ?? false;
                   const title = cv.title || cv.originalName;
 
                   return (
@@ -525,6 +660,17 @@ export default function CvsPage() {
                             ? "Close JD match"
                             : "Match job description"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleToggleCoverLetterPanel(cv.id);
+                          }}
+                          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+                        >
+                          {isCoverLetterPanelOpen
+                            ? "Close cover letter"
+                            : "Generate cover letter"}
+                        </button>
                       </div>
 
                       <AnalysisPanel
@@ -538,6 +684,15 @@ export default function CvsPage() {
                           cvTitle={title}
                           state={matchState}
                           onMatch={handleMatch}
+                        />
+                      ) : null}
+                      {isCoverLetterPanelOpen ? (
+                        <CoverLetterPanel
+                          cvId={cv.id}
+                          cvTitle={title}
+                          state={coverLetterState}
+                          onGenerate={handleCoverLetter}
+                          onCopy={handleCopyCoverLetter}
                         />
                       ) : null}
                       <HistoryPanel
@@ -674,14 +829,33 @@ function HistoryPanel({
               <p className="text-sm text-zinc-600">
                 {formatDateTime(analysis.createdAt)}
               </p>
-              <p className="mt-1 text-sm text-zinc-700">
-                Score:{" "}
-                <span className="font-semibold text-zinc-950">
-                  {formatAnalysisScore(analysis.result)}
-                </span>
+              <p className="mt-1 text-sm font-semibold text-zinc-950">
+                {formatAnalysisType(analysis.type)}
               </p>
-              {isJdMatchResult(analysis.result) ? (
+              {isCoverLetterResult(analysis.result) ? (
                 <>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-700">
+                    {analysis.result.coverLetter}
+                  </p>
+                  <p className="mt-3 text-sm text-zinc-700">
+                    Tone:{" "}
+                    <span className="font-semibold text-zinc-950">
+                      {analysis.result.tone}
+                    </span>
+                  </p>
+                  <AnalysisList
+                    title="Highlights"
+                    items={analysis.result.highlights}
+                  />
+                </>
+              ) : isJdMatchResult(analysis.result) ? (
+                <>
+                  <p className="mt-1 text-sm text-zinc-700">
+                    Matching score:{" "}
+                    <span className="font-semibold text-zinc-950">
+                      {analysis.result.matchingScore}
+                    </span>
+                  </p>
                   <AnalysisList
                     title="Matched skills"
                     items={analysis.result.matchedSkills}
@@ -693,6 +867,12 @@ function HistoryPanel({
                 </>
               ) : (
                 <>
+                  <p className="mt-1 text-sm text-zinc-700">
+                    Score:{" "}
+                    <span className="font-semibold text-zinc-950">
+                      {analysis.result.score}
+                    </span>
+                  </p>
                   <AnalysisList
                     title="Strengths"
                     items={analysis.result.strengths}
@@ -703,10 +883,12 @@ function HistoryPanel({
                   />
                 </>
               )}
-              <AnalysisList
-                title="Suggestions"
-                items={analysis.result.suggestions}
-              />
+              {hasSuggestions(analysis.result) ? (
+                <AnalysisList
+                  title="Suggestions"
+                  items={analysis.result.suggestions}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -844,6 +1026,206 @@ function MatchResultPanel({
   );
 }
 
+function CoverLetterPanel({
+  cvId,
+  cvTitle,
+  state,
+  onGenerate,
+  onCopy,
+}: {
+  cvId: string;
+  cvTitle: string;
+  state: CoverLetterState;
+  onGenerate: (
+    cvId: string,
+    input: {
+      jobDescriptionText: string;
+      companyName: string;
+      roleTitle: string;
+    },
+  ) => Promise<void>;
+  onCopy: (cvId: string, coverLetter: string) => Promise<void>;
+}) {
+  const textareaId = `cover-letter-job-description-${cvId}`;
+  const companyNameId = `cover-letter-company-name-${cvId}`;
+  const roleTitleId = `cover-letter-role-title-${cvId}`;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const jobDescriptionText = formData.get("jobDescriptionText");
+    const companyName = formData.get("companyName");
+    const roleTitle = formData.get("roleTitle");
+
+    void onGenerate(cvId, {
+      jobDescriptionText:
+        typeof jobDescriptionText === "string" ? jobDescriptionText : "",
+      companyName: typeof companyName === "string" ? companyName : "",
+      roleTitle: typeof roleTitle === "string" ? roleTitle : "",
+    });
+  }
+
+  return (
+    <section
+      aria-label={`Cover letter generation for ${cvTitle}`}
+      className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4"
+    >
+      <h4 className="text-sm font-semibold text-zinc-950">
+        Cover letter
+      </h4>
+
+      <form
+        aria-label={`Cover letter form for ${cvTitle}`}
+        className="mt-3 space-y-3"
+        noValidate
+        onSubmit={handleSubmit}
+      >
+        <div>
+          <label
+            htmlFor={textareaId}
+            className="block text-sm font-medium text-zinc-800"
+          >
+            Job description
+          </label>
+          <textarea
+            id={textareaId}
+            name="jobDescriptionText"
+            rows={6}
+            required
+            className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            placeholder="Paste the role requirements, responsibilities, and required skills."
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor={companyNameId}
+              className="block text-sm font-medium text-zinc-800"
+            >
+              Company name
+            </label>
+            <input
+              id={companyNameId}
+              name="companyName"
+              type="text"
+              className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+              placeholder="Optional"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor={roleTitleId}
+              className="block text-sm font-medium text-zinc-800"
+            >
+              Role title
+            </label>
+            <input
+              id={roleTitleId}
+              name="roleTitle"
+              type="text"
+              className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+              placeholder="Optional"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={state.type === "loading"}
+          aria-describedby={
+            state.type === "loading"
+              ? `cover-letter-status-${cvId}`
+              : undefined
+          }
+          className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+        >
+          {state.type === "loading" ? "Generating..." : "Generate"}
+        </button>
+      </form>
+
+      <CoverLetterResultPanel
+        cvId={cvId}
+        cvTitle={cvTitle}
+        state={state}
+        onCopy={onCopy}
+      />
+    </section>
+  );
+}
+
+function CoverLetterResultPanel({
+  cvId,
+  cvTitle,
+  state,
+  onCopy,
+}: {
+  cvId: string;
+  cvTitle: string;
+  state: CoverLetterState;
+  onCopy: (cvId: string, coverLetter: string) => Promise<void>;
+}) {
+  if (state.type === "idle") {
+    return null;
+  }
+
+  if (state.type === "loading") {
+    return (
+      <p
+        id={`cover-letter-status-${cvId}`}
+        role="status"
+        className="mt-3 text-sm text-zinc-600"
+      >
+        Generating a cover letter for {cvTitle}...
+      </p>
+    );
+  }
+
+  if (state.type === "error") {
+    return (
+      <p
+        role="alert"
+        className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+      >
+        {state.message}
+      </p>
+    );
+  }
+
+  return (
+    <section
+      aria-label={`Cover letter result for ${cvTitle}`}
+      className="mt-4 rounded-md border border-zinc-200 bg-white p-4"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h5 className="text-sm font-semibold text-zinc-950">
+          Generated cover letter
+        </h5>
+        <button
+          type="button"
+          onClick={() => {
+            void onCopy(cvId, state.result.coverLetter);
+          }}
+          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+        >
+          {state.copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
+        {state.result.coverLetter}
+      </p>
+      <p className="mt-3 text-sm text-zinc-700">
+        Tone:{" "}
+        <span className="font-semibold text-zinc-950">
+          {state.result.tone}
+        </span>
+      </p>
+      <AnalysisList title="Highlights" items={state.result.highlights} />
+    </section>
+  );
+}
+
 function AnalysisPanel({
   cvId,
   cvTitle,
@@ -963,35 +1345,73 @@ function sortAnalysesNewestFirst(analyses: CvAnalysis[]) {
 }
 
 function isJdMatchResult(
-  result: CvAnalysisResult | JdMatchResult,
+  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
 ): result is JdMatchResult {
   return "matchingScore" in result;
 }
 
-function toCvAnalysisResult(result: CvAnalysisResult | JdMatchResult) {
-  if (!isJdMatchResult(result)) {
+function isCoverLetterResult(
+  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+): result is CoverLetterResult {
+  return "coverLetter" in result;
+}
+
+function hasSuggestions(
+  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+): result is CvAnalysisResult | JdMatchResult {
+  return "suggestions" in result;
+}
+
+function toCvAnalysisResult(
+  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+) {
+  if (!isJdMatchResult(result) && !isCoverLetterResult(result)) {
     return result;
   }
 
   return {
-    score: result.matchingScore,
-    suggestions: result.suggestions,
+    score: isJdMatchResult(result) ? result.matchingScore : 0,
+    suggestions: hasSuggestions(result) ? result.suggestions : undefined,
   };
 }
 
-function toJdMatchResult(result: CvAnalysisResult | JdMatchResult) {
+function toJdMatchResult(
+  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+) {
   if (isJdMatchResult(result)) {
     return result;
   }
 
   return {
-    matchingScore: result.score,
-    suggestions: result.suggestions,
+    matchingScore: isCoverLetterResult(result) ? 0 : result.score,
+    suggestions: hasSuggestions(result) ? result.suggestions : undefined,
   };
 }
 
-function formatAnalysisScore(result: CvAnalysisResult | JdMatchResult) {
-  return isJdMatchResult(result) ? result.matchingScore : result.score;
+function toCoverLetterResult(
+  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+) {
+  if (isCoverLetterResult(result)) {
+    return result;
+  }
+
+  return {
+    coverLetter: "",
+    tone: "Not provided",
+    highlights: [],
+  };
+}
+
+function formatAnalysisType(type: CvAnalysis["type"]) {
+  if (type === "COVER_LETTER") {
+    return "Cover letter";
+  }
+
+  if (type === "JD_MATCH") {
+    return "JD match";
+  }
+
+  return "CV analysis";
 }
 
 async function validateSession(token: string) {

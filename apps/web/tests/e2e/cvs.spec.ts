@@ -340,6 +340,136 @@ test("CV JD match API error displays error", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("CV cover letter generation success displays result", async ({ page }) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/cover-letter", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.url()).toContain(`/cvs/${cvList[0].id}/cover-letter`);
+    expect(request.postDataJSON()).toEqual({
+      jobDescriptionText: "Build APIs with TypeScript, NestJS, and PostgreSQL.",
+      companyName: "Acme",
+      roleTitle: "Backend Engineer",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: "cover-letter-1",
+          cvId: cvList[0].id,
+          type: "COVER_LETTER",
+          jobDescriptionText:
+            "Build APIs with TypeScript, NestJS, and PostgreSQL.",
+          aiProvider: "mock",
+          aiModel: "mock-cover-letter-v1",
+          result: {
+            coverLetter:
+              "Dear Acme team,\n\nI am excited to apply for the Backend Engineer role.",
+            tone: "professional",
+            highlights: ["TypeScript API experience", "PostgreSQL delivery"],
+          },
+          createdAt: "2026-05-22T12:30:00.000Z",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "Generate cover letter" }).click();
+  await page
+    .getByRole("region", { name: "Cover letter generation for Backend CV" })
+    .getByLabel("Job description")
+    .fill("Build APIs with TypeScript, NestJS, and PostgreSQL.");
+  await page.getByLabel("Company name").fill("Acme");
+  await page.getByLabel("Role title").fill("Backend Engineer");
+  await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Generating..." }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("region", { name: "Cover letter result for Backend CV" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("I am excited to apply for the Backend Engineer role."),
+  ).toBeVisible();
+  await expect(page.getByText("Tone: professional")).toBeVisible();
+  await expect(page.getByText("TypeScript API experience")).toBeVisible();
+  await expect(page.getByText("PostgreSQL delivery")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy" })).toBeVisible();
+});
+
+test("CV cover letter missing job description displays validation error", async ({
+  page,
+}) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "Generate cover letter" }).click();
+  await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({
+        hasText: "Enter a job description before generating a cover letter.",
+      }),
+  ).toBeVisible();
+});
+
+test("CV cover letter API error displays error", async ({ page }) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/cover-letter", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "CV_TEXT_NOT_EXTRACTED",
+          message: "CV text has not been extracted",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "Generate cover letter" }).click();
+  await page
+    .getByRole("region", { name: "Cover letter generation for Backend CV" })
+    .getByLabel("Job description")
+    .fill("Build APIs with TypeScript.");
+  await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "CV text has not been extracted" }),
+  ).toBeVisible();
+});
+
 test("CV analysis history success displays analysis items", async ({
   page,
 }) => {
@@ -413,6 +543,61 @@ test("CV analysis history success displays analysis items", async ({
     .getByRole("region", { name: "Analysis history for Backend CV" })
     .getByText(/Score: \d+/);
   await expect(scores).toHaveText(["Score: 86", "Score: 71"]);
+});
+
+test("CV analysis history displays cover letter items", async ({ page }) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/analyses", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [
+          {
+            id: "cover-letter-history",
+            cvId: cvList[0].id,
+            type: "COVER_LETTER",
+            jobDescriptionText: "Build APIs with TypeScript.",
+            aiProvider: "mock",
+            aiModel: "mock-cover-letter-v1",
+            result: {
+              coverLetter:
+                "Dear hiring team,\n\nI can bring TypeScript API experience to this role.",
+              tone: "confident",
+              highlights: ["TypeScript API experience"],
+            },
+            createdAt: "2026-05-22T12:30:00.000Z",
+          },
+        ],
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "View history" }).click();
+
+  const historyRegion = page.getByRole("region", {
+    name: "Analysis history for Backend CV",
+  });
+
+  await expect(historyRegion.getByText("Cover letter")).toBeVisible();
+  await expect(
+    historyRegion.getByText(
+      "I can bring TypeScript API experience to this role.",
+    ),
+  ).toBeVisible();
+  await expect(historyRegion.getByText("Tone: confident")).toBeVisible();
+  await expect(
+    historyRegion.getByText("TypeScript API experience", { exact: true }),
+  ).toBeVisible();
 });
 
 test("CV analysis history empty displays empty state", async ({ page }) => {
