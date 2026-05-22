@@ -97,6 +97,79 @@ test("login page renders form", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
 });
 
+test("login redirects to dashboard after successful submit", async ({ page }) => {
+  await page.route("**/auth/login", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.postDataJSON()).toEqual({
+      email: "ada@example.com",
+      password: "password123",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          user: {
+            id: "user_1",
+            email: "ada@example.com",
+            name: "Ada Lovelace",
+          },
+          tokens: {
+            accessToken: "test-access-token",
+          },
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("ada@example.com");
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("button", { name: "Log in" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Logging in..." }),
+  ).toBeDisabled();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(
+    page.getByRole("heading", { name: "Dashboard", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.evaluate(() => localStorage.getItem("accessToken")),
+  ).resolves.toBe("test-access-token");
+});
+
+test("login page shows API error after failed submit", async ({ page }) => {
+  await page.route("**/auth/login", async (route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "INVALID_CREDENTIALS",
+          message: "Invalid email or password.",
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("ada@example.com");
+  await page.getByLabel("Password").fill("wrong-password");
+  await page.getByRole("button", { name: "Log in" }).click();
+
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: "Invalid email or password.",
+    }),
+  ).toBeVisible();
+});
+
 test("dashboard page renders placeholder", async ({ page }) => {
   await page.goto("/dashboard");
 
