@@ -50,6 +50,15 @@ export class CvsController {
     return this.cvsService.findOne(user.id, id);
   }
 
+  @Get(':id/analyses')
+  @UseGuards(JwtAuthGuard)
+  findAnalyses(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+  ) {
+    return this.cvsService.findAnalyses(user.id, id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(

@@ -45,6 +45,16 @@ type CreatedCvAnalysis = {
   result: CvAnalysisResult;
   createdAt: Date;
 };
+type CvAnalysisHistoryItem = {
+  id: string;
+  cvId: string;
+  type: string;
+  jobDescriptionText: string | null;
+  aiProvider: string | null;
+  aiModel: string | null;
+  result: unknown;
+  createdAt: Date;
+};
 
 const cvSelect = {
   id: true,
@@ -62,6 +72,16 @@ const cvAnalysisSelect = {
   id: true,
   cvId: true,
   type: true,
+  aiProvider: true,
+  aiModel: true,
+  result: true,
+  createdAt: true,
+};
+const cvAnalysisHistorySelect = {
+  id: true,
+  cvId: true,
+  type: true,
+  jobDescriptionText: true,
   aiProvider: true,
   aiModel: true,
   result: true,
@@ -117,6 +137,42 @@ export class CvsService {
 
     return {
       data: cv,
+      meta: {},
+    };
+  }
+
+  async findAnalyses(
+    userId: string,
+    id: string,
+  ): Promise<{ data: CvAnalysisHistoryItem[]; meta: Record<string, never> }> {
+    const cv = await this.prisma.cv.findFirst({
+      where: {
+        id,
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!cv) {
+      throw this.cvNotFound();
+    }
+
+    const analyses = await this.prisma.cvAnalysis.findMany({
+      where: {
+        cvId: cv.id,
+        deletedAt: null,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: cvAnalysisHistorySelect,
+    });
+
+    return {
+      data: analyses,
       meta: {},
     };
   }
