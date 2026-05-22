@@ -47,6 +47,23 @@ export type CvItem = {
   createdAt: string;
 };
 
+export type CvAnalysisResult = {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+};
+
+export type CvAnalysis = {
+  id: string;
+  cvId: string;
+  type: "CV_ANALYSIS" | "JD_MATCH";
+  aiProvider: string;
+  aiModel: string;
+  result: CvAnalysisResult;
+  createdAt: string;
+};
+
 export type CreateCvRequest = {
   title?: string;
   originalName: string;

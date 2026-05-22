@@ -6,7 +6,12 @@ import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import { ApiClientError, apiClient } from "../../../lib/api";
-import type { AuthUser, CvItem } from "../../../lib/api";
+import type {
+  AuthUser,
+  CvAnalysis,
+  CvAnalysisResult,
+  CvItem,
+} from "../../../lib/api";
 
 type PageStatus =
   | { type: "loading" }
@@ -16,6 +21,12 @@ type PageStatus =
 type UploadStatus =
   | { type: "idle" }
   | { type: "success"; message: string }
+  | { type: "error"; message: string };
+
+type AnalysisState =
+  | { type: "idle" }
+  | { type: "loading" }
+  | { type: "success"; result: CvAnalysisResult }
   | { type: "error"; message: string };
 
 type AuthMeResponse = {
@@ -34,6 +45,9 @@ export default function CvsPage() {
     type: "idle",
   });
   const [isUploading, setIsUploading] = useState(false);
+  const [analysisByCvId, setAnalysisByCvId] = useState<
+    Record<string, AnalysisState>
+  >({});
 
   const redirectToLogin = useCallback(() => {
     localStorage.removeItem("accessToken");
@@ -177,6 +191,56 @@ export default function CvsPage() {
     }
   }
 
+  async function handleAnalyze(cvId: string) {
+    const token = localStorage.getItem("accessToken");
+
+    if (!token) {
+      redirectToLogin();
+      return;
+    }
+
+    setAnalysisByCvId((current) => ({
+      ...current,
+      [cvId]: { type: "loading" },
+    }));
+
+    try {
+      const response = await apiClient.request<CvAnalysis>(
+        `/cvs/${cvId}/analyze`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      setAnalysisByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "success",
+          result: response.data.result,
+        },
+      }));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      setAnalysisByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "error",
+          message: getApiErrorMessage(
+            error,
+            "Unable to analyze CV. Please try again.",
+          ),
+        },
+      }));
+    }
+  }
+
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-10">
       <section className="mx-auto max-w-5xl">
@@ -237,37 +301,71 @@ export default function CvsPage() {
 
             {pageStatus.type === "ready" && cvs.length > 0 ? (
               <ul className="mt-6 divide-y divide-zinc-200">
-                {cvs.map((cv) => (
-                  <li key={cv.id} className="py-4 first:pt-0 last:pb-0">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h3 className="font-semibold text-zinc-950">
-                          {cv.title || cv.originalName}
-                        </h3>
-                        <p className="mt-1 text-sm text-zinc-600">
-                          {cv.originalName}
+                {cvs.map((cv) => {
+                  const analysisState = analysisByCvId[cv.id] ?? {
+                    type: "idle" as const,
+                  };
+                  const title = cv.title || cv.originalName;
+
+                  return (
+                    <li key={cv.id} className="py-4 first:pt-0 last:pb-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h3 className="font-semibold text-zinc-950">
+                            {title}
+                          </h3>
+                          <p className="mt-1 text-sm text-zinc-600">
+                            {cv.originalName}
+                          </p>
+                        </div>
+                        <p className="text-sm text-zinc-500">
+                          {formatBytes(cv.sizeBytes)}
                         </p>
                       </div>
-                      <p className="text-sm text-zinc-500">
-                        {formatBytes(cv.sizeBytes)}
-                      </p>
-                    </div>
-                    <dl className="mt-3 grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
-                      <div>
-                        <dt className="font-medium text-zinc-800">Type</dt>
-                        <dd>{cv.mimeType}</dd>
+                      <dl className="mt-3 grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
+                        <div>
+                          <dt className="font-medium text-zinc-800">Type</dt>
+                          <dd>{cv.mimeType}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-zinc-800">
+                            Storage
+                          </dt>
+                          <dd>{cv.storageProvider}</dd>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <dt className="font-medium text-zinc-800">Key</dt>
+                          <dd className="break-all">{cv.storageKey}</dd>
+                        </div>
+                      </dl>
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleAnalyze(cv.id);
+                          }}
+                          disabled={analysisState.type === "loading"}
+                          aria-describedby={
+                            analysisState.type === "loading"
+                              ? `analysis-status-${cv.id}`
+                              : undefined
+                          }
+                          className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                        >
+                          {analysisState.type === "loading"
+                            ? "Analyzing..."
+                            : "Analyze"}
+                        </button>
                       </div>
-                      <div>
-                        <dt className="font-medium text-zinc-800">Storage</dt>
-                        <dd>{cv.storageProvider}</dd>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <dt className="font-medium text-zinc-800">Key</dt>
-                        <dd className="break-all">{cv.storageKey}</dd>
-                      </div>
-                    </dl>
-                  </li>
-                ))}
+
+                      <AnalysisPanel
+                        cvId={cv.id}
+                        cvTitle={title}
+                        state={analysisState}
+                      />
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
           </section>
@@ -332,6 +430,82 @@ export default function CvsPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function AnalysisPanel({
+  cvId,
+  cvTitle,
+  state,
+}: {
+  cvId: string;
+  cvTitle: string;
+  state: AnalysisState;
+}) {
+  if (state.type === "idle") {
+    return null;
+  }
+
+  if (state.type === "loading") {
+    return (
+      <p
+        id={`analysis-status-${cvId}`}
+        role="status"
+        className="mt-3 text-sm text-zinc-600"
+      >
+        Analyzing {cvTitle}...
+      </p>
+    );
+  }
+
+  if (state.type === "error") {
+    return (
+      <p
+        role="alert"
+        className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+      >
+        {state.message}
+      </p>
+    );
+  }
+
+  return (
+    <section
+      aria-label={`Analysis result for ${cvTitle}`}
+      className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4"
+    >
+      <h4 className="text-sm font-semibold text-zinc-950">
+        Analysis result
+      </h4>
+      <p className="mt-2 text-sm text-zinc-700">
+        Score:{" "}
+        <span className="font-semibold text-zinc-950">
+          {state.result.score}
+        </span>
+      </p>
+      <AnalysisList title="Strengths" items={state.result.strengths} />
+      <AnalysisList title="Weaknesses" items={state.result.weaknesses} />
+      <AnalysisList title="Suggestions" items={state.result.suggestions} />
+    </section>
+  );
+}
+
+function AnalysisList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="mt-3">
+      <h5 className="text-sm font-medium text-zinc-800">{title}</h5>
+      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

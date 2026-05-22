@@ -8,5 +8,7 @@ export type {
   AuthResponse,
   AuthUser,
   CreateCvRequest,
+  CvAnalysis,
+  CvAnalysisResult,
   CvItem,
 } from "./types";
