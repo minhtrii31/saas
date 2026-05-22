@@ -65,6 +65,15 @@ export class CvsController {
     return this.cvsService.create(user.id, dto);
   }
 
+  @Post(':id/analyze')
+  @UseGuards(JwtAuthGuard)
+  analyze(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+  ) {
+    return this.cvsService.analyze(user.id, id);
+  }
+
   @Post('upload')
   @HttpCode(201)
   @UseGuards(JwtAuthGuard)

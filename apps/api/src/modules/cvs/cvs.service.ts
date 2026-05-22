@@ -34,6 +34,21 @@ type DeletedCv = {
   id: string;
   deletedAt: Date | null;
 };
+type CvAnalysisResult = {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+};
+type CreatedCvAnalysis = {
+  id: string;
+  cvId: string;
+  type: string;
+  aiProvider: string | null;
+  aiModel: string | null;
+  result: CvAnalysisResult;
+  createdAt: Date;
+};
 
 const cvSelect = {
   id: true,
@@ -45,6 +60,15 @@ const cvSelect = {
   storageKey: true,
   storageUrl: true,
   extractedText: true,
+  createdAt: true,
+};
+const cvAnalysisSelect = {
+  id: true,
+  cvId: true,
+  type: true,
+  aiProvider: true,
+  aiModel: true,
+  result: true,
   createdAt: true,
 };
 
@@ -217,6 +241,53 @@ export class CvsService {
     };
   }
 
+  async analyze(
+    userId: string,
+    id: string,
+  ): Promise<{ data: CreatedCvAnalysis; meta: Record<string, never> }> {
+    const cv = await this.prisma.cv.findFirst({
+      where: {
+        id,
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        extractedText: true,
+      },
+    });
+
+    if (!cv) {
+      throw this.cvNotFound();
+    }
+
+    if (!cv.extractedText?.trim()) {
+      throw new UnprocessableEntityException({
+        error: {
+          code: 'CV_TEXT_NOT_EXTRACTED',
+          message: 'CV text has not been extracted',
+        },
+        meta: {},
+      });
+    }
+
+    const analysis = await this.prisma.cvAnalysis.create({
+      data: {
+        cvId: cv.id,
+        type: 'CV_ANALYSIS',
+        aiProvider: 'mock',
+        aiModel: 'mock-cv-analyzer-v1',
+        result: this.buildMockCvAnalysisResult(cv.extractedText),
+      },
+      select: cvAnalysisSelect,
+    });
+
+    return {
+      data: analysis as CreatedCvAnalysis,
+      meta: {},
+    };
+  }
+
   private cvNotFound(): NotFoundException {
     return new NotFoundException({
       error: {
@@ -266,6 +337,29 @@ export class CvsService {
     }
 
     return file;
+  }
+
+  private buildMockCvAnalysisResult(extractedText: string): CvAnalysisResult {
+    const normalizedText = extractedText.trim();
+    const wordCount = normalizedText.split(/\s+/).filter(Boolean).length;
+    const score = Math.max(45, Math.min(85, 55 + Math.floor(wordCount / 20)));
+
+    return {
+      score,
+      strengths: [
+        'CV text is available for structured review',
+        'The CV includes enough content to produce initial feedback',
+      ],
+      weaknesses: [
+        'Mock analysis cannot verify role-specific impact or achievements',
+        'Some sections may need stronger measurable outcomes',
+      ],
+      suggestions: [
+        'Add quantified achievements where possible',
+        'Make key skills and recent experience easy to scan',
+        'Tailor the summary and bullet points to the target role',
+      ],
+    };
   }
 
   private isSupportedCvMimeType(
