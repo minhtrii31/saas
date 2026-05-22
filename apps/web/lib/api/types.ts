@@ -1,0 +1,40 @@
+export type ApiMeta = Record<string, unknown>;
+
+export type ApiSuccessEnvelope<
+  Data,
+  Meta extends ApiMeta = ApiMeta,
+> = {
+  data: Data;
+  meta: Meta;
+};
+
+export type ApiError = {
+  code: string;
+  message: string;
+  details?: unknown;
+};
+
+export type ApiErrorEnvelope<Meta extends ApiMeta = ApiMeta> = {
+  error: ApiError;
+  meta: Meta;
+};
+
+export type ApiEnvelope<Data, Meta extends ApiMeta = ApiMeta> =
+  | ApiSuccessEnvelope<Data, Meta>
+  | ApiErrorEnvelope<Meta>;
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name?: string | null;
+};
+
+export type AuthTokens = {
+  accessToken: string;
+  refreshToken?: string;
+};
+
+export type AuthResponse = {
+  user: AuthUser;
+  tokens: AuthTokens;
+};
