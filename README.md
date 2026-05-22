@@ -24,3 +24,5 @@ AI-assisted SaaS platform for CV analysis, job description matching, improvement
 ## Documentation
 
 See `/docs`.
+
+- [AI provider configuration](docs/04-ai/provider-configuration.md)
