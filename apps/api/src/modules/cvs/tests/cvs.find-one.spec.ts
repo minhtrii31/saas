@@ -161,6 +161,32 @@ describe('GET /cvs/:id', () => {
     });
   });
 
+  it('rejects invalid UUID route params', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      name: null,
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/cvs/not-a-uuid')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed (uuid is expected)',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.findFirst).not.toHaveBeenCalled();
+  });
+
   it('rejects unauthenticated access', async () => {
     const response = await request(app.getHttpServer())
       .get('/cvs/57db9a57-197d-40b5-8be5-5a5dfe398912')

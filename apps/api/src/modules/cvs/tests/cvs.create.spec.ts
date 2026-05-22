@@ -169,7 +169,7 @@ describe('POST /cvs', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         originalName: 'ada-cv.pdf',
-        mimeType: 'not-a-mime-type',
+        mimeType: 'image/png',
         sizeBytes: 123456,
         storageProvider: 's3',
         storageKey: 'users/ada/ada-cv.pdf',
@@ -179,14 +179,15 @@ describe('POST /cvs', () => {
     expect(response.body).toEqual({
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'mimeType must be MIME type format',
+        message:
+          'mimeType must be one of the following values: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       },
       meta: {},
     });
     expect(prisma.cv.create).not.toHaveBeenCalled();
   });
 
-  it('rejects negative sizeBytes', async () => {
+  it('rejects zero sizeBytes', async () => {
     const accessToken = tokenService.signAccessToken(
       '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
     );
@@ -204,7 +205,7 @@ describe('POST /cvs', () => {
       .send({
         originalName: 'ada-cv.pdf',
         mimeType: 'application/pdf',
-        sizeBytes: -1,
+        sizeBytes: 0,
         storageProvider: 's3',
         storageKey: 'users/ada/ada-cv.pdf',
       })
@@ -213,7 +214,112 @@ describe('POST /cvs', () => {
     expect(response.body).toEqual({
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'sizeBytes must not be less than 0',
+        message: 'sizeBytes must not be less than 1',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported storageProvider', async () => {
+    const accessToken = tokenService.signAccessToken(
+      '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+    );
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+      email: 'user@example.com',
+      name: null,
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        originalName: 'ada-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 123456,
+        storageProvider: 'filesystem',
+        storageKey: 'users/ada/ada-cv.pdf',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message:
+          'storageProvider must be one of the following values: s3, cloudinary',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid storageUrl', async () => {
+    const accessToken = tokenService.signAccessToken(
+      '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+    );
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+      email: 'user@example.com',
+      name: null,
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        originalName: 'ada-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 123456,
+        storageProvider: 's3',
+        storageKey: 'users/ada/ada-cv.pdf',
+        storageUrl: 'not-a-url',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'storageUrl must be a URL address',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects overly long CV metadata fields', async () => {
+    const accessToken = tokenService.signAccessToken(
+      '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+    );
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+      email: 'user@example.com',
+      name: null,
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        title: 'x'.repeat(121),
+        originalName: 'ada-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 123456,
+        storageProvider: 's3',
+        storageKey: 'users/ada/ada-cv.pdf',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'title must be shorter than or equal to 120 characters',
       },
       meta: {},
     });

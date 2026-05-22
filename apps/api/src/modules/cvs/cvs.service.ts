@@ -112,36 +112,27 @@ export class CvsService {
     userId: string,
     id: string,
   ): Promise<{ data: DeletedCv; meta: Record<string, never> }> {
-    const cv = await this.prisma.cv.findFirst({
+    const deletedAt = new Date();
+    const result = await this.prisma.cv.updateMany({
       where: {
         id,
         userId,
         deletedAt: null,
       },
-      select: {
-        id: true,
+      data: {
+        deletedAt,
       },
     });
 
-    if (!cv) {
+    if (result.count === 0) {
       throw this.cvNotFound();
     }
 
-    const deletedCv = await this.prisma.cv.update({
-      where: {
-        id: cv.id,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
-      select: {
-        id: true,
-        deletedAt: true,
-      },
-    });
-
     return {
-      data: deletedCv,
+      data: {
+        id,
+        deletedAt,
+      },
       meta: {},
     };
   }

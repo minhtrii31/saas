@@ -15,8 +15,7 @@ describe('DELETE /cvs/:id', () => {
       findFirst: jest.Mock;
     };
     cv: {
-      findFirst: jest.Mock;
-      update: jest.Mock;
+      updateMany: jest.Mock;
     };
   };
 
@@ -27,8 +26,7 @@ describe('DELETE /cvs/:id', () => {
         findFirst: jest.fn(),
       },
       cv: {
-        findFirst: jest.fn(),
-        update: jest.fn(),
+        updateMany: jest.fn(),
       },
     };
 
@@ -47,6 +45,7 @@ describe('DELETE /cvs/:id', () => {
   });
 
   afterEach(async () => {
+    jest.useRealTimers();
     process.env.JWT_SECRET = originalJwtSecret;
     await app.close();
   });
@@ -54,7 +53,6 @@ describe('DELETE /cvs/:id', () => {
   it('soft deletes a non-deleted CV owned by the authenticated user', async () => {
     const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
     const cvId = '57db9a57-197d-40b5-8be5-5a5dfe398912';
-    const deletedAt = new Date('2026-05-22T10:30:00.000Z');
     const accessToken = tokenService.signAccessToken(userId);
 
     prisma.user.findFirst.mockResolvedValue({
@@ -63,12 +61,8 @@ describe('DELETE /cvs/:id', () => {
       name: 'Ada Lovelace',
       createdAt: new Date('2026-05-22T10:00:00.000Z'),
     });
-    prisma.cv.findFirst.mockResolvedValue({
-      id: cvId,
-    });
-    prisma.cv.update.mockResolvedValue({
-      id: cvId,
-      deletedAt,
+    prisma.cv.updateMany.mockResolvedValue({
+      count: 1,
     });
 
     const response = await request(app.getHttpServer())
@@ -79,30 +73,18 @@ describe('DELETE /cvs/:id', () => {
     expect(response.body).toEqual({
       data: {
         id: cvId,
-        deletedAt: deletedAt.toISOString(),
+        deletedAt: expect.any(String),
       },
       meta: {},
     });
-    expect(prisma.cv.findFirst).toHaveBeenCalledWith({
+    expect(prisma.cv.updateMany).toHaveBeenCalledWith({
       where: {
         id: cvId,
         userId,
         deletedAt: null,
       },
-      select: {
-        id: true,
-      },
-    });
-    expect(prisma.cv.update).toHaveBeenCalledWith({
-      where: {
-        id: cvId,
-      },
       data: {
         deletedAt: expect.any(Date),
-      },
-      select: {
-        id: true,
-        deletedAt: true,
       },
     });
   });
@@ -118,7 +100,9 @@ describe('DELETE /cvs/:id', () => {
       name: null,
       createdAt: new Date('2026-05-22T10:30:00.000Z'),
     });
-    prisma.cv.findFirst.mockResolvedValue(null);
+    prisma.cv.updateMany.mockResolvedValue({
+      count: 0,
+    });
 
     const response = await request(app.getHttpServer())
       .delete(`/cvs/${cvId}`)
@@ -132,17 +116,42 @@ describe('DELETE /cvs/:id', () => {
       },
       meta: {},
     });
-    expect(prisma.cv.findFirst).toHaveBeenCalledWith({
+    expect(prisma.cv.updateMany).toHaveBeenCalledWith({
       where: {
         id: cvId,
         userId,
         deletedAt: null,
       },
-      select: {
-        id: true,
+      data: {
+        deletedAt: expect.any(Date),
       },
     });
-    expect(prisma.cv.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid UUID route params', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      name: null,
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .delete('/cvs/not-a-uuid')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed (uuid is expected)',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.updateMany).not.toHaveBeenCalled();
   });
 
   it('rejects unauthenticated access', async () => {
@@ -157,7 +166,6 @@ describe('DELETE /cvs/:id', () => {
       },
       meta: {},
     });
-    expect(prisma.cv.findFirst).not.toHaveBeenCalled();
-    expect(prisma.cv.update).not.toHaveBeenCalled();
+    expect(prisma.cv.updateMany).not.toHaveBeenCalled();
   });
 });
