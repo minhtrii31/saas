@@ -1,104 +1,74 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
-import { apiClient } from "../../lib/api";
-import type { AuthUser } from "../../lib/api";
+import { ProtectedPage } from "@/components/dashboard/protected-page";
 
-type AuthMeResponse = {
-  user: AuthUser;
-};
+const tasks = [
+  {
+    href: "/dashboard/cvs",
+    title: "Manage CVs",
+    description: "Upload CV files and review your saved library.",
+  },
+  {
+    href: "/dashboard/analyze",
+    title: "Analyze a CV",
+    description: "Select one uploaded CV and get structured improvement advice.",
+  },
+  {
+    href: "/dashboard/match",
+    title: "Match a job",
+    description: "Compare a selected CV with a pasted job description.",
+  },
+  {
+    href: "/dashboard/cover-letter",
+    title: "Generate a cover letter",
+    description: "Create a tailored draft from a CV and job description.",
+  },
+  {
+    href: "/dashboard/history",
+    title: "View history",
+    description: "Review saved analyses, matches, and cover letters.",
+  },
+];
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
-
-  useEffect(() => {
-    let isActive = true;
-    const token = localStorage.getItem("accessToken");
-
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-
-    async function loadUser() {
-      try {
-        const response = await apiClient.request<AuthMeResponse>("/auth/me", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (isActive) {
-          setUser(response.data.user);
-        }
-      } catch {
-        localStorage.removeItem("accessToken");
-        router.replace("/login");
-      }
-    }
-
-    void loadUser();
-
-    return () => {
-      isActive = false;
-    };
-  }, [router]);
-
-  function handleLogout() {
-    localStorage.removeItem("accessToken");
-    router.replace("/login");
-  }
-
-  const displayName = user?.name || user?.email;
-
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-10">
-      <section className="mx-auto max-w-5xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-zinc-500">CV Assistant</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">
-              Dashboard
-            </h1>
-          </div>
+    <ProtectedPage title="Dashboard" description="Choose the task you want to complete.">
+      {({ user }) => {
+        const displayName = user.name || user.email;
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
-          >
-            Log out
-          </button>
-        </div>
+        return (
+          <div className="mt-8 space-y-6">
+            <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-medium text-zinc-500">Signed in as</p>
+              <h2 className="mt-2 text-xl font-semibold text-zinc-950">
+                {displayName}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">{user.email}</p>
+            </section>
 
-        {user ? (
-          <div className="mt-8 rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
-            <p className="text-sm font-medium text-zinc-500">Signed in as</p>
-            <h2 className="mt-2 text-xl font-semibold text-zinc-950">
-              {displayName}
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">{user.email}</p>
-            <Link
-              href="/dashboard/cvs"
-              className="mt-6 inline-flex rounded-md bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Manage CVs
-            </Link>
+            <section aria-label="Dashboard tasks">
+              <div className="grid gap-4 md:grid-cols-2">
+                {tasks.map((task) => (
+                  <Link
+                    key={task.href}
+                    href={task.href}
+                    className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
+                  >
+                    <h3 className="text-base font-semibold text-zinc-950">
+                      {task.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">
+                      {task.description}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </section>
           </div>
-        ) : (
-          <div
-            role="status"
-            className="mt-8 rounded-lg border border-zinc-200 bg-white p-8 text-sm text-zinc-600 shadow-sm"
-          >
-            Loading dashboard...
-          </div>
-        )}
-      </section>
-    </main>
+        );
+      }}
+    </ProtectedPage>
   );
 }

@@ -132,11 +132,9 @@ test("login redirects to dashboard after successful submit", async ({ page }) =>
       contentType: "application/json",
       body: JSON.stringify({
         data: {
-          user: {
-            id: "user_1",
-            email: "ada@example.com",
-            name: "Ada Lovelace",
-          },
+          id: "user_1",
+          email: "ada@example.com",
+          name: "Ada Lovelace",
         },
         meta: {},
       }),
@@ -203,11 +201,9 @@ test("dashboard shows user info when token is valid", async ({ page }) => {
       contentType: "application/json",
       body: JSON.stringify({
         data: {
-          user: {
-            id: "user_1",
-            email: "ada@example.com",
-            name: "Ada Lovelace",
-          },
+          id: "user_1",
+          email: "ada@example.com",
+          name: "Ada Lovelace",
         },
         meta: {},
       }),
@@ -266,11 +262,9 @@ test("dashboard logout clears token and redirects to login", async ({ page }) =>
       contentType: "application/json",
       body: JSON.stringify({
         data: {
-          user: {
-            id: "user_1",
-            email: "ada@example.com",
-            name: "Ada Lovelace",
-          },
+          id: "user_1",
+          email: "ada@example.com",
+          name: "Ada Lovelace",
         },
         meta: {},
       }),
@@ -315,11 +309,9 @@ test("dashboard shows email when user has no name", async ({ page }) => {
       contentType: "application/json",
       body: JSON.stringify({
         data: {
-          user: {
-            id: "user_1",
-            email: "ada@example.com",
-            name: null,
-          },
+          id: "user_1",
+          email: "ada@example.com",
+          name: null,
         },
         meta: {},
       }),
