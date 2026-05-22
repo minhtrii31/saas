@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCvDto } from './dto/create-cv.dto';
 
@@ -16,6 +16,20 @@ type CreatedCv = {
 };
 
 type CvListItem = CreatedCv;
+type CvDetail = CreatedCv;
+
+const cvSelect = {
+  id: true,
+  title: true,
+  originalName: true,
+  mimeType: true,
+  sizeBytes: true,
+  storageProvider: true,
+  storageKey: true,
+  storageUrl: true,
+  extractedText: true,
+  createdAt: true,
+};
 
 @Injectable()
 export class CvsService {
@@ -32,22 +46,40 @@ export class CvsService {
       orderBy: {
         createdAt: 'desc',
       },
-      select: {
-        id: true,
-        title: true,
-        originalName: true,
-        mimeType: true,
-        sizeBytes: true,
-        storageProvider: true,
-        storageKey: true,
-        storageUrl: true,
-        extractedText: true,
-        createdAt: true,
-      },
+      select: cvSelect,
     });
 
     return {
       data: cvs,
+      meta: {},
+    };
+  }
+
+  async findOne(
+    userId: string,
+    id: string,
+  ): Promise<{ data: CvDetail; meta: Record<string, never> }> {
+    const cv = await this.prisma.cv.findFirst({
+      where: {
+        id,
+        userId,
+        deletedAt: null,
+      },
+      select: cvSelect,
+    });
+
+    if (!cv) {
+      throw new NotFoundException({
+        error: {
+          code: 'CV_NOT_FOUND',
+          message: 'CV not found',
+        },
+        meta: {},
+      });
+    }
+
+    return {
+      data: cv,
       meta: {},
     };
   }
@@ -69,18 +101,7 @@ export class CvsService {
         extractedText: null,
         deletedAt: null,
       },
-      select: {
-        id: true,
-        title: true,
-        originalName: true,
-        mimeType: true,
-        sizeBytes: true,
-        storageProvider: true,
-        storageKey: true,
-        storageUrl: true,
-        extractedText: true,
-        createdAt: true,
-      },
+      select: cvSelect,
     });
 
     return {
