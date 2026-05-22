@@ -14,3 +14,4 @@ apps/api/dist
 apps/api/uploads/
 
 npm-debug.log*
+pulse-reference/
