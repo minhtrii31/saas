@@ -17,4 +17,22 @@ describe('MockCvAnalysisProvider', () => {
     expect(result.score).toBeGreaterThanOrEqual(0);
     expect(result.score).toBeLessThanOrEqual(100);
   });
+
+  it('returns structured mock JD match analysis from CV and job description text', async () => {
+    const provider = new MockCvAnalysisProvider();
+
+    const result = await provider.matchJobDescription(
+      'Backend engineer with TypeScript, NestJS, PostgreSQL, and testing experience.',
+      'Backend role requiring TypeScript, NestJS, PostgreSQL, Redis, and API testing.',
+    );
+
+    expect(result).toEqual({
+      matchingScore: expect.any(Number),
+      matchedSkills: expect.arrayContaining(['TypeScript', 'NestJS']),
+      missingSkills: expect.arrayContaining(['Redis']),
+      suggestions: expect.arrayContaining([expect.any(String)]),
+    });
+    expect(result.matchingScore).toBeGreaterThanOrEqual(0);
+    expect(result.matchingScore).toBeLessThanOrEqual(100);
+  });
 });

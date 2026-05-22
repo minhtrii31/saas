@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/authenticated-request';
 import { CvsService } from './cvs.service';
 import { CreateCvDto } from './dto/create-cv.dto';
+import { MatchCvDto } from './dto/match-cv.dto';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
 
 const cvIdParamPipe = new ParseUUIDPipe({
@@ -81,6 +82,16 @@ export class CvsController {
     @Param('id', cvIdParamPipe) id: string,
   ) {
     return this.cvsService.analyze(user.id, id);
+  }
+
+  @Post(':id/match')
+  @UseGuards(JwtAuthGuard)
+  match(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+    @Body() dto: MatchCvDto,
+  ) {
+    return this.cvsService.matchJobDescription(user.id, id, dto);
   }
 
   @Post('upload')

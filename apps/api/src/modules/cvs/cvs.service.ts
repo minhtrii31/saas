@@ -7,12 +7,16 @@ import {
 import { EnvironmentService } from '../../config/environment.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalysisService } from '../analysis/analysis.service';
-import type { CvAnalysisResult } from '../analysis/types/cv-analysis-provider';
+import type {
+  CvAnalysisResult,
+  JdMatchResult,
+} from '../analysis/types/cv-analysis-provider';
 import {
   CreateCvDto,
   type SupportedCvMimeType,
   supportedCvMimeTypes,
 } from './dto/create-cv.dto';
+import { MatchCvDto } from './dto/match-cv.dto';
 import { FileStorageService } from './services/file-storage.service';
 import { PdfTextExtractor } from './services/pdf-text-extractor.service';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
@@ -45,6 +49,16 @@ type CreatedCvAnalysis = {
   result: CvAnalysisResult;
   createdAt: Date;
 };
+type CreatedJdMatchAnalysis = {
+  id: string;
+  cvId: string;
+  type: string;
+  jobDescriptionText: string | null;
+  aiProvider: string | null;
+  aiModel: string | null;
+  result: JdMatchResult;
+  createdAt: Date;
+};
 type CvAnalysisHistoryItem = {
   id: string;
   cvId: string;
@@ -72,6 +86,16 @@ const cvAnalysisSelect = {
   id: true,
   cvId: true,
   type: true,
+  aiProvider: true,
+  aiModel: true,
+  result: true,
+  createdAt: true,
+};
+const jdMatchAnalysisSelect = {
+  id: true,
+  cvId: true,
+  type: true,
+  jobDescriptionText: true,
   aiProvider: true,
   aiModel: true,
   result: true,
@@ -338,6 +362,59 @@ export class CvsService {
 
     return {
       data: analysis as CreatedCvAnalysis,
+      meta: {},
+    };
+  }
+
+  async matchJobDescription(
+    userId: string,
+    id: string,
+    dto: MatchCvDto,
+  ): Promise<{ data: CreatedJdMatchAnalysis; meta: Record<string, never> }> {
+    const cv = await this.prisma.cv.findFirst({
+      where: {
+        id,
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        extractedText: true,
+      },
+    });
+
+    if (!cv) {
+      throw this.cvNotFound();
+    }
+
+    if (!cv.extractedText?.trim()) {
+      throw new UnprocessableEntityException({
+        error: {
+          code: 'CV_TEXT_NOT_EXTRACTED',
+          message: 'CV text has not been extracted',
+        },
+        meta: {},
+      });
+    }
+
+    const cvAnalysis = await this.analysisService.matchJobDescription(
+      cv.extractedText,
+      dto.jobDescriptionText,
+    );
+    const analysis = await this.prisma.cvAnalysis.create({
+      data: {
+        cvId: cv.id,
+        type: 'JD_MATCH',
+        jobDescriptionText: dto.jobDescriptionText,
+        aiProvider: cvAnalysis.aiProvider,
+        aiModel: cvAnalysis.aiModel,
+        result: cvAnalysis.result,
+      },
+      select: jdMatchAnalysisSelect,
+    });
+
+    return {
+      data: analysis as CreatedJdMatchAnalysis,
       meta: {},
     };
   }

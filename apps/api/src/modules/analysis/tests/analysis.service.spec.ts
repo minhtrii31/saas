@@ -11,10 +11,13 @@ describe('AnalysisService', () => {
       weaknesses: ['Needs quantified achievements'],
       suggestions: ['Add measurable outcomes'],
     });
+    const matchJobDescription = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
+      jdMatcherModelName: 'mock-jd-matcher-v1',
       analyzeCv,
+      matchJobDescription,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -38,5 +41,49 @@ describe('AnalysisService', () => {
       },
     });
     expect(analyzeCv).toHaveBeenCalledWith('extracted cv text');
+  });
+
+  it('delegates JD matching to the configured provider and returns JD matcher metadata', async () => {
+    const analyzeCv = jest.fn();
+    const matchJobDescription = jest.fn().mockResolvedValue({
+      matchingScore: 75,
+      matchedSkills: ['TypeScript', 'NestJS'],
+      missingSkills: ['Redis'],
+      suggestions: ['Add Redis experience'],
+    });
+    const provider: CvAnalysisProvider = {
+      providerName: 'mock',
+      modelName: 'mock-cv-analyzer-v1',
+      jdMatcherModelName: 'mock-jd-matcher-v1',
+      analyzeCv,
+      matchJobDescription,
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AnalysisService,
+        {
+          provide: CV_ANALYSIS_PROVIDER,
+          useValue: provider,
+        },
+      ],
+    }).compile();
+    const service = module.get(AnalysisService);
+
+    await expect(
+      service.matchJobDescription('extracted cv text', 'job description'),
+    ).resolves.toEqual({
+      aiProvider: 'mock',
+      aiModel: 'mock-jd-matcher-v1',
+      result: {
+        matchingScore: 75,
+        matchedSkills: ['TypeScript', 'NestJS'],
+        missingSkills: ['Redis'],
+        suggestions: ['Add Redis experience'],
+      },
+    });
+    expect(matchJobDescription).toHaveBeenCalledWith(
+      'extracted cv text',
+      'job description',
+    );
   });
 });
