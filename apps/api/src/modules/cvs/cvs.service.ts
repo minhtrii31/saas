@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { EnvironmentService } from '../../config/environment.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -11,6 +12,7 @@ import {
   supportedCvMimeTypes,
 } from './dto/create-cv.dto';
 import { FileStorageService } from './services/file-storage.service';
+import { PdfTextExtractor } from './services/pdf-text-extractor.service';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
 
 type CreatedCv = {
@@ -51,6 +53,7 @@ export class CvsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileStorageService: FileStorageService,
+    private readonly pdfTextExtractor: PdfTextExtractor,
     private readonly environmentService: EnvironmentService,
   ) {}
 
@@ -133,10 +136,29 @@ export class CvsService {
       userId,
       validFile,
     );
+    const mimeType = validFile.mimetype as SupportedCvMimeType;
+    let extractedText: string | null = null;
+
+    if (mimeType === 'application/pdf') {
+      try {
+        const filePath = this.fileStorageService.getLocalPath(
+          uploadResult.storageKey,
+        );
+        extractedText = await this.pdfTextExtractor.extractFromFile(filePath);
+      } catch {
+        await this.fileStorageService.deleteFile(uploadResult.storageKey);
+        throw new UnprocessableEntityException({
+          error: {
+            code: 'PDF_TEXT_EXTRACTION_FAILED',
+            message: 'Could not extract text from PDF file',
+          },
+          meta: {},
+        });
+      }
+    }
 
     try {
       const originalName = validFile.originalname ?? 'file';
-      const mimeType = validFile.mimetype as SupportedCvMimeType;
       const sizeBytes = validFile.size ?? 0;
 
       const cv = await this.prisma.cv.create({
@@ -149,7 +171,7 @@ export class CvsService {
           storageProvider: 'local',
           storageKey: uploadResult.storageKey,
           storageUrl: uploadResult.storageUrl ?? null,
-          extractedText: null,
+          extractedText,
           deletedAt: null,
         },
         select: cvSelect,

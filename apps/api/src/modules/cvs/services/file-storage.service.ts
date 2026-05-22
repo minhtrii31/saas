@@ -57,11 +57,15 @@ export class FileStorageService {
 
   async deleteFile(storageKey: string): Promise<void> {
     try {
-      const filePath = path.join(process.cwd(), 'uploads', storageKey);
+      const filePath = this.getLocalPath(storageKey);
       await fs.unlink(filePath);
     } catch {
       // Silently ignore delete errors - file may already be gone
     }
+  }
+
+  getLocalPath(storageKey: string): string {
+    return path.join(process.cwd(), 'uploads', storageKey);
   }
 
   private sanitizeFilename(filename: string): string {

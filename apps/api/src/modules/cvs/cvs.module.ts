@@ -5,10 +5,16 @@ import { CvsController } from './cvs.controller';
 import { CvsService } from './cvs.service';
 import { FileStorageService } from './services/file-storage.service';
 import { EnvironmentService } from '../../config/environment.service';
+import { PdfTextExtractor } from './services/pdf-text-extractor.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [CvsController],
-  providers: [CvsService, FileStorageService, EnvironmentService],
+  providers: [
+    CvsService,
+    FileStorageService,
+    PdfTextExtractor,
+    EnvironmentService,
+  ],
 })
 export class CvsModule {}

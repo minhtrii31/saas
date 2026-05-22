@@ -6,6 +6,7 @@ import { configureApp } from '../../../app.setup';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { TokenService } from '../../auth/token.service';
 import { FileStorageService } from '../services/file-storage.service';
+import { PdfTextExtractor } from '../services/pdf-text-extractor.service';
 
 describe('POST /cvs/upload', () => {
   const originalJwtSecret = process.env.JWT_SECRET;
@@ -13,6 +14,10 @@ describe('POST /cvs/upload', () => {
   let app: INestApplication;
   let tokenService: TokenService;
   let fileStorageService: FileStorageService;
+  let pdfTextExtractor: PdfTextExtractor;
+  let extractFromFileSpy: jest.SpiedFunction<
+    PdfTextExtractor['extractFromFile']
+  >;
   let prisma: {
     user: {
       findFirst: jest.Mock;
@@ -48,6 +53,7 @@ describe('POST /cvs/upload', () => {
 
     tokenService = app.get(TokenService);
     fileStorageService = app.get(FileStorageService);
+    pdfTextExtractor = app.get(PdfTextExtractor);
 
     // Mock the file storage service
     jest.spyOn(fileStorageService, 'uploadLocal').mockResolvedValue({
@@ -55,6 +61,14 @@ describe('POST /cvs/upload', () => {
         'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
       storageUrl: null,
     });
+    jest
+      .spyOn(fileStorageService, 'getLocalPath')
+      .mockReturnValue(
+        '/app/uploads/cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
+      );
+    extractFromFileSpy = jest
+      .spyOn(pdfTextExtractor, 'extractFromFile')
+      .mockResolvedValue('Extracted CV text');
   });
 
   afterEach(async () => {
@@ -161,7 +175,7 @@ describe('POST /cvs/upload', () => {
     }
   });
 
-  it('creates CV record from PDF upload', async () => {
+  it('creates CV record from PDF upload with extracted text', async () => {
     const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
     const createdAt = new Date('2026-05-22T10:30:00.000Z');
     const accessToken = tokenService.signAccessToken(userId);
@@ -184,7 +198,7 @@ describe('POST /cvs/upload', () => {
       storageKey:
         'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
       storageUrl: null,
-      extractedText: null,
+      extractedText: 'Extracted CV text',
       createdAt,
     });
 
@@ -205,12 +219,15 @@ describe('POST /cvs/upload', () => {
         storageKey:
           'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
         storageUrl: null,
-        extractedText: null,
+        extractedText: 'Extracted CV text',
         createdAt: createdAt.toISOString(),
       },
       meta: {},
     });
 
+    expect(extractFromFileSpy).toHaveBeenCalledWith(
+      '/app/uploads/cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
+    );
     expect(prisma.cv.create).toHaveBeenCalledWith({
       data: {
         userId,
@@ -222,7 +239,7 @@ describe('POST /cvs/upload', () => {
         storageKey:
           'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
         storageUrl: null,
-        extractedText: null,
+        extractedText: 'Extracted CV text',
         deletedAt: null,
       },
       select: {
@@ -321,6 +338,48 @@ describe('POST /cvs/upload', () => {
     expect(response.body.data.mimeType).toBe(
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
+    expect(response.body.data.extractedText).toBeNull();
+    expect(extractFromFileSpy).not.toHaveBeenCalled();
+    expect(prisma.cv.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          extractedText: null,
+        }),
+      }),
+    );
+  });
+
+  it('returns 422, cleans up the stored file, and does not create CV when PDF extraction fails', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+    const storageKey =
+      'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf';
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+    extractFromFileSpy.mockRejectedValue(new Error('invalid pdf'));
+    const deleteSpy = jest
+      .spyOn(fileStorageService, 'deleteFile')
+      .mockResolvedValue();
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', Buffer.from('PDF content'), 'resume.pdf')
+      .expect(422);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'PDF_TEXT_EXTRACTION_FAILED',
+        message: 'Could not extract text from PDF file',
+      },
+      meta: {},
+    });
+    expect(deleteSpy).toHaveBeenCalledWith(storageKey);
+    expect(prisma.cv.create).not.toHaveBeenCalled();
   });
 
   it('cleans up the stored file when CV creation fails', async () => {
