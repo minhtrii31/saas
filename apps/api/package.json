@@ -83,6 +83,7 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
+    "globalSetup": "<rootDir>/test/global-setup.ts",
     "setupFiles": [
       "<rootDir>/test/setup-env.ts"
     ]
