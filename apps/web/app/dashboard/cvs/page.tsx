@@ -11,6 +11,7 @@ import type {
   CvAnalysis,
   CvAnalysisResult,
   CvItem,
+  JdMatchResult,
 } from "../../../lib/api";
 
 type PageStatus =
@@ -35,6 +36,12 @@ type HistoryState =
   | { type: "success"; analyses: CvAnalysis[] }
   | { type: "error"; message: string };
 
+type MatchState =
+  | { type: "idle" }
+  | { type: "loading" }
+  | { type: "success"; result: JdMatchResult }
+  | { type: "error"; message: string };
+
 type AuthMeResponse = {
   user: AuthUser;
 };
@@ -57,6 +64,12 @@ export default function CvsPage() {
   const [historyByCvId, setHistoryByCvId] = useState<
     Record<string, HistoryState>
   >({});
+  const [matchPanelByCvId, setMatchPanelByCvId] = useState<
+    Record<string, boolean>
+  >({});
+  const [matchByCvId, setMatchByCvId] = useState<Record<string, MatchState>>(
+    {},
+  );
 
   const redirectToLogin = useCallback(() => {
     localStorage.removeItem("accessToken");
@@ -228,7 +241,7 @@ export default function CvsPage() {
         ...current,
         [cvId]: {
           type: "success",
-          result: response.data.result,
+          result: toCvAnalysisResult(response.data.result),
         },
       }));
     } catch (error) {
@@ -286,6 +299,76 @@ export default function CvsPage() {
           message: getApiErrorMessage(
             error,
             "Unable to load analysis history. Please try again.",
+          ),
+        },
+      }));
+    }
+  }
+
+  function handleToggleMatchPanel(cvId: string) {
+    setMatchPanelByCvId((current) => ({
+      ...current,
+      [cvId]: !current[cvId],
+    }));
+  }
+
+  async function handleMatch(cvId: string, jobDescriptionText: string) {
+    const token = localStorage.getItem("accessToken");
+
+    if (!token) {
+      redirectToLogin();
+      return;
+    }
+
+    const trimmedJobDescriptionText = jobDescriptionText.trim();
+
+    if (!trimmedJobDescriptionText) {
+      setMatchByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "error",
+          message: "Enter a job description before matching.",
+        },
+      }));
+      return;
+    }
+
+    setMatchByCvId((current) => ({
+      ...current,
+      [cvId]: { type: "loading" },
+    }));
+
+    try {
+      const response = await apiClient.request<CvAnalysis>(`/cvs/${cvId}/match`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: {
+          jobDescriptionText: trimmedJobDescriptionText,
+        },
+      });
+
+      setMatchByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "success",
+          result: toJdMatchResult(response.data.result),
+        },
+      }));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      setMatchByCvId((current) => ({
+        ...current,
+        [cvId]: {
+          type: "error",
+          message: getApiErrorMessage(
+            error,
+            "Unable to match this CV. Please try again.",
           ),
         },
       }));
@@ -359,6 +442,10 @@ export default function CvsPage() {
                   const historyState = historyByCvId[cv.id] ?? {
                     type: "idle" as const,
                   };
+                  const matchState = matchByCvId[cv.id] ?? {
+                    type: "idle" as const,
+                  };
+                  const isMatchPanelOpen = matchPanelByCvId[cv.id] ?? false;
                   const title = cv.title || cv.originalName;
 
                   return (
@@ -427,6 +514,17 @@ export default function CvsPage() {
                             ? "Loading history..."
                             : "View history"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleToggleMatchPanel(cv.id);
+                          }}
+                          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+                        >
+                          {isMatchPanelOpen
+                            ? "Close JD match"
+                            : "Match job description"}
+                        </button>
                       </div>
 
                       <AnalysisPanel
@@ -434,6 +532,14 @@ export default function CvsPage() {
                         cvTitle={title}
                         state={analysisState}
                       />
+                      {isMatchPanelOpen ? (
+                        <MatchPanel
+                          cvId={cv.id}
+                          cvTitle={title}
+                          state={matchState}
+                          onMatch={handleMatch}
+                        />
+                      ) : null}
                       <HistoryPanel
                         cvId={cv.id}
                         cvTitle={title}
@@ -571,17 +677,32 @@ function HistoryPanel({
               <p className="mt-1 text-sm text-zinc-700">
                 Score:{" "}
                 <span className="font-semibold text-zinc-950">
-                  {analysis.result.score}
+                  {formatAnalysisScore(analysis.result)}
                 </span>
               </p>
-              <AnalysisList
-                title="Strengths"
-                items={analysis.result.strengths}
-              />
-              <AnalysisList
-                title="Weaknesses"
-                items={analysis.result.weaknesses}
-              />
+              {isJdMatchResult(analysis.result) ? (
+                <>
+                  <AnalysisList
+                    title="Matched skills"
+                    items={analysis.result.matchedSkills}
+                  />
+                  <AnalysisList
+                    title="Missing skills"
+                    items={analysis.result.missingSkills}
+                  />
+                </>
+              ) : (
+                <>
+                  <AnalysisList
+                    title="Strengths"
+                    items={analysis.result.strengths}
+                  />
+                  <AnalysisList
+                    title="Weaknesses"
+                    items={analysis.result.weaknesses}
+                  />
+                </>
+              )}
               <AnalysisList
                 title="Suggestions"
                 items={analysis.result.suggestions}
@@ -590,6 +711,135 @@ function HistoryPanel({
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+function MatchPanel({
+  cvId,
+  cvTitle,
+  state,
+  onMatch,
+}: {
+  cvId: string;
+  cvTitle: string;
+  state: MatchState;
+  onMatch: (cvId: string, jobDescriptionText: string) => Promise<void>;
+}) {
+  const textareaId = `job-description-${cvId}`;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const jobDescriptionText = formData.get("jobDescriptionText");
+
+    void onMatch(
+      cvId,
+      typeof jobDescriptionText === "string" ? jobDescriptionText : "",
+    );
+  }
+
+  return (
+    <section
+      aria-label={`JD matching for ${cvTitle}`}
+      className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4"
+    >
+      <h4 className="text-sm font-semibold text-zinc-950">
+        Job description match
+      </h4>
+
+      <form
+        aria-label={`JD matching form for ${cvTitle}`}
+        className="mt-3 space-y-3"
+        onSubmit={handleSubmit}
+      >
+        <div>
+          <label
+            htmlFor={textareaId}
+            className="block text-sm font-medium text-zinc-800"
+          >
+            Job description
+          </label>
+          <textarea
+            id={textareaId}
+            name="jobDescriptionText"
+            rows={6}
+            className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            placeholder="Paste the role requirements, responsibilities, and required skills."
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={state.type === "loading"}
+          aria-describedby={
+            state.type === "loading" ? `match-status-${cvId}` : undefined
+          }
+          className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+        >
+          {state.type === "loading" ? "Matching..." : "Run match"}
+        </button>
+      </form>
+
+      <MatchResultPanel cvId={cvId} cvTitle={cvTitle} state={state} />
+    </section>
+  );
+}
+
+function MatchResultPanel({
+  cvId,
+  cvTitle,
+  state,
+}: {
+  cvId: string;
+  cvTitle: string;
+  state: MatchState;
+}) {
+  if (state.type === "idle") {
+    return null;
+  }
+
+  if (state.type === "loading") {
+    return (
+      <p
+        id={`match-status-${cvId}`}
+        role="status"
+        className="mt-3 text-sm text-zinc-600"
+      >
+        Matching {cvTitle} against the job description...
+      </p>
+    );
+  }
+
+  if (state.type === "error") {
+    return (
+      <p
+        role="alert"
+        className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+      >
+        {state.message}
+      </p>
+    );
+  }
+
+  return (
+    <section
+      aria-label={`JD match result for ${cvTitle}`}
+      className="mt-4 rounded-md border border-zinc-200 bg-white p-4"
+    >
+      <h5 className="text-sm font-semibold text-zinc-950">
+        JD match result
+      </h5>
+      <p className="mt-2 text-sm text-zinc-700">
+        Matching score:{" "}
+        <span className="font-semibold text-zinc-950">
+          {state.result.matchingScore}
+        </span>
+      </p>
+      <AnalysisList title="Matched skills" items={state.result.matchedSkills} />
+      <AnalysisList title="Missing skills" items={state.result.missingSkills} />
+      <AnalysisList title="Suggestions" items={state.result.suggestions} />
     </section>
   );
 }
@@ -710,6 +960,38 @@ function sortAnalysesNewestFirst(analyses: CvAnalysis[]) {
     (left, right) =>
       new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );
+}
+
+function isJdMatchResult(
+  result: CvAnalysisResult | JdMatchResult,
+): result is JdMatchResult {
+  return "matchingScore" in result;
+}
+
+function toCvAnalysisResult(result: CvAnalysisResult | JdMatchResult) {
+  if (!isJdMatchResult(result)) {
+    return result;
+  }
+
+  return {
+    score: result.matchingScore,
+    suggestions: result.suggestions,
+  };
+}
+
+function toJdMatchResult(result: CvAnalysisResult | JdMatchResult) {
+  if (isJdMatchResult(result)) {
+    return result;
+  }
+
+  return {
+    matchingScore: result.score,
+    suggestions: result.suggestions,
+  };
+}
+
+function formatAnalysisScore(result: CvAnalysisResult | JdMatchResult) {
+  return isJdMatchResult(result) ? result.matchingScore : result.score;
 }
 
 async function validateSession(token: string) {

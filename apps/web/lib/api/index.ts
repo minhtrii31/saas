@@ -11,4 +11,5 @@ export type {
   CvAnalysis,
   CvAnalysisResult,
   CvItem,
+  JdMatchResult,
 } from "./types";

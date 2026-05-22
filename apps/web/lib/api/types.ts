@@ -54,13 +54,21 @@ export type CvAnalysisResult = {
   suggestions?: string[];
 };
 
+export type JdMatchResult = {
+  matchingScore: number;
+  matchedSkills?: string[];
+  missingSkills?: string[];
+  suggestions?: string[];
+};
+
 export type CvAnalysis = {
   id: string;
   cvId: string;
   type: "CV_ANALYSIS" | "JD_MATCH";
+  jobDescriptionText?: string;
   aiProvider: string;
   aiModel: string;
-  result: CvAnalysisResult;
+  result: CvAnalysisResult | JdMatchResult;
   createdAt: string;
 };
 

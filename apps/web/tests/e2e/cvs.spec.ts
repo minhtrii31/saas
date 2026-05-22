@@ -220,6 +220,126 @@ test("CV analysis API error displays error", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("CV JD match success displays result", async ({ page }) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/match", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.url()).toContain(`/cvs/${cvList[0].id}/match`);
+    expect(request.postDataJSON()).toEqual({
+      jobDescriptionText:
+        "We need TypeScript, NestJS, Redis, and PostgreSQL experience.",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: "jd-match-1",
+          cvId: cvList[0].id,
+          type: "JD_MATCH",
+          jobDescriptionText:
+            "We need TypeScript, NestJS, Redis, and PostgreSQL experience.",
+          aiProvider: "mock",
+          aiModel: "mock-jd-matcher-v1",
+          result: {
+            matchingScore: 75,
+            matchedSkills: ["TypeScript", "NestJS", "PostgreSQL"],
+            missingSkills: ["Redis"],
+            suggestions: ["Add Redis project examples"],
+          },
+          createdAt: "2026-05-22T11:30:00.000Z",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "Match job description" }).click();
+  await page
+    .getByLabel("Job description")
+    .fill("We need TypeScript, NestJS, Redis, and PostgreSQL experience.");
+  await page.getByRole("button", { name: "Run match" }).click();
+
+  await expect(page.getByRole("button", { name: "Matching..." })).toBeDisabled();
+  await expect(
+    page.getByRole("region", { name: "JD match result for Backend CV" }),
+  ).toBeVisible();
+  await expect(page.getByText("Matching score: 75")).toBeVisible();
+  await expect(page.getByText("TypeScript")).toBeVisible();
+  await expect(page.getByText("NestJS")).toBeVisible();
+  await expect(page.getByText("PostgreSQL")).toBeVisible();
+  await expect(page.getByText("Redis", { exact: true })).toBeVisible();
+  await expect(page.getByText("Add Redis project examples")).toBeVisible();
+});
+
+test("CV JD match empty job description displays validation error", async ({
+  page,
+}) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "Match job description" }).click();
+  await page.getByRole("button", { name: "Run match" }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Enter a job description before matching." }),
+  ).toBeVisible();
+});
+
+test("CV JD match API error displays error", async ({ page }) => {
+  await mockAuthMe(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/match", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "CV_TEXT_NOT_EXTRACTED",
+          message: "CV text has not been extracted",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "valid-token");
+  });
+
+  await page.goto("/dashboard/cvs");
+  await page.getByRole("button", { name: "Match job description" }).click();
+  await page
+    .getByLabel("Job description")
+    .fill("We need TypeScript and Redis experience.");
+  await page.getByRole("button", { name: "Run match" }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "CV text has not been extracted" }),
+  ).toBeVisible();
+});
+
 test("CV analysis history success displays analysis items", async ({
   page,
 }) => {
