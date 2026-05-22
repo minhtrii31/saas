@@ -4,6 +4,7 @@ test("home page renders", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /to get started, edit the page\.tsx file/i }),
+    page.getByRole("heading", { name: /sharper applications/i }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start workspace" })).toBeVisible();
 });

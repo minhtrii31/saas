@@ -16,6 +16,7 @@ export type CoverLetterGenerationInput = {
   jobDescriptionText: string;
   companyName?: string;
   roleTitle?: string;
+  tone?: string;
 };
 
 export type CoverLetterResult = {

@@ -91,6 +91,7 @@ export async function generateCoverLetter(
     jobDescriptionText: string;
     companyName?: string;
     roleTitle?: string;
+    tone?: string;
   },
 ) {
   const response = await apiClient.request<CvAnalysis>(

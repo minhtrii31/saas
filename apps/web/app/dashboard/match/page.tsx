@@ -1,5 +1,6 @@
 "use client";
 
+import { BriefcaseBusiness, FileText, GitCompare, Target } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +14,9 @@ import {
 import { CvSelector } from "@/components/dashboard/cv-selector";
 import { MatchResult } from "@/components/dashboard/match/match-result";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { WorkflowLens } from "@/components/dashboard/workflow-lens";
+import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
+import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import type { CvItem, JdMatchResult } from "@/lib/api";
 
 type CvsState =
@@ -134,12 +138,34 @@ function MatchContent({ token }: { token: string }) {
   }
 
   return (
-    <div className="mt-8 max-w-3xl">
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-zinc-950">Run match</h2>
+    <div className="space-y-5">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <WorkspaceHero
+          eyebrow="Job suitability matcher"
+          title="Compare the role against the real signal."
+          description="Paste a job description and identify matched skills, missing evidence, and improvement opportunities."
+        />
+        <WorkflowLens
+          title="Match lens"
+          items={[
+            { icon: Target, label: "Skill coverage" },
+            { icon: BriefcaseBusiness, label: "Role relevance" },
+            { icon: GitCompare, label: "Gap analysis" },
+          ]}
+        />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="border border-[#e5e5df] bg-[#ffffff] p-5 shadow-sm shadow-zinc-950/[0.02] md:p-6">
+          <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+            Setup
+          </p>
+          <h3 className="mt-1 text-lg font-semibold text-[#171717]">
+            Run job match
+          </h3>
 
         {cvsState.type === "loading" ? (
-          <p role="status" className="mt-6 text-sm text-zinc-600">
+          <p role="status" className="mt-5 text-sm text-[#5f5f58]">
             Loading CVs...
           </p>
         ) : null}
@@ -147,14 +173,14 @@ function MatchContent({ token }: { token: string }) {
         {cvsState.type === "error" ? (
           <p
             role="alert"
-            className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="mt-5 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
           >
             {cvsState.message}
           </p>
         ) : null}
 
         {cvsState.type === "ready" ? (
-          <form className="mt-6 space-y-4" noValidate onSubmit={handleSubmit}>
+          <form className="mt-5 space-y-4" noValidate onSubmit={handleSubmit}>
             <CvSelector
               cvs={cvsState.cvs}
               selectedCvId={selectedCvId}
@@ -166,7 +192,7 @@ function MatchContent({ token }: { token: string }) {
             <div>
               <label
                 htmlFor="jobDescriptionText"
-                className="block text-sm font-medium text-zinc-800"
+                className="block text-[0.7rem] font-bold uppercase text-[#6f6f68]"
               >
                 Job description
               </label>
@@ -174,22 +200,23 @@ function MatchContent({ token }: { token: string }) {
                 id="jobDescriptionText"
                 name="jobDescriptionText"
                 rows={8}
-                className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+                className="mt-2 block w-full border border-[#e5e5df] bg-[#f7f7f4] px-3 py-3 text-sm leading-6 text-[#171717] outline-none transition placeholder:text-[#9a9288] hover:border-[#cfcfc8] focus:border-[#171717] focus:bg-white"
                 placeholder="Paste the role requirements, responsibilities, and required skills."
               />
             </div>
             <button
               type="submit"
               disabled={matchState.type === "loading" || cvsState.cvs.length === 0}
-              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className="inline-flex min-h-11 items-center justify-center gap-2 bg-[#171717] px-4 text-sm font-semibold text-white transition hover:bg-[#2b2926] disabled:cursor-not-allowed disabled:bg-[#a1a19a]"
             >
+              <GitCompare className="h-4 w-4" aria-hidden="true" />
               {matchState.type === "loading" ? "Matching..." : "Run match"}
             </button>
           </form>
         ) : null}
 
         {matchState.type === "loading" ? (
-          <p role="status" className="mt-4 text-sm text-zinc-600">
+          <p role="status" className="mt-4 border border-[#e5e5df] bg-[#f7f7f4] px-3 py-2 text-sm text-[#5f5f58]">
             Matching {selectedCv?.title || selectedCv?.originalName || "CV"}...
           </p>
         ) : null}
@@ -197,11 +224,25 @@ function MatchContent({ token }: { token: string }) {
         {matchState.type === "error" ? (
           <p
             role="alert"
-            className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="mt-4 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
           >
             {matchState.message}
           </p>
         ) : null}
+        </div>
+
+        <WorkflowBrief
+          eyebrow="Match brief"
+          icon={FileText}
+          title={selectedCv?.title || selectedCv?.originalName || "No CV selected"}
+          description="Paste a complete role description for better skill coverage, missing evidence, and improvement suggestions."
+          listTitle="Good input includes"
+          items={[
+            "Responsibilities",
+            "Required skills",
+            "Seniority expectations",
+          ]}
+        />
       </section>
 
       {matchState.type === "success" ? (

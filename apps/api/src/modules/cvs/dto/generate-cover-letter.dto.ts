@@ -4,6 +4,7 @@ import { maxJobDescriptionTextLength } from './match-cv.dto';
 
 const maxCompanyNameLength = 120;
 const maxRoleTitleLength = 120;
+const maxToneLength = 40;
 
 export class GenerateCoverLetterDto {
   @Transform(({ value }: { value: unknown }) =>
@@ -29,4 +30,12 @@ export class GenerateCoverLetterDto {
   @IsString({ message: 'roleTitle must be a string' })
   @MaxLength(maxRoleTitleLength)
   roleTitle?: string;
+
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsOptional()
+  @IsString({ message: 'tone must be a string' })
+  @MaxLength(maxToneLength)
+  tone?: string;
 }

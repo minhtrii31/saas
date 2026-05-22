@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  ArrowUpRight,
+  FileText,
+  Gauge,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -11,7 +19,15 @@ import {
 } from "@/components/dashboard/api";
 import { AnalysisResult } from "@/components/dashboard/analysis/analysis-result";
 import { CvSelector } from "@/components/dashboard/cv-selector";
+import { formatBytes, formatDateTime } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { WorkflowLens } from "@/components/dashboard/workflow-lens";
+import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
+import { Button } from "@/components/ui/button";
+import { MetricGrid, MetricTile } from "@/components/ui/metric";
+import { Eyebrow, SectionTitle } from "@/components/ui/section-heading";
+import { StatusMessage } from "@/components/ui/status-message";
+import { Surface } from "@/components/ui/surface";
 import type { CvAnalysisResult, CvItem } from "@/lib/api";
 
 type CvsState =
@@ -117,27 +133,54 @@ function AnalyzeContent({ token }: { token: string }) {
   }
 
   return (
-    <div className="mt-8 max-w-3xl">
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-zinc-950">Run analysis</h2>
+    <div className="space-y-5">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <WorkspaceHero
+          eyebrow="AI audit workspace"
+          title="Find the signal before a recruiter does."
+          description="Select a source CV and generate a structured quality report: strengths, weak spots, and practical improvements."
+        />
+        <WorkflowLens
+          title="Audit lens"
+          items={[
+            { icon: ShieldCheck, label: "Recruiter clarity" },
+            { icon: Gauge, label: "Quality signal" },
+            { icon: Sparkles, label: "Improvement guidance" },
+          ]}
+        />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Surface padding="lg" shadow>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Eyebrow>Setup</Eyebrow>
+              <SectionTitle className="mt-1">Run CV analysis</SectionTitle>
+            </div>
+            <Link
+              href="/dashboard/cvs"
+              className="hidden items-center gap-1 text-xs font-semibold text-[#5f5f58] transition hover:text-[#171717] sm:inline-flex"
+            >
+              Repository
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          </div>
 
         {cvsState.type === "loading" ? (
-          <p role="status" className="mt-6 text-sm text-zinc-600">
-            Loading CVs...
-          </p>
+          <StatusMessage className="mt-5">Loading CVs...</StatusMessage>
         ) : null}
 
         {cvsState.type === "error" ? (
           <p
             role="alert"
-            className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="mt-5 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
           >
             {cvsState.message}
           </p>
         ) : null}
 
         {cvsState.type === "ready" ? (
-          <div className="mt-6 space-y-4">
+          <div className="mt-5 space-y-4">
             <CvSelector
               cvs={cvsState.cvs}
               selectedCvId={selectedCvId}
@@ -146,33 +189,33 @@ function AnalyzeContent({ token }: { token: string }) {
                 setAnalysisState({ type: "idle" });
               }}
             />
-            <button
-              type="button"
+            <Button
               onClick={() => {
                 void handleAnalyze();
               }}
               disabled={analysisState.type === "loading" || cvsState.cvs.length === 0}
-              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className="w-full sm:w-auto"
             >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
               {analysisState.type === "loading" ? "Analyzing..." : "Analyze CV"}
-            </button>
+            </Button>
           </div>
         ) : null}
 
         {analysisState.type === "loading" ? (
-          <p role="status" className="mt-4 text-sm text-zinc-600">
+          <StatusMessage className="mt-4">
             Analyzing {selectedCv?.title || selectedCv?.originalName || "CV"}...
-          </p>
+          </StatusMessage>
         ) : null}
 
         {analysisState.type === "error" ? (
-          <p
-            role="alert"
-            className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          >
+          <StatusMessage role="alert" tone="error" className="mt-4">
             {analysisState.message}
-          </p>
+          </StatusMessage>
         ) : null}
+        </Surface>
+
+        <SelectedCvPanel selectedCv={selectedCv} cvCount={cvsState.type === "ready" ? cvsState.cvs.length : 0} />
       </section>
 
       {analysisState.type === "success" ? (
@@ -183,4 +226,49 @@ function AnalyzeContent({ token }: { token: string }) {
       ) : null}
     </div>
   );
+}
+
+function SelectedCvPanel({
+  selectedCv,
+  cvCount,
+}: {
+  selectedCv?: CvItem;
+  cvCount: number;
+}) {
+  return (
+    <aside className="border border-[#e5e5df] bg-[#f7f7f4] p-5">
+      <Eyebrow>Selected source</Eyebrow>
+      {selectedCv ? (
+        <div className="mt-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#f1f1ee] text-[#343430]">
+              <FileText className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-[#171717]">
+                {selectedCv.title || selectedCv.originalName}
+              </p>
+              <p className="mt-1 break-all text-xs leading-5 text-[#6f6f68]">
+                {selectedCv.originalName}
+              </p>
+            </div>
+          </div>
+          <MetricGrid className="mt-5">
+            <SourceMetric label="Size" value={formatBytes(selectedCv.sizeBytes)} />
+            <SourceMetric label="Uploaded" value={formatDateTime(selectedCv.createdAt)} />
+          </MetricGrid>
+        </div>
+      ) : (
+        <p className="mt-4 text-sm leading-6 text-[#5f5f58]">
+          {cvCount === 0
+            ? "No source documents are available yet."
+            : "Choose a CV to preview the source details."}
+        </p>
+      )}
+    </aside>
+  );
+}
+
+function SourceMetric({ label, value }: { label: string; value: string }) {
+  return <MetricTile label={label} value={value} className="p-3" />;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { FileText } from "lucide-react";
+
 import type { CvItem } from "@/lib/api";
 
 export function CvSelector({
@@ -13,7 +15,7 @@ export function CvSelector({
 }) {
   if (cvs.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
+      <div className="border border-dashed border-[#cfcfc8] bg-[#f7f7f4] p-5 text-sm leading-6 text-[#5f5f58]">
         Upload a CV before using this workflow.
       </div>
     );
@@ -21,24 +23,36 @@ export function CvSelector({
 
   return (
     <div>
-      <label htmlFor="cvId" className="block text-sm font-medium text-zinc-800">
+      <label
+        htmlFor="cvId"
+        className="block text-[0.7rem] font-bold uppercase text-[#6f6f68]"
+      >
         CV
       </label>
-      <select
-        id="cvId"
-        name="cvId"
-        value={selectedCvId}
-        onChange={(event) => {
-          onChange(event.currentTarget.value);
-        }}
-        className="mt-2 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-      >
-        {cvs.map((cv) => (
-          <option key={cv.id} value={cv.id}>
-            {cv.title || cv.originalName}
-          </option>
-        ))}
-      </select>
+      <div className="relative mt-2">
+        <FileText
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6f6f68]"
+          aria-hidden="true"
+        />
+        <select
+          id="cvId"
+          name="cvId"
+          value={selectedCvId}
+          onChange={(event) => {
+            onChange(event.currentTarget.value);
+          }}
+          className="block h-11 w-full appearance-none border border-[#e5e5df] bg-[#f7f7f4] px-10 pr-8 text-sm font-medium text-[#171717] outline-none transition hover:border-[#cfcfc8] focus:border-[#171717]"
+        >
+          {cvs.map((cv) => (
+            <option key={cv.id} value={cv.id}>
+              {cv.title || cv.originalName}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6f6f68]">
+          ▾
+        </span>
+      </div>
     </div>
   );
 }

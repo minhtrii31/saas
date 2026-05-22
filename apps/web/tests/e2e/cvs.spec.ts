@@ -376,6 +376,7 @@ test("/dashboard/cover-letter can generate cover letter", async ({ page }) => {
       jobDescriptionText: "Build APIs with TypeScript, NestJS, and PostgreSQL.",
       companyName: "Acme",
       roleTitle: "Backend Engineer",
+      tone: "professional",
     });
 
     await new Promise((resolve) => setTimeout(resolve, 100));

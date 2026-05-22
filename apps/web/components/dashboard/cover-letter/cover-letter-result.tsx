@@ -1,5 +1,7 @@
 "use client";
 
+import { Clipboard, FilePenLine } from "lucide-react";
+
 import type { CoverLetterResult } from "@/lib/api";
 
 import { AnalysisList } from "../analysis/analysis-list";
@@ -18,25 +20,36 @@ export function CoverLetterResultPanel({
   return (
     <section
       aria-label={`Cover letter result for ${cvTitle}`}
-      className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm"
+      className="border border-[#e5e5df] bg-[#ffffff] p-5 shadow-sm shadow-zinc-950/[0.02] md:p-6"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <h2 className="text-lg font-semibold text-zinc-950">
-          Generated cover letter
-        </h2>
+        <div>
+          <div className="flex items-center gap-2">
+            <FilePenLine className="h-4 w-4 text-[#6f6f68]" aria-hidden="true" />
+            <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+              Draft
+            </p>
+          </div>
+          <h2 className="mt-2 text-lg font-semibold text-[#171717]">
+            Generated cover letter
+          </h2>
+        </div>
         <button
           type="button"
           onClick={onCopy}
-          className="w-fit rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+          className="inline-flex w-fit items-center gap-2 border border-[#cfcfc8] bg-white px-3 py-2 text-xs font-semibold text-[#343430] transition hover:bg-[#f1f1ee]"
         >
+          <Clipboard className="h-3.5 w-3.5" aria-hidden="true" />
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
+      <div className="mt-5 border border-[#e5e5df] bg-[#f7f7f4] p-5">
+        <p className="whitespace-pre-wrap text-sm leading-7 text-[#343430]">
         {result.coverLetter}
-      </p>
-      <p className="mt-3 text-sm text-zinc-700">
-        Tone: <span className="font-semibold text-zinc-950">{result.tone}</span>
+        </p>
+      </div>
+      <p className="mt-4 text-sm text-[#5f5f58]">
+        Tone: <span className="font-semibold text-[#171717]">{result.tone}</span>
       </p>
       <AnalysisList title="Highlights" items={result.highlights} />
     </section>

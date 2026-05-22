@@ -78,6 +78,7 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
   ): Promise<CoverLetterResult> {
     const roleTitle = input.roleTitle || 'the role';
     const companyName = input.companyName || 'your company';
+    const tone = input.tone || 'professional';
     const matchedSkills = this.findKnownSkills(
       `${extractedText} ${input.jobDescriptionText}`,
     ).slice(0, 3);
@@ -98,7 +99,7 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
         'Sincerely,',
         'Candidate',
       ].join('\n'),
-      tone: 'professional',
+      tone,
       highlights,
     });
   }

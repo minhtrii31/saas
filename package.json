@@ -20,5 +20,8 @@
     "eslint": "^9.39.4",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "lucide-react": "^1.16.0"
   }
 }

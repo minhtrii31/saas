@@ -95,6 +95,7 @@ describe('POST /cvs/:id/cover-letter', () => {
         jobDescriptionText,
         companyName: 'Example Corp',
         roleTitle: 'Backend Engineer',
+        tone: 'confident',
       })
       .expect(201);
 
@@ -108,7 +109,7 @@ describe('POST /cvs/:id/cover-letter', () => {
         aiModel: 'mock-cover-letter-v1',
         result: {
           coverLetter: expect.any(String),
-          tone: expect.any(String),
+          tone: 'confident',
           highlights: expect.any(Array),
         },
         createdAt: createdAt.toISOString(),
@@ -140,7 +141,7 @@ describe('POST /cvs/:id/cover-letter', () => {
         aiModel: 'mock-cover-letter-v1',
         result: {
           coverLetter: expect.any(String),
-          tone: expect.any(String),
+          tone: 'confident',
           highlights: expect.arrayContaining([expect.any(String)]),
         },
       },

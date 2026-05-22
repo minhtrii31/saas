@@ -3,24 +3,183 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --surface: #ffffff;
+  --surface-subtle: #fafafa;
+  --surface-muted: #f5f5f3;
+  --border: #e8e8e3;
+  --border-strong: #d4d4cc;
+  --muted: #6f6f68;
+  --muted-foreground: #5f5f58;
+  --accent: #171717;
+  --accent-foreground: #ffffff;
+  --accent-hover: #2b2926;
+  --focus-ring: rgb(23 23 23 / 0.18);
+  --selection: #171717;
+  --selection-foreground: #ffffff;
+  --paper: #fbfbfa;
+  --paper-strong: #ffffff;
+  --paper-muted: #f5f5f3;
+  --line: #e8e8e3;
+  --line-strong: #d4d4cc;
+  --ink: #171717;
+  --ink-muted: #5f5f58;
+  --ink-soft: #6f6f68;
+  --blue-accent: #6b8cff;
+  color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-paper: var(--paper);
+  --color-paper-strong: var(--paper-strong);
+  --color-paper-muted: var(--paper-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-soft: var(--ink-soft);
+  --color-blue-accent: var(--blue-accent);
+
+  --color-zinc-50: #f7f7f8;
+  --color-zinc-100: #eeeeef;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #52525b;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-800: #27272a;
+  --color-zinc-900: #18181b;
+  --color-zinc-950: #08090a;
+
+  --color-black: #08090a;
+  --color-white: #ffffff;
+
+  --color-red-50: #fafafa;
+  --color-red-200: #e4e4e7;
+  --color-red-700: #3f3f46;
+  --color-emerald-50: #fafafa;
+  --color-emerald-200: #e4e4e7;
+  --color-emerald-800: #27272a;
+
+  --font-sans: var(--font-nyx-sans);
+  --font-mono: var(--font-nyx-mono);
+  --font-serif: var(--font-nyx-serif);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: var(--selection);
+  color: var(--selection-foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 body {
-  background: var(--background);
+  background: var(--paper);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.625;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.dashboard-page {
+  width: min(100%, 96rem);
+  margin-inline: auto;
+  padding: 1.25rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .dashboard-page {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .dashboard-page {
+    padding-block: 1.75rem;
+    padding-inline: 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-page {
+    padding-inline: 2.25rem;
+  }
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1280px) {
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+}
+
+.portfolio-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.portfolio-link::after {
+  position: absolute;
+  right: 0;
+  bottom: -0.35rem;
+  left: 0;
+  height: 1px;
+  background: currentColor;
+  content: "";
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 180ms ease;
+}
+
+.portfolio-link:hover::after,
+.portfolio-link:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-marquee-track {
+    animation: none;
+  }
 }

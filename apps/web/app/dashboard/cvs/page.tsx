@@ -1,5 +1,6 @@
 "use client";
 
+import { FileText, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -11,6 +12,12 @@ import {
 import { CvList } from "@/components/dashboard/cvs/cv-list";
 import { CvUploadForm } from "@/components/dashboard/cvs/cv-upload-form";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
+import { Button } from "@/components/ui/button";
+import { MetricGrid, MetricTile } from "@/components/ui/metric";
+import { SectionTitle } from "@/components/ui/section-heading";
+import { StatusMessage } from "@/components/ui/status-message";
+import { Surface } from "@/components/ui/surface";
 import type { CvItem } from "@/lib/api";
 
 type CvsState =
@@ -97,45 +104,92 @@ function CvsContent({ token }: { token: string }) {
     };
   }, [handleUnauthorized, token]);
 
+  const totalSize =
+    state.type === "ready"
+      ? state.cvs.reduce((total, cv) => total + cv.sizeBytes, 0)
+      : 0;
+
   return (
-    <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold text-zinc-950">Saved CVs</h2>
-          <button
+    <div className="space-y-5">
+      <WorkspaceHero
+        eyebrow="Document repository"
+        title="Your CV source library."
+        description="Keep the raw documents here. Every analysis, match, and cover letter starts from one reliable source file."
+      >
+        <div className="mt-6">
+          <Button
             type="button"
             onClick={() => {
               void handleRefresh();
             }}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            variant="secondary"
+            size="sm"
           >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             Refresh
-          </button>
+          </Button>
         </div>
+      </WorkspaceHero>
 
-        {state.type === "loading" ? (
-          <p role="status" className="mt-6 text-sm text-zinc-600">
-            Loading CVs...
-          </p>
-        ) : null}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Surface shadow>
+          <MetricGrid className="sm:grid-cols-3">
+            <MetricTile
+              label="Documents"
+              value={state.type === "ready" ? String(state.cvs.length) : "--"}
+            />
+            <MetricTile
+              label="Storage"
+              value={state.type === "ready" ? formatStorage(totalSize) : "--"}
+            />
+            <MetricTile
+              label="Status"
+              value={state.type === "ready" ? "Synced" : "Loading"}
+            />
+          </MetricGrid>
 
-        {state.type === "error" ? (
-          <p
-            role="alert"
-            className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          >
-            {state.message}
-          </p>
-        ) : null}
+          <div className="mt-5 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-[#6f6f68]" aria-hidden="true" />
+            <SectionTitle className="text-sm">Saved documents</SectionTitle>
+          </div>
 
-        {state.type === "ready" ? <CvList cvs={state.cvs} /> : null}
-      </section>
+          {state.type === "loading" ? (
+            <StatusMessage className="mt-5">Loading CVs...</StatusMessage>
+          ) : null}
 
-      <CvUploadForm
-        token={token}
-        onUploaded={loadCvs}
-        onUnauthorized={handleUnauthorized}
-      />
+          {state.type === "error" ? (
+            <StatusMessage role="alert" tone="error" className="mt-5">
+              {state.message}
+            </StatusMessage>
+          ) : null}
+
+          {state.type === "ready" ? <CvList cvs={state.cvs} /> : null}
+        </Surface>
+
+        <CvUploadForm
+          token={token}
+          onUploaded={loadCvs}
+          onUnauthorized={handleUnauthorized}
+        />
+      </div>
     </div>
   );
+}
+
+function formatStorage(bytes: number) {
+  if (bytes <= 0) {
+    return "0 B";
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  const kilobytes = bytes / 1024;
+
+  if (kilobytes < 1024) {
+    return `${kilobytes.toFixed(1)} KB`;
+  }
+
+  return `${(kilobytes / 1024).toFixed(1)} MB`;
 }

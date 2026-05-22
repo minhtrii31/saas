@@ -1,5 +1,7 @@
 "use client";
 
+import { FilePenLine, FileText, GitCompare } from "lucide-react";
+
 import type { CvAnalysis, CvItem } from "@/lib/api";
 
 import {
@@ -19,8 +21,21 @@ export function HistoryList({
 }) {
   if (analyses.length === 0) {
     return (
-      <div className="mt-6 rounded-md border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
-        No analysis history yet. Run an analysis to create one.
+      <div className="border border-dashed border-[#cfcfc8] bg-[#f7f7f4] p-6">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-white text-[#171717]">
+            <FileText className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold text-[#171717]">
+              Nothing saved yet
+            </h3>
+            <p className="mt-2 max-w-md text-sm leading-6 text-[#5f5f58]">
+              No analysis history yet. Run an analysis to create one. Saved
+              matches and cover letter drafts will appear here too.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -28,39 +43,44 @@ export function HistoryList({
   return (
     <section
       aria-label="Analysis history"
-      className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm"
+      className="border border-[#e5e5df] bg-[#ffffff] p-5 shadow-sm shadow-zinc-950/[0.02]"
     >
-      <ul className="space-y-4">
+      <ul className="divide-y divide-[#e5e5df]">
         {analyses.map((analysis) => {
           const cv = cvsById.get(analysis.cvId);
 
           return (
             <li
               key={analysis.id}
-              className="rounded-md border border-zinc-200 bg-zinc-50 p-4"
+              className="grid gap-4 py-5 transition hover:bg-[#f7f7f4] lg:grid-cols-[13rem_minmax(0,1fr)]"
             >
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-950">
+              <div className="flex gap-3">
+                <AnalysisTypeIcon type={analysis.type} />
+                <div className="min-w-0">
+                  <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#a1a19a]">
+                    {analysis.type.replace("_", " ")}
+                  </p>
+                  <p className="text-sm font-semibold text-[#171717]">
                     {formatAnalysisType(analysis.type)}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    {cv?.title || cv?.originalName || analysis.cvId}
+                  <p className="mt-1 text-xs text-[#6f6f68]">
+                  {formatDateTime(analysis.createdAt)}
                   </p>
                 </div>
-                <p className="text-sm text-zinc-500">
-                  {formatDateTime(analysis.createdAt)}
-                </p>
               </div>
 
+              <div className="min-w-0">
+                <p className="break-words text-sm font-semibold text-[#171717]">
+                  {cv?.title || cv?.originalName || analysis.cvId}
+                </p>
               {isCoverLetterResult(analysis.result) ? (
                 <>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
+                  <p className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-[#343430]">
                     {analysis.result.coverLetter}
                   </p>
-                  <p className="mt-3 text-sm text-zinc-700">
+                  <p className="mt-3 text-sm text-[#5f5f58]">
                     Tone:{" "}
-                    <span className="font-semibold text-zinc-950">
+                    <span className="font-semibold text-[#171717]">
                       {analysis.result.tone}
                     </span>
                   </p>
@@ -71,9 +91,9 @@ export function HistoryList({
                 </>
               ) : isJdMatchResult(analysis.result) ? (
                 <>
-                  <p className="mt-3 text-sm text-zinc-700">
+                  <p className="mt-3 text-sm text-[#5f5f58]">
                     Matching score:{" "}
-                    <span className="font-semibold text-zinc-950">
+                    <span className="font-semibold text-[#171717]">
                       {analysis.result.matchingScore}
                     </span>
                   </p>
@@ -88,9 +108,9 @@ export function HistoryList({
                 </>
               ) : (
                 <>
-                  <p className="mt-3 text-sm text-zinc-700">
+                  <p className="mt-3 text-sm text-[#5f5f58]">
                     Score:{" "}
-                    <span className="font-semibold text-zinc-950">
+                    <span className="font-semibold text-[#171717]">
                       {analysis.result.score}
                     </span>
                   </p>
@@ -111,10 +131,22 @@ export function HistoryList({
                   items={analysis.result.suggestions}
                 />
               ) : null}
+              </div>
             </li>
           );
         })}
       </ul>
     </section>
+  );
+}
+
+function AnalysisTypeIcon({ type }: { type: CvAnalysis["type"] }) {
+  const Icon =
+    type === "JD_MATCH" ? GitCompare : type === "COVER_LETTER" ? FilePenLine : FileText;
+
+  return (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#f1f1ee] text-[#343430]">
+      <Icon className="h-4 w-4" aria-hidden="true" />
+    </span>
   );
 }

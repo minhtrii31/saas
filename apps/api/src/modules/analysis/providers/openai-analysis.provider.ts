@@ -86,6 +86,7 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
         `Job description:\n${input.jobDescriptionText}`,
         `Company name: ${input.companyName ?? 'Not provided'}`,
         `Role title: ${input.roleTitle ?? 'Not provided'}`,
+        `Requested tone: ${input.tone ?? 'professional'}`,
       ].join('\n\n'),
     );
 

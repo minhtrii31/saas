@@ -1,5 +1,6 @@
 "use client";
 
+import { FilePenLine, FileText, PenLine, ScrollText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +14,15 @@ import {
 import { CoverLetterResultPanel } from "@/components/dashboard/cover-letter/cover-letter-result";
 import { CvSelector } from "@/components/dashboard/cv-selector";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { WorkflowLens } from "@/components/dashboard/workflow-lens";
+import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
+import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
+import {
+  FieldLabel,
+  SelectInput,
+  TextInput,
+  Textarea,
+} from "@/components/ui/form-field";
 import type { CoverLetterResult, CvItem } from "@/lib/api";
 
 type CvsState =
@@ -95,12 +105,14 @@ function CoverLetterContent({ token }: { token: string }) {
     const jobDescriptionText = formData.get("jobDescriptionText");
     const companyName = formData.get("companyName");
     const roleTitle = formData.get("roleTitle");
+    const tone = formData.get("tone");
     const trimmedJobDescriptionText =
       typeof jobDescriptionText === "string" ? jobDescriptionText.trim() : "";
     const trimmedCompanyName =
       typeof companyName === "string" ? companyName.trim() : "";
     const trimmedRoleTitle =
       typeof roleTitle === "string" ? roleTitle.trim() : "";
+    const trimmedTone = typeof tone === "string" ? tone.trim() : "";
 
     if (!trimmedJobDescriptionText) {
       setCoverLetterState({
@@ -125,6 +137,7 @@ function CoverLetterContent({ token }: { token: string }) {
         jobDescriptionText: trimmedJobDescriptionText,
         ...(trimmedCompanyName ? { companyName: trimmedCompanyName } : {}),
         ...(trimmedRoleTitle ? { roleTitle: trimmedRoleTitle } : {}),
+        ...(trimmedTone ? { tone: trimmedTone } : {}),
       });
 
       setCoverLetterState({ type: "success", result, copied: false });
@@ -163,12 +176,34 @@ function CoverLetterContent({ token }: { token: string }) {
   }
 
   return (
-    <div className="mt-8 max-w-3xl">
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-zinc-950">Generate draft</h2>
+    <div className="space-y-5">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <WorkspaceHero
+          eyebrow="Cover letter studio"
+          title="Turn fit into a focused application note."
+          description="Combine a saved CV with a target role to create a draft you can copy, edit, and send with control."
+        />
+        <WorkflowLens
+          title="Draft structure"
+          items={[
+            { icon: ScrollText, label: "Role context" },
+            { icon: PenLine, label: "Tailored narrative" },
+            { icon: FilePenLine, label: "Editable output" },
+          ]}
+        />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="border border-[#e5e5df] bg-[#ffffff] p-5 shadow-sm shadow-zinc-950/[0.02] md:p-6">
+          <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+            Setup
+          </p>
+          <h3 className="mt-1 text-lg font-semibold text-[#171717]">
+            Generate draft
+          </h3>
 
         {cvsState.type === "loading" ? (
-          <p role="status" className="mt-6 text-sm text-zinc-600">
+          <p role="status" className="mt-5 text-sm text-[#5f5f58]">
             Loading CVs...
           </p>
         ) : null}
@@ -176,14 +211,14 @@ function CoverLetterContent({ token }: { token: string }) {
         {cvsState.type === "error" ? (
           <p
             role="alert"
-            className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="mt-5 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
           >
             {cvsState.message}
           </p>
         ) : null}
 
         {cvsState.type === "ready" ? (
-          <form className="mt-6 space-y-4" noValidate onSubmit={handleSubmit}>
+          <form className="mt-5 space-y-4" noValidate onSubmit={handleSubmit}>
             <CvSelector
               cvs={cvsState.cvs}
               selectedCvId={selectedCvId}
@@ -193,69 +228,45 @@ function CoverLetterContent({ token }: { token: string }) {
               }}
             />
             <div>
-              <label
-                htmlFor="jobDescriptionText"
-                className="block text-sm font-medium text-zinc-800"
-              >
+              <FieldLabel htmlFor="jobDescriptionText">
                 Job description
-              </label>
-              <textarea
+              </FieldLabel>
+              <Textarea
                 id="jobDescriptionText"
                 name="jobDescriptionText"
                 rows={8}
                 required
-                className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
                 placeholder="Paste the role requirements, responsibilities, and required skills."
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="companyName"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  Company name
-                </label>
-                <input
-                  id="companyName"
-                  name="companyName"
-                  type="text"
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                  placeholder="Optional"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="roleTitle"
-                  className="block text-sm font-medium text-zinc-800"
-                >
-                  Role title
-                </label>
-                <input
-                  id="roleTitle"
-                  name="roleTitle"
-                  type="text"
-                  className="mt-2 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-950 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                  placeholder="Optional"
-                />
-              </div>
+              <TextField id="companyName" label="Company name" placeholder="Optional" />
+              <TextField id="roleTitle" label="Role title" placeholder="Optional" />
+            </div>
+            <div>
+              <FieldLabel htmlFor="tone">Tone</FieldLabel>
+              <SelectInput id="tone" name="tone" defaultValue="professional">
+                <option value="professional">Professional</option>
+                <option value="confident">Confident</option>
+                <option value="concise">Concise</option>
+                <option value="warm">Warm</option>
+              </SelectInput>
             </div>
             <button
               type="submit"
               disabled={
                 coverLetterState.type === "loading" || cvsState.cvs.length === 0
               }
-              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className="inline-flex min-h-11 items-center justify-center gap-2 bg-[#171717] px-4 text-sm font-semibold text-white transition hover:bg-[#2b2926] disabled:cursor-not-allowed disabled:bg-[#a1a19a]"
             >
-              {coverLetterState.type === "loading"
-                ? "Generating..."
-                : "Generate"}
+              <FilePenLine className="h-4 w-4" aria-hidden="true" />
+              {coverLetterState.type === "loading" ? "Generating..." : "Generate"}
             </button>
           </form>
         ) : null}
 
         {coverLetterState.type === "loading" ? (
-          <p role="status" className="mt-4 text-sm text-zinc-600">
+          <p role="status" className="mt-4 border border-[#e5e5df] bg-[#f7f7f4] px-3 py-2 text-sm text-[#5f5f58]">
             Generating a cover letter for{" "}
             {selectedCv?.title || selectedCv?.originalName || "CV"}...
           </p>
@@ -264,11 +275,25 @@ function CoverLetterContent({ token }: { token: string }) {
         {coverLetterState.type === "error" ? (
           <p
             role="alert"
-            className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="mt-4 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
           >
             {coverLetterState.message}
           </p>
         ) : null}
+        </div>
+
+        <WorkflowBrief
+          eyebrow="Draft brief"
+          icon={FileText}
+          title={selectedCv?.title || selectedCv?.originalName || "No CV selected"}
+          description="Add a company name, role title, and tone when you know them. The draft stays easier to edit when the inputs are specific."
+          listTitle="Best result when"
+          items={[
+            "The JD is pasted in full",
+            "The role title is exact",
+            "The tone matches the company",
+          ]}
+        />
       </section>
 
       {coverLetterState.type === "success" ? (
@@ -281,6 +306,30 @@ function CoverLetterContent({ token }: { token: string }) {
           }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function TextField({
+  id,
+  label,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <FieldLabel htmlFor={id}>
+        {label}
+      </FieldLabel>
+      <TextInput
+        id={id}
+        name={id}
+        type="text"
+        placeholder={placeholder}
+      />
     </div>
   );
 }

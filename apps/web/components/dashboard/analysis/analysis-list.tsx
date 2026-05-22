@@ -12,11 +12,19 @@ export function AnalysisList({
   }
 
   return (
-    <div className="mt-3">
-      <h3 className="text-sm font-medium text-zinc-800">{title}</h3>
-      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+    <div className="mt-4">
+      <h3 className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+        {title}
+      </h3>
+      <ul className="mt-2 space-y-2 text-sm leading-6 text-[#343430]">
         {items.map((item) => (
-          <li key={item}>{item}</li>
+          <li key={item} className="flex gap-2">
+            <span
+              aria-hidden="true"
+              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#a1a19a]"
+            />
+            <span>{item}</span>
+          </li>
         ))}
       </ul>
     </div>

@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { AuthUser } from "@/lib/api";
 
-import { DashboardNav } from "./dashboard-nav";
+import { Sidebar } from "@/components/ui/sidebar";
+import { TopHeader } from "@/components/ui/top-header";
 import { getApiErrorMessage, validateSession } from "./api";
 
 type ProtectedPageState =
@@ -25,6 +26,7 @@ export function ProtectedPage({
 }) {
   const router = useRouter();
   const [state, setState] = useState<ProtectedPageState>({ type: "loading" });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const redirectToLogin = useCallback(() => {
     localStorage.removeItem("accessToken");
@@ -79,40 +81,42 @@ export function ProtectedPage({
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50">
-      <DashboardNav onLogout={handleLogout} />
-      <section className="mx-auto max-w-6xl px-6 py-8">
-        <div>
-          <p className="text-sm font-medium text-zinc-500">CV Assistant</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">
-            {title}
-          </h1>
-          {description ? (
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
-              {description}
+    <main className="min-h-screen bg-[#fbfbfa]">
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onOpenChange={setIsSidebarOpen}
+        onLogout={handleLogout}
+      />
+      <section className="lg:pl-[15.5rem]">
+        <TopHeader
+          title={title}
+          description={description}
+          user={state.type === "ready" ? state.user : undefined}
+          onLogout={handleLogout}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+        />
+
+        <div className="dashboard-page">
+          {state.type === "loading" ? (
+            <div
+              role="status"
+              className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600 shadow-sm"
+            >
+              Loading dashboard...
+            </div>
+          ) : null}
+
+          {state.type === "error" ? (
+            <p
+              role="alert"
+              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {state.message}
             </p>
           ) : null}
+
+          {state.type === "ready" ? children(state) : null}
         </div>
-
-        {state.type === "loading" ? (
-          <div
-            role="status"
-            className="mt-8 rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600 shadow-sm"
-          >
-            Loading dashboard...
-          </div>
-        ) : null}
-
-        {state.type === "error" ? (
-          <p
-            role="alert"
-            className="mt-8 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          >
-            {state.message}
-          </p>
-        ) : null}
-
-        {state.type === "ready" ? children(state) : null}
       </section>
     </main>
   );
