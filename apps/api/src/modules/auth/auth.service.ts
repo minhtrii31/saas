@@ -4,18 +4,11 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  createHmac,
-  randomBytes,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-} from 'crypto';
-import { promisify } from 'util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-
-const scrypt = promisify(scryptCallback);
+import { PasswordService } from './password.service';
+import { TokenService } from './token.service';
 
 type PublicUser = {
   id: string;
@@ -34,7 +27,11 @@ type LoginUser = PublicUser & {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly passwordService: PasswordService,
+    private readonly tokenService: TokenService,
+  ) {}
 
   async register(
     dto: RegisterDto,
@@ -51,7 +48,7 @@ export class AuthService {
       throw this.emailAlreadyRegistered();
     }
 
-    const passwordHash = await this.hashPassword(password);
+    const passwordHash = await this.passwordService.hash(password);
     let user: PublicUser;
 
     try {
@@ -107,14 +104,17 @@ export class AuthService {
       },
     });
 
-    if (!user || !(await this.verifyPassword(password, user.passwordHash))) {
+    if (
+      !user ||
+      !(await this.passwordService.verify(password, user.passwordHash))
+    ) {
       throw this.invalidCredentials();
     }
 
     return {
       data: {
         user: this.toPublicUser(user),
-        accessToken: this.signAccessToken(user),
+        accessToken: this.tokenService.signAccessToken(user.id),
       },
     };
   }
@@ -154,58 +154,6 @@ export class AuthService {
 
     const trimmedName = name.trim();
     return trimmedName.length > 0 ? trimmedName : null;
-  }
-
-  private async hashPassword(password: string): Promise<string> {
-    const salt = randomBytes(16).toString('hex');
-    const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
-
-    return `scrypt:${salt}:${derivedKey.toString('hex')}`;
-  }
-
-  private async verifyPassword(
-    password: string,
-    passwordHash: string,
-  ): Promise<boolean> {
-    const [algorithm, salt, expectedHash] = passwordHash.split(':');
-
-    if (algorithm !== 'scrypt' || !salt || !expectedHash) {
-      return false;
-    }
-
-    const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
-    const expectedKey = Buffer.from(expectedHash, 'hex');
-
-    return (
-      derivedKey.length === expectedKey.length &&
-      timingSafeEqual(derivedKey, expectedKey)
-    );
-  }
-
-  private signAccessToken(user: PublicUser): string {
-    const secret = process.env.JWT_SECRET;
-
-    if (!secret) {
-      throw new Error('JWT_SECRET is required');
-    }
-
-    const header = this.base64UrlEncode({
-      alg: 'HS256',
-      typ: 'JWT',
-    });
-    const payload = this.base64UrlEncode({
-      sub: user.id,
-      email: user.email,
-    });
-    const signature = createHmac('sha256', secret)
-      .update(`${header}.${payload}`)
-      .digest('base64url');
-
-    return `${header}.${payload}.${signature}`;
-  }
-
-  private base64UrlEncode(value: Record<string, string>): string {
-    return Buffer.from(JSON.stringify(value)).toString('base64url');
   }
 
   private toPublicUser(user: LoginUser): PublicUser {

@@ -10,6 +10,8 @@ describe('POST /auth/login', () => {
   let app: INestApplication;
   let prisma: {
     user: {
+      findUnique: jest.Mock;
+      create: jest.Mock;
       findFirst: jest.Mock;
     };
   };
@@ -18,6 +20,8 @@ describe('POST /auth/login', () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
     prisma = {
       user: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
         findFirst: jest.fn(),
       },
     };
@@ -78,6 +82,13 @@ describe('POST /auth/login', () => {
     });
     expect(response.body.data.accessToken.split('.')).toHaveLength(3);
     expect(isTokenSignedWithSecret(response.body.data.accessToken)).toBe(true);
+    expect(
+      decodeTokenPayload(response.body.data.accessToken),
+    ).not.toHaveProperty('email');
+    expect(decodeTokenPayload(response.body.data.accessToken)).toEqual({
+      sub: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+      exp: expect.any(Number),
+    });
     expect(JSON.stringify(response.body)).not.toContain('passwordHash');
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: {
@@ -206,6 +217,63 @@ describe('POST /auth/login', () => {
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
   });
 
+  it('logs in with a password hash created during register', async () => {
+    const createdAt = new Date('2026-05-22T10:30:00.000Z');
+    let storedUser:
+      | {
+          id: string;
+          email: string;
+          passwordHash: string;
+          name: string | null;
+          createdAt: Date;
+        }
+      | undefined;
+
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockImplementation(({ data }) => {
+      storedUser = {
+        id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+        email: data.email,
+        passwordHash: data.passwordHash,
+        name: data.name,
+        createdAt,
+      };
+
+      return Promise.resolve({
+        id: storedUser.id,
+        email: storedUser.email,
+        name: storedUser.name,
+        createdAt: storedUser.createdAt,
+      });
+    });
+    prisma.user.findFirst.mockImplementation(() => Promise.resolve(storedUser));
+
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'user@example.com',
+        password: 'correct-horse-battery-staple',
+        name: 'Ada Lovelace',
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: 'user@example.com',
+        password: 'correct-horse-battery-staple',
+      })
+      .expect(201);
+
+    expect(response.body.data.user).toEqual({
+      id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+      email: 'user@example.com',
+      name: 'Ada Lovelace',
+      createdAt: createdAt.toISOString(),
+    });
+    expect(response.body.data.accessToken).toEqual(expect.any(String));
+  });
+
   function isTokenSignedWithSecret(token: string): boolean {
     const [header, payload, signature] = token.split('.');
     const expectedSignature = createHmac('sha256', 'test-jwt-secret')
@@ -213,5 +281,13 @@ describe('POST /auth/login', () => {
       .digest('base64url');
 
     return signature === expectedSignature;
+  }
+
+  function decodeTokenPayload(token: string): Record<string, unknown> {
+    const [, payload] = token.split('.');
+
+    return JSON.parse(
+      Buffer.from(payload, 'base64url').toString('utf8'),
+    ) as Record<string, unknown>;
   }
 });

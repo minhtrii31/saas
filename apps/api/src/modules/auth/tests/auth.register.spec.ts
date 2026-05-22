@@ -5,6 +5,7 @@ import { AppModule } from '../../../app.module';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('POST /auth/register', () => {
+  const originalJwtSecret = process.env.JWT_SECRET;
   let app: INestApplication;
   let prisma: {
     user: {
@@ -14,6 +15,7 @@ describe('POST /auth/register', () => {
   };
 
   beforeEach(async () => {
+    process.env.JWT_SECRET = 'test-jwt-secret';
     prisma = {
       user: {
         findUnique: jest.fn(),
@@ -40,6 +42,7 @@ describe('POST /auth/register', () => {
   });
 
   afterEach(async () => {
+    process.env.JWT_SECRET = originalJwtSecret;
     await app.close();
   });
 
