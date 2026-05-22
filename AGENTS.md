@@ -8,7 +8,7 @@ Before starting any implementation task, read:
 - docs/00-overview/scope.md
 - docs/00-overview/principles.md
 - docs/01-product/user-flows.md
-- docs/02-architecture/overview.md
+- docs/02-architecture/architecture-overview.md
 - docs/02-architecture/backend.md
 - docs/03-engineering/workflow.md
 - docs/03-engineering/testing.md
