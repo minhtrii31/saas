@@ -20,7 +20,11 @@ import {
 import { CvSelector } from "@/components/dashboard/cv-selector";
 import { formatDateTime } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import { LoadingSkeleton } from "@/components/dashboard/result-ui";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingSkeleton,
+} from "@/components/dashboard/result-ui";
 import type { CvItem, CvProgress, CvProgressPoint } from "@/lib/api";
 
 type ProgressState =
@@ -126,12 +130,13 @@ function ProgressContent({ token }: { token: string }) {
 
   if (state.type === "error") {
     return (
-      <p
-        role="alert"
-        className="border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-      >
-        {state.message}
-      </p>
+      <ErrorState
+        title="Progress did not load"
+        message={state.message}
+        onRetry={() => {
+          window.location.reload();
+        }}
+      />
     );
   }
 
@@ -417,10 +422,11 @@ function CategoryTile({
 
 function EmptyProgressState() {
   return (
-    <section className="border border-dashed border-[#cfcfc8] bg-[#f7f7f4] p-6 text-sm leading-6 text-[#5f5f58]">
-      <FileText className="mb-3 h-5 w-5 text-[#6f6f68]" aria-hidden="true" />
-      Upload a CV and run an analysis to start tracking progress.
-    </section>
+    <EmptyState
+      icon={FileText}
+      title="No progress data yet"
+      description="Upload a CV and run an analysis to start tracking progress."
+    />
   );
 }
 

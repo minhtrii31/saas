@@ -16,7 +16,7 @@ import { CvSelector } from "@/components/dashboard/cv-selector";
 import { JobTargetSelector } from "@/components/dashboard/job-target-selector";
 import { MatchResult } from "@/components/dashboard/match/match-result";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import { LoadingSkeleton } from "@/components/dashboard/result-ui";
+import { ErrorState, LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
@@ -190,12 +190,11 @@ function MatchContent({ token }: { token: string }) {
         ) : null}
 
         {cvsState.type === "error" ? (
-          <p
-            role="alert"
-            className="mt-5 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-          >
-            {cvsState.message}
-          </p>
+          <ErrorState
+            title="Workspace inputs did not load"
+            message={cvsState.message}
+            className="mt-5"
+          />
         ) : null}
 
         {cvsState.type === "ready" ? (
@@ -223,12 +222,10 @@ function MatchContent({ token }: { token: string }) {
               />
             ) : null}
             {targetsState.type === "error" ? (
-              <p
-                role="alert"
-                className="border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-              >
-                {targetsState.message}
-              </p>
+              <ErrorState
+                title="Saved targets unavailable"
+                message={targetsState.message}
+              />
             ) : null}
             <div>
               <label
@@ -271,12 +268,11 @@ function MatchContent({ token }: { token: string }) {
         ) : null}
 
         {matchState.type === "error" ? (
-          <p
-            role="alert"
-            className="mt-4 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-          >
-            {matchState.message}
-          </p>
+          <ErrorState
+            title="Match stopped"
+            message={matchState.message}
+            className="mt-4"
+          />
         ) : null}
         </div>
 

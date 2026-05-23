@@ -21,13 +21,12 @@ import { AnalysisResult } from "@/components/dashboard/analysis/analysis-result"
 import { CvSelector } from "@/components/dashboard/cv-selector";
 import { formatBytes, formatDateTime } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import { LoadingSkeleton } from "@/components/dashboard/result-ui";
+import { ErrorState, LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { Button } from "@/components/ui/button";
 import { MetricGrid, MetricTile } from "@/components/ui/metric";
 import { Eyebrow, SectionTitle } from "@/components/ui/section-heading";
-import { StatusMessage } from "@/components/ui/status-message";
 import { Surface } from "@/components/ui/surface";
 import type { CvAnalysisResult, CvItem } from "@/lib/api";
 
@@ -172,12 +171,11 @@ function AnalyzeContent({ token }: { token: string }) {
         ) : null}
 
         {cvsState.type === "error" ? (
-          <p
-            role="alert"
-            className="mt-5 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-          >
-            {cvsState.message}
-          </p>
+          <ErrorState
+            title="CV library did not load"
+            message={cvsState.message}
+            className="mt-5"
+          />
         ) : null}
 
         {cvsState.type === "ready" ? (
@@ -211,9 +209,12 @@ function AnalyzeContent({ token }: { token: string }) {
         ) : null}
 
         {analysisState.type === "error" ? (
-          <StatusMessage role="alert" tone="error" className="mt-4">
-            {analysisState.message}
-          </StatusMessage>
+          <ErrorState
+            title="Analysis stopped"
+            message={analysisState.message}
+            className="mt-4"
+            onRetry={selectedCvId ? () => void handleAnalyze() : undefined}
+          />
         ) : null}
         </Surface>
 

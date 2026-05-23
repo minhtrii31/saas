@@ -22,7 +22,7 @@ import { CvSelector } from "@/components/dashboard/cv-selector";
 import { InterviewPrepResultPanel } from "@/components/dashboard/interview-prep/interview-prep-result";
 import { JobTargetSelector } from "@/components/dashboard/job-target-selector";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import { LoadingSkeleton } from "@/components/dashboard/result-ui";
+import { ErrorState, LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
@@ -203,12 +203,11 @@ function InterviewPrepContent({ token }: { token: string }) {
           ) : null}
 
           {cvsState.type === "error" ? (
-            <p
-              role="alert"
-              className="mt-5 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-            >
-              {cvsState.message}
-            </p>
+            <ErrorState
+              title="Workspace inputs did not load"
+              message={cvsState.message}
+              className="mt-5"
+            />
           ) : null}
 
           {cvsState.type === "ready" ? (
@@ -236,12 +235,10 @@ function InterviewPrepContent({ token }: { token: string }) {
                 />
               ) : null}
               {targetsState.type === "error" ? (
-                <p
-                  role="alert"
-                  className="border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-                >
-                  {targetsState.message}
-                </p>
+                <ErrorState
+                  title="Saved targets unavailable"
+                  message={targetsState.message}
+                />
               ) : null}
               <div>
                 <FieldLabel htmlFor="interviewFocus">
@@ -306,12 +303,11 @@ function InterviewPrepContent({ token }: { token: string }) {
           ) : null}
 
           {interviewPrepState.type === "error" ? (
-            <p
-              role="alert"
-              className="mt-4 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-            >
-              {interviewPrepState.message}
-            </p>
+            <ErrorState
+              title="Interview prep stopped"
+              message={interviewPrepState.message}
+              className="mt-4"
+            />
           ) : null}
         </div>
 

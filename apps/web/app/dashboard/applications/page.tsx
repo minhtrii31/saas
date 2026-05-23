@@ -27,6 +27,11 @@ import {
 } from "@/components/dashboard/api";
 import { formatDateTime } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingSkeleton,
+} from "@/components/dashboard/result-ui";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { Button } from "@/components/ui/button";
 import {
@@ -308,13 +313,18 @@ function ApplicationsContent({ token }: { token: string }) {
       </WorkspaceHero>
 
       {state.type === "loading" ? (
-        <StatusMessage>Loading applications...</StatusMessage>
+        <LoadingSkeleton label="Loading applications" lines={4} />
       ) : null}
 
       {state.type === "error" ? (
-        <StatusMessage role="alert" tone="error">
-          {state.message}
-        </StatusMessage>
+        <ErrorState
+          title="Applications did not load"
+          message={state.message}
+          onRetry={() => {
+            setState({ type: "loading" });
+            void load();
+          }}
+        />
       ) : null}
 
       {ready ? (
@@ -400,9 +410,12 @@ function ApplicationsBoard({
       </div>
 
       {applications.length === 0 ? (
-        <StatusMessage className="mt-5">
-          No applications yet. Save your first role to start tracking progress.
-        </StatusMessage>
+        <EmptyState
+          icon={ClipboardList}
+          title="No applications yet"
+          description="No applications yet. Save your first role to start tracking progress."
+          className="mt-5"
+        />
       ) : null}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-5">
@@ -648,9 +661,12 @@ function FollowUpPanel({
           </Button>
         </div>
       ) : (
-        <StatusMessage className="mt-4">
-          Generate a follow-up from any application card.
-        </StatusMessage>
+        <EmptyState
+          icon={Sparkles}
+          title="No draft generated"
+          description="Generate a follow-up from any application card when you need a concise next step."
+          className="mt-4"
+        />
       )}
     </Surface>
   );

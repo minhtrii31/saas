@@ -1,5 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 type ScoreCardProps = {
   label: string;
@@ -114,25 +117,32 @@ export function LoadingSkeleton({
   label,
   children,
   className = "",
+  lines = 3,
 }: {
   label: string;
   children?: ReactNode;
   className?: string;
+  lines?: 2 | 3 | 4;
 }) {
+  const widths = ["w-full", "w-5/6", "w-3/5", "w-4/6"].slice(0, lines);
+
   return (
     <div
       role="status"
       aria-label={label}
-      className={`border border-[#e5e5df] bg-white p-5 ${className}`}
+      className={`overflow-hidden border border-[#e5e5df] bg-white p-5 shadow-sm shadow-zinc-950/[0.02] ${className}`}
     >
-      <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
-        {label}
-      </p>
-      <div className="mt-4 h-7 w-2/3 bg-[#f1f1ee]" />
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full bg-[#171717]" />
+        <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+          {label}
+        </p>
+      </div>
+      <div className="mt-4 h-7 w-2/3 animate-pulse bg-[#f1f1ee]" />
       <div className="mt-5 space-y-3">
-        <div className="h-3 w-full bg-[#f1f1ee]" />
-        <div className="h-3 w-5/6 bg-[#f1f1ee]" />
-        <div className="h-3 w-3/5 bg-[#f1f1ee]" />
+        {widths.map((width) => (
+          <div key={width} className={`h-3 animate-pulse bg-[#f1f1ee] ${width}`} />
+        ))}
       </div>
       {children ? <div className="mt-5">{children}</div> : null}
     </div>
@@ -143,11 +153,13 @@ export function EmptyState({
   icon: Icon,
   title,
   description,
+  action,
   className = "",
 }: {
   icon: LucideIcon;
   title: string;
   description: string;
+  action?: ReactNode;
   className?: string;
 }) {
   return (
@@ -165,6 +177,52 @@ export function EmptyState({
           <p className="mt-2 max-w-md text-sm leading-6 text-[#5f5f58]">
             {description}
           </p>
+          {action ? <div className="mt-4">{action}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ErrorState({
+  title = "Something needs attention",
+  message,
+  retryLabel = "Retry",
+  onRetry,
+  className = "",
+}: {
+  title?: string;
+  message: string;
+  retryLabel?: string;
+  onRetry?: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="alert"
+      className={`border border-[#e7d8cf] bg-[#fff7f2] p-4 text-[#8a3f24] ${className}`}
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#ead5c8] bg-white text-[#8a3f24]">
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-[#6f2f19]">{title}</h3>
+          <p className="mt-1 text-sm leading-6 [overflow-wrap:anywhere]">
+            {message}
+          </p>
+          {onRetry ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-4 border-[#ead5c8]"
+              onClick={onRetry}
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              {retryLabel}
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>

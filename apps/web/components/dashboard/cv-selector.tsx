@@ -4,6 +4,8 @@ import { FileText } from "lucide-react";
 
 import type { CvItem } from "@/lib/api";
 
+import { EmptyState } from "./result-ui";
+
 export function CvSelector({
   cvs,
   selectedCvId,
@@ -15,9 +17,11 @@ export function CvSelector({
 }) {
   if (cvs.length === 0) {
     return (
-      <div className="border border-dashed border-[#cfcfc8] bg-[#f7f7f4] p-5 text-sm leading-6 text-[#5f5f58]">
-        Upload a CV before using this workflow.
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="Upload a CV first"
+        description="Upload a CV before using this workflow. Nyx needs source text before it can analyze, match, rewrite, or prepare interview practice."
+      />
     );
   }
 

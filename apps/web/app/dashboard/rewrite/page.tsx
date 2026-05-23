@@ -14,14 +14,13 @@ import {
 } from "@/components/dashboard/api";
 import { formatBytes, formatDateTime } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import { LoadingSkeleton } from "@/components/dashboard/result-ui";
+import { ErrorState, LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { RewriteResult } from "@/components/dashboard/rewrite/rewrite-result";
 import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, SelectInput } from "@/components/ui/form-field";
-import { StatusMessage } from "@/components/ui/status-message";
 import type {
   CvItem,
   ResumeRewriteGoal,
@@ -266,9 +265,11 @@ function RewriteContent({ token }: { token: string }) {
           ) : null}
 
           {cvsState.type === "error" ? (
-            <StatusMessage role="alert" tone="error" className="mt-5">
-              {cvsState.message}
-            </StatusMessage>
+            <ErrorState
+              title="CV library did not load"
+              message={cvsState.message}
+              className="mt-5"
+            />
           ) : null}
 
           {cvsState.type === "ready" ? (
@@ -334,9 +335,11 @@ function RewriteContent({ token }: { token: string }) {
           ) : null}
 
           {rewriteState.type === "error" ? (
-            <StatusMessage role="alert" tone="error" className="mt-4">
-              {rewriteState.message}
-            </StatusMessage>
+            <ErrorState
+              title="Rewrite stopped"
+              message={rewriteState.message}
+              className="mt-4"
+            />
           ) : null}
         </div>
 

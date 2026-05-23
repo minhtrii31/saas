@@ -13,7 +13,7 @@ import {
 } from "@/components/dashboard/api";
 import { HistoryList } from "@/components/dashboard/history/history-list";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import { LoadingSkeleton } from "@/components/dashboard/result-ui";
+import { ErrorState, LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { formatAnalysisType, formatDateTime } from "@/components/dashboard/format";
 import type { CvAnalysis, CvItem } from "@/lib/api";
@@ -96,12 +96,13 @@ function HistoryContent({ token }: { token: string }) {
 
   if (state.type === "error") {
     return (
-      <p
-        role="alert"
-        className="border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
-      >
-        {state.message}
-      </p>
+      <ErrorState
+        title="History did not load"
+        message={state.message}
+        onRetry={() => {
+          window.location.reload();
+        }}
+      />
     );
   }
 
