@@ -255,4 +255,56 @@ describe('POST /cvs/:id/analyze', () => {
     expect(prisma.cv.findFirst).not.toHaveBeenCalled();
     expect(prisma.cvAnalysis.create).not.toHaveBeenCalled();
   });
+
+  it('throttles repeated analyze attempts', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const cvId = '57db9a57-197d-40b5-8be5-5a5dfe398912';
+    const createdAt = new Date('2026-05-22T10:30:00.000Z');
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      name: 'Ada Lovelace',
+      createdAt,
+    });
+    prisma.cv.findFirst.mockResolvedValue({
+      id: cvId,
+      extractedText:
+        'Ada is a backend engineer with TypeScript, NestJS, PostgreSQL, and testing experience.',
+    });
+    prisma.cvAnalysis.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: '2f8d69b3-9274-496d-a9a4-2df643f0fe9a',
+        cvId: data.cvId,
+        type: data.type,
+        aiProvider: data.aiProvider,
+        aiModel: data.aiModel,
+        result: data.result,
+        createdAt,
+      }),
+    );
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await request(app.getHttpServer())
+        .post(`/cvs/${cvId}/analyze`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(201);
+    }
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cvId}/analyze`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(429);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too many requests',
+      },
+      meta: {},
+    });
+    expect(prisma.cv.findFirst).toHaveBeenCalledTimes(10);
+    expect(prisma.cvAnalysis.create).toHaveBeenCalledTimes(10);
+  });
 });

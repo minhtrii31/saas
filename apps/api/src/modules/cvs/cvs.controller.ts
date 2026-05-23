@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
+import { RateLimit } from '../../common/throttling/rate-limit.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/authenticated-request';
@@ -95,6 +96,7 @@ export class CvsController {
 
   @Post(':id/analyze')
   @UseGuards(JwtAuthGuard)
+  @RateLimit('cvAnalyze')
   analyze(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', cvIdParamPipe) id: string,
@@ -104,6 +106,7 @@ export class CvsController {
 
   @Post(':id/match')
   @UseGuards(JwtAuthGuard)
+  @RateLimit('cvMatch')
   match(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', cvIdParamPipe) id: string,
@@ -114,6 +117,7 @@ export class CvsController {
 
   @Post(':id/cover-letter')
   @UseGuards(JwtAuthGuard)
+  @RateLimit('cvCoverLetter')
   generateCoverLetter(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', cvIdParamPipe) id: string,
@@ -125,6 +129,7 @@ export class CvsController {
   @Post('upload')
   @HttpCode(201)
   @UseGuards(JwtAuthGuard)
+  @RateLimit('cvUpload')
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {

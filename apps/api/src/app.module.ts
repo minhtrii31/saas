@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/api-exception.filter';
 import { ApiResponseInterceptor } from './common/api-response.interceptor';
+import { ApiThrottlingModule } from './common/throttling/throttling.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EnvironmentService } from './config/environment.service';
@@ -10,7 +11,7 @@ import { CvsModule } from './modules/cvs/cvs.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, CvsModule],
+  imports: [ApiThrottlingModule, PrismaModule, AuthModule, CvsModule],
   controllers: [AppController],
   providers: [
     AppService,

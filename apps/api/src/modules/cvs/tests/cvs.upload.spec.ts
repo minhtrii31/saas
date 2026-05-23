@@ -240,6 +240,56 @@ describe('POST /cvs/upload', () => {
     expect(prisma.cv.create).not.toHaveBeenCalled();
   });
 
+  it('throttles repeated upload attempts', async () => {
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+    const createdAt = new Date('2026-05-22T10:30:00.000Z');
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      createdAt,
+    });
+    prisma.cv.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: '57db9a57-197d-40b5-8be5-5a5dfe398912',
+        title: data.title,
+        originalName: data.originalName,
+        mimeType: data.mimeType,
+        sizeBytes: data.sizeBytes,
+        storageProvider: data.storageProvider,
+        storageKey: data.storageKey,
+        storageUrl: data.storageUrl,
+        extractedText: data.extractedText,
+        createdAt,
+      }),
+    );
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/cvs/upload')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .attach('file', validPdfBuffer, 'resume.pdf')
+        .expect(201);
+    }
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', validPdfBuffer, 'resume.pdf')
+      .expect(429);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too many requests',
+      },
+      meta: {},
+    });
+    expect(uploadLocalSpy).toHaveBeenCalledTimes(10);
+    expect(prisma.cv.create).toHaveBeenCalledTimes(10);
+  });
+
   it('creates CV record from PDF upload with extracted text', async () => {
     const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
     const createdAt = new Date('2026-05-22T10:30:00.000Z');

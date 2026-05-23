@@ -227,6 +227,37 @@ describe('POST /auth/login', () => {
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
   });
 
+  it('throttles repeated login attempts', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'user@example.com',
+          password: 'wrong-password',
+        })
+        .expect(401);
+    }
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: 'user@example.com',
+        password: 'wrong-password',
+      })
+      .expect(429);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too many requests',
+      },
+      meta: {},
+    });
+    expect(prisma.user.findFirst).toHaveBeenCalledTimes(5);
+  });
+
   it('logs in with a password hash created during register', async () => {
     const createdAt = new Date('2026-05-22T10:30:00.000Z');
     let storedUser:

@@ -92,6 +92,21 @@ Implemented API surface:
 - `POST /cvs/:id/match`
 - `POST /cvs/:id/cover-letter`
 
+## Abuse protection
+
+The API uses NestJS throttling for endpoints that can be abused through repeated requests.
+
+Current per-tracker limits:
+
+- `POST /auth/login`: 5 requests per minute
+- `POST /auth/register`: 5 requests per minute
+- `POST /cvs/upload`: 10 requests per minute
+- `POST /cvs/:id/analyze`: 10 requests per minute
+- `POST /cvs/:id/match`: 10 requests per minute
+- `POST /cvs/:id/cover-letter`: 10 requests per minute
+
+Authenticated requests are tracked by user id when available. Public auth requests fall back to the request IP. Throttled requests return the standard API error envelope with `TOO_MANY_REQUESTS`.
+
 ## Persistence
 
 Prisma models currently cover:
