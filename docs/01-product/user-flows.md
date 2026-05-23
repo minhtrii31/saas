@@ -25,7 +25,7 @@ Expected result:
 
 Expected result:
 - CV metadata and extracted text are saved
-- User can select the CV for analysis, matching, or cover letter generation
+- User can select the CV for analysis, matching, cover letter generation, interview prep, rewrite, or application tracking
 
 ---
 
@@ -50,7 +50,7 @@ Expected result:
 
 1. User opens `/dashboard/match`
 2. User selects an uploaded CV
-3. User pastes a job description
+3. User pastes a job description or selects a saved job target
 4. AI compares CV and JD
 5. User receives:
    - matching score
@@ -68,7 +68,7 @@ Expected result:
 
 1. User opens `/dashboard/cover-letter`
 2. User selects a CV
-3. User provides pasted job description text
+3. User provides pasted job description text or selects a saved job target
 4. AI generates a tailored cover letter
 
 Expected result:
@@ -80,7 +80,7 @@ Expected result:
 
 1. User opens `/dashboard/history`
 2. User views previous analyses and comparisons
-3. User reviews saved CV analysis, match, and cover letter records
+3. User reviews saved CV analysis, match, cover letter, interview prep, rewrite, refinement, and application follow-up records
 
 Expected result:
 - Users can track improvement over time
@@ -98,3 +98,40 @@ Expected result:
 Expected result:
 - Interview prep is saved to history
 - User can practice role-specific questions grounded in their CV evidence
+
+---
+
+## Flow 8 — Save Job Target
+
+1. User opens `/dashboard/job-targets`
+2. User saves a target role with company name and job description text
+3. User edits or deletes saved targets as needed
+
+Expected result:
+- Target role context can be reused for matching, cover letters, and interview prep
+
+---
+
+## Flow 9 — Track Application and Generate Follow-Up
+
+1. User opens `/dashboard/applications`
+2. User creates an application linked to a CV and optionally a saved job target
+3. User sets the status to `SAVED`, `APPLIED`, `INTERVIEWING`, `OFFER`, or `REJECTED`
+4. User adds applied date and notes where useful
+5. User generates an AI follow-up draft from the application card
+
+Expected result:
+- Application progress is saved and grouped by status
+- Follow-up draft is saved to history as `APPLICATION_FOLLOW_UP`
+- Credits are consumed only after successful follow-up generation
+
+---
+
+## Flow 10 — View CV Progress
+
+1. User opens `/dashboard/progress`
+2. User selects an uploaded CV
+3. User reviews score history, ATS readiness trend, rewrite activity, and improvement deltas
+
+Expected result:
+- User can see how CV quality and rewrite activity changed over time

@@ -10,8 +10,8 @@ Tests should verify important behavior, not implementation details.
 
 Current source counts:
 
-- API: 169 Jest/Supertest test cases.
-- Web: 51 Playwright test cases.
+- API: 179 Jest/Supertest test cases.
+- Web: 52 Playwright test cases.
 
 Main verification commands:
 
@@ -69,7 +69,7 @@ The test setup:
 - Applies Prisma migrations during Jest global setup when `DATABASE_URL_TEST` is present.
 - Requires `DATABASE_URL` to equal `DATABASE_URL_TEST`.
 - Refuses database names that do not look like test databases.
-- Resets `cv_analyses`, `cvs`, and `users` between integration cases.
+- Resets `usage_records`, `cv_analyses`, `applications`, `job_targets`, `cvs`, and `users` between integration cases.
 
 CI provides PostgreSQL 17 and sets:
 
@@ -106,6 +106,8 @@ Examples:
 
 - User can register/login
 - User can upload CV
+- User can create saved job targets
+- User can track applications and generate follow-up drafts
 - User can start CV analysis
 - User can compare CV with JD
 - User can reuse saved job target context for interview preparation

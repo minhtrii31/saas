@@ -1,12 +1,12 @@
 # Nyx
 
-Nyx is an AI-assisted CV workspace for job seekers. It helps users analyze CV quality, match a CV against a job description, generate tailored cover letters, prepare for interviews, improve and refine resume bullets, and review saved analysis history.
+Nyx is an AI-assisted CV workspace for job seekers. It helps users analyze CV quality, match a CV against a job description, generate tailored cover letters, prepare for interviews, improve and refine resume bullets, track job applications, generate follow-up drafts, and review saved analysis history.
 
 ## Current Stack
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS, Playwright
 - Backend: NestJS, TypeScript, Prisma, PostgreSQL, Jest, Supertest
-- AI: provider abstraction with deterministic mock and OpenAI providers, reusable prompt builders, JSON schemas, and structured output validation for analysis, matching, cover letters, interview prep, resume rewrite, and rewrite refinement
+- AI: provider abstraction with deterministic mock and OpenAI providers, reusable prompt builders, JSON schemas, and structured output validation for analysis, matching, cover letters, interview prep, resume rewrite, rewrite refinement, and application follow-ups
 - Usage: credit checks and usage ledger records for successful AI workflows
 - CI: GitHub Actions on push/PR with PostgreSQL 17 and mock AI
 
@@ -26,6 +26,9 @@ Redis, BullMQ, and S3/Cloudinary-compatible storage remain planned architecture 
 - `/dashboard`: protected task overview.
 - `/dashboard/cvs`: CV repository.
 - `/dashboard/cvs/[id]`: CV detail.
+- `/dashboard/job-targets`: saved target roles and job description context.
+- `/dashboard/applications`: application tracker with status updates and AI follow-up drafts.
+- `/dashboard/progress`: resume quality and rewrite progress trends.
 - `/dashboard/analyze`: CV analysis.
 - `/dashboard/match`: job description matching.
 - `/dashboard/cover-letter`: cover letter generation.
@@ -53,8 +56,8 @@ docker compose up -d postgres
 
 ## Testing Snapshot
 
-- API: 169 Jest/Supertest test cases.
-- Web: 51 Playwright test cases.
+- API: 179 Jest/Supertest test cases.
+- Web: 52 Playwright test cases.
 - CI runs API tests/lint/build and web Playwright/lint/build with `AI_PROVIDER=mock`.
 - PostgreSQL integration tests require `DATABASE_URL_TEST` and refuse to run against a non-test database.
 

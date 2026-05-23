@@ -6,7 +6,7 @@ The frontend lives in `apps/web` and uses Next.js App Router with React, TypeScr
 
 Nyx now uses a task-oriented dashboard rather than a generic dashboard. The primary navigation groups work into:
 
-- Main: overview and CV repository.
+- Main: overview, CV repository, job targets, applications, and progress.
 - AI Tools: analysis, job matching, interview preparation, and cover letter generation.
 - Workspace: history and settings.
 
@@ -56,6 +56,8 @@ Playwright tests currently mock API responses and cover:
 - Protected dashboard redirect behavior.
 - CV repository states and upload.
 - CV detail.
+- Job target CRUD.
+- Application tracking and follow-up draft generation.
 - CV analysis.
 - Job matching.
 - Interview preparation.

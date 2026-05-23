@@ -15,6 +15,9 @@ The first version focuses on helping users evaluate and improve their CV for job
 - Return matching score, matched skills, missing skills, and improvement suggestions
 - Save analysis history
 - Generate a basic tailored cover letter
+- Save reusable job targets
+- Track job applications by status
+- Generate a basic application follow-up draft
 
 ### Not In MVP
 
@@ -22,7 +25,7 @@ The first version focuses on helping users evaluate and improve their CV for job
 - Resume templates
 - Recruiter dashboard
 - Public profile page
-- Job tracking board
+- Advanced job tracking board with reminders or external ATS integration
 - Job description file upload
 - Real-time collaboration
 - Payment/subscription

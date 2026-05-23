@@ -8,7 +8,8 @@ The current implementation favors small vertical slices:
 
 - Authenticated user account access.
 - CV upload, storage metadata, text extraction, listing, detail, and soft deletion.
-- CV analysis, job description matching, interview preparation, and cover letter generation.
+- Saved job targets and application tracking.
+- CV analysis, job description matching, interview preparation, application follow-up, and cover letter generation.
 - Saved analysis history through `CvAnalysis` records.
 
 ## Applications
@@ -33,7 +34,7 @@ AI:
 
 - `CvAnalysisProvider` abstraction
 - Mock provider for local development and automated tests
-- OpenAI provider for structured JSON CV analysis, JD matching, interview preparation, and cover letter generation
+- OpenAI provider for structured JSON CV analysis, JD matching, interview preparation, application follow-up, and cover letter generation
 
 ## Planned but not implemented
 
@@ -50,6 +51,8 @@ Implemented modules:
 
 - `auth`: registration, login, JWT guard, current-user endpoint.
 - `cvs`: CV metadata, upload, extraction, soft delete, analysis workflows, matching, cover letter persistence.
+- `job-targets`: saved role/company/job description context for reuse in job-specific workflows.
+- `applications`: application CRUD, status tracking, optional saved target linkage, and follow-up draft generation.
 - `analysis`: provider selection and provider-facing service methods.
 - `usage`: credit balance checks, per-action credit consumption, and usage ledger records.
 - `config`: environment validation and provider configuration.
@@ -73,9 +76,12 @@ Current Prisma models:
 - `User`
 - `Cv`
 - `CvAnalysis`
+- `JobTarget`
+- `Application`
 - `UsageRecord`
 
-`CvAnalysis.type` distinguishes `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, `REWRITE_REFINEMENT`, and `INTERVIEW_PREP`, allowing one history table for the current AI outputs.
+`CvAnalysis.type` distinguishes `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, `REWRITE_REFINEMENT`, `INTERVIEW_PREP`, and `APPLICATION_FOLLOW_UP`, allowing one history table for the current AI outputs.
+`Application` links a user to an owned CV, an optional `JobTarget`, company and role names, notes, optional applied date, and one of `SAVED`, `APPLIED`, `INTERVIEWING`, `OFFER`, or `REJECTED`.
 `User.creditBalance` stores remaining credits. `UsageRecord` stores the user, action, credits used, timestamp, and optional linked `CvAnalysis` so successful AI actions can be audited.
 
 ## System principles

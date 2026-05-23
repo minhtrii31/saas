@@ -10,6 +10,38 @@ Users can register, log in, log out through client-side token removal, and acces
 
 Users can upload CV files, store metadata and extracted text, view uploaded CVs, open CV detail, soft-delete CVs, and select a CV for analysis, matching, cover letters, interview prep, or resume rewrite.
 
+### Job Targets
+
+Users can save target roles and job descriptions at `/dashboard/job-targets`, then reuse that role context in matching, cover letters, and interview preparation.
+
+### Application Tracking
+
+Users can track applications at `/dashboard/applications`.
+
+Each application is linked to an uploaded CV, may optionally reference a saved job target, and stores:
+
+- Company name
+- Role title
+- Status
+- Applied date
+- Notes
+
+Supported statuses are:
+
+- `SAVED`
+- `APPLIED`
+- `INTERVIEWING`
+- `OFFER`
+- `REJECTED`
+
+Users can create, update, soft-delete, and group applications by status.
+
+### Application Follow-Up Assistant
+
+Users can generate a concise follow-up draft from an application card. The assistant uses the selected CV text and application context, including company, role, status, applied date, and notes.
+
+Follow-up drafts are stored as `APPLICATION_FOLLOW_UP` analysis records and consume `APPLICATION_FOLLOW_UP` credits after successful generation.
+
 ### CV Analysis
 
 Users can analyze a CV and receive:
@@ -74,7 +106,11 @@ Interview preparation results are stored as `INTERVIEW_PREP` analysis records an
 
 ### History
 
-Users can view previous CV analyses, JD comparisons, interview prep results, resume rewrites, rewrite refinements, and generated cover letters in dashboard history. Interview prep records are stored as `INTERVIEW_PREP`; resume rewrite records are stored as `RESUME_REWRITE`; per-suggestion refinements are stored as `REWRITE_REFINEMENT`.
+Users can view previous CV analyses, JD comparisons, interview prep results, resume rewrites, rewrite refinements, generated cover letters, and application follow-up drafts in dashboard history. Interview prep records are stored as `INTERVIEW_PREP`; resume rewrite records are stored as `RESUME_REWRITE`; per-suggestion refinements are stored as `REWRITE_REFINEMENT`; application follow-ups are stored as `APPLICATION_FOLLOW_UP`.
+
+### Progress
+
+Users can review resume quality trends at `/dashboard/progress`, including score history, ATS readiness trends, rewrite activity, and summary insights.
 
 ## Future Features
 
@@ -84,7 +120,6 @@ Users can view previous CV analyses, JD comparisons, interview prep results, res
 - Refresh-token or server-side session strategy
 - CV builder
 - Resume templates
-- Job tracking board
 - Payment/subscription
 - Recruiter mode
 - AI chat assistant

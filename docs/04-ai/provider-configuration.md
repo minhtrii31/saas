@@ -11,6 +11,7 @@ The current provider boundary is `CvAnalysisProvider`. It supports:
 - Interview preparation.
 - Resume rewrite.
 - Rewrite refinement.
+- Application follow-up draft generation.
 
 Provider responses include `aiProvider`, `aiModel`, and structured result data before they are persisted as `CvAnalysis` records.
 
@@ -39,7 +40,7 @@ Use the OpenAI provider only when validating real AI behavior manually or in a c
 
 Behavior:
 
-- Sends the workflow input to OpenAI, such as CV text, job description text, saved job target context, interview focus, cover letter options, rewrite goals, or refinement instructions.
+- Sends the workflow input to OpenAI, such as CV text, job description text, saved job target context, interview focus, cover letter options, rewrite goals, refinement instructions, or application follow-up context.
 - Requires `OPENAI_API_KEY`.
 - Uses `OPENAI_MODEL` when set.
 - Falls back to the backend default model when `OPENAI_MODEL` is not set.
@@ -95,6 +96,8 @@ Current providers:
 
 Interview prep accepts CV text plus role context from pasted text or a saved job target, with behavioral, technical, or mixed focus. The backend persists interview prep output as `INTERVIEW_PREP` history records after successful credit deduction.
 
+Application follow-up accepts CV text plus application context: company name, role title, application status, optional applied date, and optional notes. The backend persists follow-up output as `APPLICATION_FOLLOW_UP` history records after successful credit deduction. The saved result includes the application id, draft, and tone.
+
 Rewrite refinement accepts one current rewrite plus the original wording and one supported instruction:
 
 - `stronger`
@@ -107,6 +110,20 @@ Rewrite refinement accepts one current rewrite plus the original wording and one
 The backend persists refinement output as `REWRITE_REFINEMENT` history records.
 
 Future provider candidates remain Gemini, OpenRouter, or other compatible structured-output providers.
+
+## Usage Cost Variables
+
+The usage module reads per-action costs from environment variables:
+
+- `USAGE_COST_CV_ANALYSIS`
+- `USAGE_COST_JD_MATCH`
+- `USAGE_COST_COVER_LETTER`
+- `USAGE_COST_RESUME_REWRITE`
+- `USAGE_COST_REWRITE_REFINEMENT`
+- `USAGE_COST_INTERVIEW_PREP`
+- `USAGE_COST_APPLICATION_FOLLOW_UP`
+
+All costs default to `1` credit when unset.
 
 ## Cost and Safety Notes
 
