@@ -59,10 +59,13 @@ describe('API PostgreSQL integration', () => {
 
     expect(response.body).toEqual({
       data: {
-        id: expect.any(String),
-        email: 'register.integration@example.com',
-        name: 'Ada Lovelace',
-        createdAt: expect.any(String),
+        user: {
+          id: expect.any(String),
+          email: 'register.integration@example.com',
+          name: 'Ada Lovelace',
+          createdAt: expect.any(String),
+        },
+        accessToken: expect.any(String),
       },
       meta: {},
     });
@@ -897,13 +900,13 @@ describe('API PostgreSQL integration', () => {
       })
       .expect(201);
 
-    return response.body.data.id as string;
+    return extractUserId(response.body);
   }
 
   async function registerAndLogin(
     email: string,
   ): Promise<{ accessToken: string; userId: string }> {
-    const userId = await registerUser(email);
+    await registerUser(email);
     const response = await request(app.getHttpServer())
       .post('/auth/login')
       .send({
@@ -912,9 +915,31 @@ describe('API PostgreSQL integration', () => {
       })
       .expect(201);
 
+    const userId = extractUserId(response.body);
+    const accessToken = extractAccessToken(response.body);
+
     return {
-      accessToken: response.body.data.accessToken as string,
+      accessToken,
       userId,
     };
+  }
+
+  function extractUserId(body: unknown): string {
+    const data = (body as { data?: { id?: unknown; user?: { id?: unknown } } })
+      .data;
+    const userId = data?.id ?? data?.user?.id;
+
+    expect(userId).toEqual(expect.any(String));
+
+    return userId as string;
+  }
+
+  function extractAccessToken(body: unknown): string {
+    const accessToken = (body as { data?: { accessToken?: unknown } }).data
+      ?.accessToken;
+
+    expect(accessToken).toEqual(expect.any(String));
+
+    return accessToken as string;
   }
 });
