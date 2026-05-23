@@ -9,6 +9,7 @@ import {
   fetchCvs,
   getApiErrorMessage,
   isUnauthorizedError,
+  refineRewrite,
   rewriteResume,
 } from "@/components/dashboard/api";
 import { formatBytes, formatDateTime } from "@/components/dashboard/format";
@@ -21,7 +22,12 @@ import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, SelectInput } from "@/components/ui/form-field";
 import { StatusMessage } from "@/components/ui/status-message";
-import type { CvItem, ResumeRewriteGoal, ResumeRewriteResult } from "@/lib/api";
+import type {
+  CvItem,
+  ResumeRewriteGoal,
+  ResumeRewriteResult,
+  RewriteRefinementInstruction,
+} from "@/lib/api";
 
 type CvsState =
   | { type: "loading" }
@@ -33,6 +39,11 @@ type RewriteState =
   | { type: "loading" }
   | { type: "success"; result: ResumeRewriteResult }
   | { type: "error"; message: string };
+
+type RefinementState = Record<
+  number,
+  { type: "loading" } | { type: "error"; message: string } | undefined
+>;
 
 const rewriteGoals: Array<{ value: ResumeRewriteGoal; label: string }> = [
   { value: "stronger-impact", label: "Stronger impact" },
@@ -62,6 +73,7 @@ function RewriteContent({ token }: { token: string }) {
   const [rewriteState, setRewriteState] = useState<RewriteState>({
     type: "idle",
   });
+  const [refinementState, setRefinementState] = useState<RefinementState>({});
 
   useEffect(() => {
     let isActive = true;
@@ -115,10 +127,24 @@ function RewriteContent({ token }: { token: string }) {
       return;
     }
 
+    if (!selectedCv?.extractedText?.trim()) {
+      setRewriteState({
+        type: "error",
+        message: "This CV does not have extracted text available for rewrite.",
+      });
+      return;
+    }
+
     setRewriteState({ type: "loading" });
+    setRefinementState({});
 
     try {
-      const result = await rewriteResume(token, selectedCvId, selectedGoal);
+      const result = await rewriteResume(
+        token,
+        selectedCvId,
+        selectedGoal,
+        selectedCv.extractedText,
+      );
       setRewriteState({ type: "success", result });
     } catch (error) {
       if (isUnauthorizedError(error)) {
@@ -134,6 +160,77 @@ function RewriteContent({ token }: { token: string }) {
           "Unable to rewrite this CV. Please try again.",
         ),
       });
+    }
+  }
+
+  async function handleRefine(
+    suggestionIndex: number,
+    instruction: RewriteRefinementInstruction,
+  ) {
+    if (!selectedCvId || rewriteState.type !== "success") {
+      return;
+    }
+
+    const suggestion = rewriteState.result.suggestions[suggestionIndex];
+
+    if (!suggestion) {
+      return;
+    }
+
+    setRefinementState((current) => ({
+      ...current,
+      [suggestionIndex]: { type: "loading" },
+    }));
+
+    try {
+      const refinement = await refineRewrite(token, selectedCvId, {
+        original: suggestion.original,
+        currentRewrite: suggestion.improved,
+        instruction,
+      });
+
+      setRewriteState((current) => {
+        if (current.type !== "success") {
+          return current;
+        }
+
+        return {
+          type: "success",
+          result: {
+            ...current.result,
+            suggestions: current.result.suggestions.map((item, index) =>
+              index === suggestionIndex
+                ? {
+                    ...item,
+                    improved: refinement.improved,
+                    reason: refinement.reason,
+                  }
+                : item,
+            ),
+          },
+        };
+      });
+      setRefinementState((current) => ({
+        ...current,
+        [suggestionIndex]: undefined,
+      }));
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        localStorage.removeItem("accessToken");
+        router.replace("/login");
+        return;
+      }
+
+      setRefinementState((current) => ({
+        ...current,
+        [suggestionIndex]: {
+          type: "error",
+          message: getApiErrorMessage(
+            error,
+            "Unable to refine this suggestion. Please try again.",
+          ),
+        },
+      }));
     }
   }
 
@@ -185,6 +282,7 @@ function RewriteContent({ token }: { token: string }) {
                   onChange={(event) => {
                     setSelectedCvId(event.currentTarget.value);
                     setRewriteState({ type: "idle" });
+                    setRefinementState({});
                   }}
                   disabled={cvsState.cvs.length === 0}
                 >
@@ -206,6 +304,7 @@ function RewriteContent({ token }: { token: string }) {
                   onChange={(event) => {
                     setSelectedGoal(event.currentTarget.value as ResumeRewriteGoal);
                     setRewriteState({ type: "idle" });
+                    setRefinementState({});
                   }}
                 >
                   {rewriteGoals.map((goal) => (
@@ -257,6 +356,8 @@ function RewriteContent({ token }: { token: string }) {
         <RewriteResult
           result={rewriteState.result}
           cvTitle={selectedCv?.title || selectedCv?.originalName || "CV"}
+          refinementState={refinementState}
+          onRefine={handleRefine}
         />
       ) : null}
     </div>

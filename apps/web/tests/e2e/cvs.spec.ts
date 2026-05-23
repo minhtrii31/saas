@@ -114,6 +114,21 @@ const rewriteAnalysis = {
   createdAt: "2026-05-22T13:30:00.000Z",
 };
 
+const rewriteRefinementAnalysis = {
+  id: "rewrite-refinement-1",
+  cvId: cvList[0].id,
+  type: "REWRITE_REFINEMENT",
+  aiProvider: "mock",
+  aiModel: "mock-resume-rewriter-v1",
+  result: {
+    improved:
+      "Owned customer workflow API delivery with TypeScript, reducing manual review time by 35%.",
+    reason:
+      "The refined rewrite adds technical detail while preserving the measurable result.",
+  },
+  createdAt: "2026-05-22T13:45:00.000Z",
+};
+
 test("/dashboard/cvs redirects to login when token is missing", async ({
   page,
 }) => {
@@ -524,7 +539,8 @@ test("/dashboard/rewrite can select CV and displays rewrite suggestions", async 
     expect(request.headers().authorization).toBe("Bearer valid-token");
     expect(request.url()).toContain(`/cvs/${cvList[0].id}/rewrite`);
     expect(request.postDataJSON()).toEqual({
-      goal: "stronger-impact",
+      originalText: cvList[0].extractedText,
+      rewriteGoal: "stronger-impact",
     });
 
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -557,6 +573,137 @@ test("/dashboard/rewrite can select CV and displays rewrite suggestions", async 
     page.getByText(
       "The revised bullet uses an action verb and adds measurable business impact.",
     ),
+  ).toBeVisible();
+});
+
+test("/dashboard/rewrite can refine one suggestion", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/rewrite", async (route) => {
+    if (route.request().url().endsWith("/rewrite/refine")) {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: rewriteAnalysis, meta: {} }),
+    });
+  });
+  await page.route("**://*/cvs/*/rewrite/refine", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.postDataJSON()).toEqual({
+      original: "Worked on backend APIs for customer workflows.",
+      currentRewrite:
+        "Delivered customer workflow APIs that reduced manual review time by 35%.",
+      instruction: "more-technical",
+    });
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: rewriteRefinementAnalysis, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByRole("button", { name: "More technical" }).click();
+
+  await expect(
+    page.getByText(
+      "Owned customer workflow API delivery with TypeScript, reducing manual review time by 35%.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Worked on backend APIs for customer workflows."),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "The refined rewrite adds technical detail while preserving the measurable result.",
+    ),
+  ).toBeVisible();
+});
+
+test("/dashboard/rewrite shows per-card loading during refinement", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/rewrite", async (route) => {
+    if (route.request().url().endsWith("/rewrite/refine")) {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: rewriteAnalysis, meta: {} }),
+    });
+  });
+  await page.route("**://*/cvs/*/rewrite/refine", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: rewriteRefinementAnalysis, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByRole("button", { name: "Stronger" }).click();
+
+  await expect(page.getByText("Updating this suggestion")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Stronger" })).toBeDisabled();
+});
+
+test("/dashboard/rewrite refinement API error displays per-card error", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/rewrite", async (route) => {
+    if (route.request().url().endsWith("/rewrite/refine")) {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: rewriteAnalysis, meta: {} }),
+    });
+  });
+  await page.route("**://*/cvs/*/rewrite/refine", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "AI_PROVIDER_ERROR",
+          message: "AI provider failed to return valid structured output",
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByRole("button", { name: "ATS-friendly" }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "AI provider failed to return valid structured output" }),
   ).toBeVisible();
 });
 
@@ -620,6 +767,7 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
           matchAnalysis,
           coverLetterAnalysis,
           rewriteAnalysis,
+          rewriteRefinementAnalysis,
         ],
         meta: {},
       }),
@@ -653,6 +801,19 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
   await expect(
     history.getByText(
       "The revised bullet uses an action verb and adds measurable business impact.",
+    ),
+  ).toBeVisible();
+  await expect(
+    history.getByText("Rewrite refinement", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    history.getByText(
+      "Owned customer workflow API delivery with TypeScript, reducing manual review time by 35%.",
+    ),
+  ).toBeVisible();
+  await expect(
+    history.getByText(
+      "The refined rewrite adds technical detail while preserving the measurable result.",
     ),
   ).toBeVisible();
 });

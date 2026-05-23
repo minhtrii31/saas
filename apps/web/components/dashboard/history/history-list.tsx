@@ -8,6 +8,7 @@ import {
   hasSuggestions,
   isCoverLetterResult,
   isJdMatchResult,
+  isRewriteRefinementResult,
   isResumeRewriteResult,
 } from "../api";
 import { AnalysisList } from "../analysis/analysis-list";
@@ -64,7 +65,21 @@ export function HistoryList({
                 <p className="text-sm font-semibold text-[#171717] [overflow-wrap:anywhere]">
                   {cv?.title || cv?.originalName || analysis.cvId}
                 </p>
-              {isResumeRewriteResult(analysis.result) ? (
+              {isRewriteRefinementResult(analysis.result) ? (
+                <div className="mt-4 border border-[#e5e5df] bg-[#fafaf8] p-3">
+                  <HistoryRewriteText
+                    label="Refined rewrite"
+                    text={analysis.result.improved}
+                    strong
+                  />
+                  <p className="mt-3 border-t border-[#e5e5df] pt-3 text-sm leading-6 text-[#343430]">
+                    <span className="font-semibold text-[#171717]">
+                      Reason:{" "}
+                    </span>
+                    {analysis.result.reason}
+                  </p>
+                </div>
+              ) : isResumeRewriteResult(analysis.result) ? (
                 <>
                   <p className="mt-3 inline-flex border border-[#e5e5df] bg-[#f7f7f4] px-2 py-1 text-sm text-[#5f5f58]">
                     Rewrite goal:{" "}
@@ -269,7 +284,9 @@ function ActionableInsightSummary({ result }: { result: CvAnalysisResult }) {
 
 function AnalysisTypeIcon({ type }: { type: CvAnalysis["type"] }) {
   const Icon =
-    type === "JD_MATCH" || type === "RESUME_REWRITE"
+    type === "JD_MATCH" ||
+    type === "RESUME_REWRITE" ||
+    type === "REWRITE_REFINEMENT"
       ? GitCompare
       : type === "COVER_LETTER"
         ? FilePenLine

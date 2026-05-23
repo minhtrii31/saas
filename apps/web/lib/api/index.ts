@@ -16,4 +16,6 @@ export type {
   ResumeRewriteGoal,
   ResumeRewriteResult,
   ResumeRewriteSuggestion,
+  RewriteRefinementInstruction,
+  RewriteRefinementResult,
 } from "./types";

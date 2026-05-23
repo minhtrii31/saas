@@ -150,8 +150,11 @@ function HistoryContent({ token }: { token: string }) {
             />
             <HistoryMetric
               icon={FilePenLine}
-              label="Rewrites"
-              value={countByType(state.analyses, "RESUME_REWRITE")}
+              label="Rewrite edits"
+              value={
+                countByType(state.analyses, "RESUME_REWRITE") +
+                countByType(state.analyses, "REWRITE_REFINEMENT")
+              }
             />
             <HistoryMetric
               icon={FilePenLine}

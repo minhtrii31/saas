@@ -8,9 +8,18 @@ import type {
   CvAnalysisResult,
   CvItem,
   JdMatchResult,
+  RewriteRefinementInstruction,
+  RewriteRefinementResult,
   ResumeRewriteGoal,
   ResumeRewriteResult,
 } from "@/lib/api";
+
+type SingleResumeRewriteResult = {
+  originalText?: unknown;
+  rewrittenText?: unknown;
+  explanation?: unknown;
+  rewriteGoal?: unknown;
+};
 
 export async function validateSession(token: string) {
   const response = await apiClient.request<AuthUser>("/auth/me", {
@@ -112,16 +121,39 @@ export async function rewriteResume(
   token: string,
   cvId: string,
   goal: ResumeRewriteGoal,
+  originalText: string,
 ) {
   const response = await apiClient.request<CvAnalysis>(`/cvs/${cvId}/rewrite`, {
     method: "POST",
     headers: authHeaders(token),
     body: {
-      goal,
+      originalText,
+      rewriteGoal: goal,
     },
   });
 
   return toResumeRewriteResult(response.data.result, goal);
+}
+
+export async function refineRewrite(
+  token: string,
+  cvId: string,
+  input: {
+    original: string;
+    currentRewrite: string;
+    instruction: RewriteRefinementInstruction;
+  },
+) {
+  const response = await apiClient.request<CvAnalysis>(
+    `/cvs/${cvId}/rewrite/refine`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: input,
+    },
+  );
+
+  return toRewriteRefinementResult(response.data.result);
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string) {
@@ -144,7 +176,8 @@ export function isJdMatchResult(
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
 ): result is JdMatchResult {
   return "matchingScore" in result;
 }
@@ -154,7 +187,8 @@ export function isCoverLetterResult(
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
 ): result is CoverLetterResult {
   return "coverLetter" in result;
 }
@@ -164,7 +198,9 @@ export function isResumeRewriteResult(
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult
+    | SingleResumeRewriteResult,
 ): result is ResumeRewriteResult {
   return "suggestions" in result && Array.isArray(result.suggestions)
     ? result.suggestions.every(
@@ -178,14 +214,30 @@ export function isResumeRewriteResult(
     : false;
 }
 
+export function isRewriteRefinementResult(
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
+): result is RewriteRefinementResult {
+  return "improved" in result && "reason" in result;
+}
+
 export function hasSuggestions(
   result:
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
 ): result is CvAnalysisResult | JdMatchResult {
-  return "suggestions" in result && !isResumeRewriteResult(result);
+  return (
+    "suggestions" in result &&
+    !isResumeRewriteResult(result) &&
+    !isRewriteRefinementResult(result)
+  );
 }
 
 function toCvAnalysisResult(
@@ -193,12 +245,14 @@ function toCvAnalysisResult(
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
 ) {
   if (
     !isJdMatchResult(result) &&
     !isCoverLetterResult(result) &&
-    !isResumeRewriteResult(result)
+    !isResumeRewriteResult(result) &&
+    !isRewriteRefinementResult(result)
   ) {
     return result;
   }
@@ -214,7 +268,8 @@ function toJdMatchResult(
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
 ) {
   if (isJdMatchResult(result)) {
     return result;
@@ -222,7 +277,9 @@ function toJdMatchResult(
 
   return {
     matchingScore:
-      isCoverLetterResult(result) || isResumeRewriteResult(result)
+      isCoverLetterResult(result) ||
+      isResumeRewriteResult(result) ||
+      isRewriteRefinementResult(result)
         ? 0
         : result.score,
     suggestions: hasSuggestions(result) ? result.suggestions : undefined,
@@ -234,7 +291,8 @@ function toCoverLetterResult(
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
 ) {
   if (isCoverLetterResult(result)) {
     return result;
@@ -252,16 +310,62 @@ function toResumeRewriteResult(
     | CvAnalysisResult
     | JdMatchResult
     | CoverLetterResult
-    | ResumeRewriteResult,
+    | ResumeRewriteResult
+    | RewriteRefinementResult
+    | SingleResumeRewriteResult,
   goal: ResumeRewriteGoal,
 ) {
   if (isResumeRewriteResult(result)) {
     return result;
   }
 
+  if (
+    typeof result === "object" &&
+    result !== null &&
+    "originalText" in result &&
+    "rewrittenText" in result &&
+    "explanation" in result
+  ) {
+    const original = String(result.originalText || "");
+    const improved = String(result.rewrittenText || "");
+    const reason = String(result.explanation || "");
+
+    return {
+      goal,
+      suggestions:
+        original && improved && reason
+          ? [
+              {
+                original,
+                improved,
+                reason,
+              },
+            ]
+          : [],
+    };
+  }
+
   return {
     goal,
     suggestions: [],
+  };
+}
+
+function toRewriteRefinementResult(
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult
+    | RewriteRefinementResult,
+) {
+  if (isRewriteRefinementResult(result)) {
+    return result;
+  }
+
+  return {
+    improved: "",
+    reason: "",
   };
 }
 

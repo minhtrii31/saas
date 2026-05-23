@@ -1,8 +1,12 @@
 "use client";
 
-import { ArrowRight, Lightbulb, PenLine } from "lucide-react";
+import { ArrowRight, Lightbulb, Loader2, PenLine, WandSparkles } from "lucide-react";
 
-import type { ResumeRewriteResult } from "@/lib/api";
+import type {
+  ResumeRewriteResult,
+  RewriteRefinementInstruction,
+} from "@/lib/api";
+import { Button } from "@/components/ui/button";
 
 const goalLabels = {
   "stronger-impact": "Stronger impact",
@@ -12,12 +16,34 @@ const goalLabels = {
   "leadership-tone": "Leadership tone",
 };
 
+const refinementActions: Array<{
+  instruction: RewriteRefinementInstruction;
+  label: string;
+}> = [
+  { instruction: "stronger", label: "Stronger" },
+  { instruction: "shorter", label: "Shorter" },
+  { instruction: "more-technical", label: "More technical" },
+  { instruction: "more-leadership", label: "Leadership tone" },
+  { instruction: "more-ats-friendly", label: "ATS-friendly" },
+  { instruction: "more-results-focused", label: "Results-focused" },
+];
+
 export function RewriteResult({
   result,
   cvTitle,
+  refinementState,
+  onRefine,
 }: {
   result: ResumeRewriteResult;
   cvTitle: string;
+  refinementState?: Record<
+    number,
+    { type: "loading" } | { type: "error"; message: string } | undefined
+  >;
+  onRefine?: (
+    suggestionIndex: number,
+    instruction: RewriteRefinementInstruction,
+  ) => void;
 }) {
   return (
     <section
@@ -49,18 +75,72 @@ export function RewriteResult({
               <div className="hidden items-center justify-center text-[#a1a19a] lg:flex">
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </div>
-              <RewriteText label="Improved" text={suggestion.improved} strong />
+              <RewriteText
+                label={
+                  refinementState?.[index]?.type === "loading"
+                    ? "Refining"
+                    : "Improved"
+                }
+                text={suggestion.improved}
+                strong
+                loading={refinementState?.[index]?.type === "loading"}
+              />
               <div className="border-t border-[#e5e5df] pt-3 lg:col-span-3">
-                <div className="flex items-start gap-2 text-sm leading-6 text-[#343430]">
-                  <Lightbulb
-                    className="mt-0.5 h-4 w-4 shrink-0 text-[#6f6f68]"
-                    aria-hidden="true"
-                  />
-                  <p className="min-w-0 [overflow-wrap:anywhere]">
-                    <span className="font-semibold text-[#171717]">Reason: </span>
-                    {suggestion.reason}
-                  </p>
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="flex items-start gap-2 text-sm leading-6 text-[#343430]">
+                    <Lightbulb
+                      className="mt-0.5 h-4 w-4 shrink-0 text-[#6f6f68]"
+                      aria-hidden="true"
+                    />
+                    <p className="min-w-0 [overflow-wrap:anywhere]">
+                      <span className="font-semibold text-[#171717]">
+                        Reason:{" "}
+                      </span>
+                      {suggestion.reason}
+                    </p>
+                  </div>
+                  <div
+                    className="flex flex-wrap gap-2"
+                    aria-label={`Refine suggestion ${index + 1}`}
+                  >
+                    {refinementActions.map((action) => {
+                      const isLoading =
+                        refinementState?.[index]?.type === "loading";
+
+                      return (
+                        <Button
+                          key={action.instruction}
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={isLoading}
+                          onClick={() => onRefine?.(index, action.instruction)}
+                        >
+                          {isLoading ? (
+                            <Loader2
+                              className="h-3.5 w-3.5 animate-spin"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <WandSparkles
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
+                          )}
+                          {action.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
+                {refinementState?.[index]?.type === "error" ? (
+                  <p
+                    role="alert"
+                    className="mt-3 border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
+                  >
+                    {refinementState[index]?.message}
+                  </p>
+                ) : null}
               </div>
             </article>
           ))}
@@ -78,10 +158,12 @@ function RewriteText({
   label,
   text,
   strong = false,
+  loading = false,
 }: {
   label: string;
   text: string;
   strong?: boolean;
+  loading?: boolean;
 }) {
   return (
     <div className="min-w-0">
@@ -98,6 +180,12 @@ function RewriteText({
             : "border-[#e5e5df] bg-[#f7f7f4] text-[#5f5f58]"
         }`}
       >
+        {loading ? (
+          <span className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-[#6f6f68]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            Updating this suggestion
+          </span>
+        ) : null}
         {text}
       </p>
     </div>

@@ -96,19 +96,42 @@ export type ResumeRewriteGoal =
   | "quantified-achievements"
   | "leadership-tone";
 
+export type RewriteRefinementInstruction =
+  | "stronger"
+  | "shorter"
+  | "more-technical"
+  | "more-leadership"
+  | "more-ats-friendly"
+  | "more-results-focused";
+
 export type ResumeRewriteResult = {
   goal: ResumeRewriteGoal;
   suggestions: ResumeRewriteSuggestion[];
 };
 
+export type RewriteRefinementResult = {
+  improved: string;
+  reason: string;
+};
+
 export type CvAnalysis = {
   id: string;
   cvId: string;
-  type: "CV_ANALYSIS" | "JD_MATCH" | "COVER_LETTER" | "RESUME_REWRITE";
+  type:
+    | "CV_ANALYSIS"
+    | "JD_MATCH"
+    | "COVER_LETTER"
+    | "RESUME_REWRITE"
+    | "REWRITE_REFINEMENT";
   jobDescriptionText?: string;
   aiProvider: string;
   aiModel: string;
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult | ResumeRewriteResult;
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult
+    | RewriteRefinementResult;
   createdAt: string;
 };
 

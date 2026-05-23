@@ -46,5 +46,9 @@ export function formatAnalysisType(type: CvAnalysis["type"]) {
     return "Resume rewrite";
   }
 
+  if (type === "REWRITE_REFINEMENT") {
+    return "Rewrite refinement";
+  }
+
   return "CV analysis";
 }
