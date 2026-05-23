@@ -2,11 +2,17 @@
 
 import {
   ArrowUpRight,
+  BriefcaseBusiness,
   ClipboardList,
+  Coins,
   FilePenLine,
   FileText,
   GitCompare,
+  History,
+  ListChecks,
   Sparkles,
+  Target,
+  TrendingUp,
   Upload,
 } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import {
+  fetchApplications,
   fetchCvAnalyses,
   fetchCvs,
   getApiErrorMessage,
@@ -26,11 +33,22 @@ import {
   formatDateTime,
 } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import type { AuthUser, CvAnalysis, CvItem } from "@/lib/api";
+import type {
+  ApplicationItem,
+  ApplicationStatus,
+  AuthUser,
+  CvAnalysis,
+  CvItem,
+} from "@/lib/api";
 
 type DashboardState =
   | { type: "loading" }
-  | { type: "ready"; cvs: CvItem[]; analyses: CvAnalysis[] }
+  | {
+      type: "ready";
+      cvs: CvItem[];
+      analyses: CvAnalysis[];
+      applications: ApplicationItem[];
+    }
   | { type: "error"; message: string };
 
 const workflow = [
@@ -81,6 +99,61 @@ const workflow = [
   },
 ];
 
+const applicationStatuses: ApplicationStatus[] = [
+  "SAVED",
+  "APPLIED",
+  "INTERVIEWING",
+  "OFFER",
+  "REJECTED",
+];
+
+const applicationStatusLabels: Record<ApplicationStatus, string> = {
+  SAVED: "Saved",
+  APPLIED: "Applied",
+  INTERVIEWING: "Interviewing",
+  OFFER: "Offer",
+  REJECTED: "Rejected",
+};
+
+const quickActions = [
+  {
+    href: "/dashboard/cvs",
+    label: "Upload CV",
+    description: "Add or review source documents.",
+    icon: Upload,
+  },
+  {
+    href: "/dashboard/analyze",
+    label: "Run audit",
+    description: "Create a quality baseline.",
+    icon: Sparkles,
+  },
+  {
+    href: "/dashboard/match",
+    label: "Match role",
+    description: "Compare against a target JD.",
+    icon: Target,
+  },
+  {
+    href: "/dashboard/applications",
+    label: "Track role",
+    description: "Update pipeline status.",
+    icon: BriefcaseBusiness,
+  },
+  {
+    href: "/dashboard/history",
+    label: "Review history",
+    description: "Revisit saved AI output.",
+    icon: History,
+  },
+  {
+    href: "/dashboard/progress",
+    label: "Check progress",
+    description: "Inspect CV score movement.",
+    icon: TrendingUp,
+  },
+];
+
 export default function DashboardPage() {
   return (
     <ProtectedPage
@@ -101,14 +174,17 @@ function DashboardContent({ token, user }: { token: string; user: AuthUser }) {
 
     async function loadDashboard() {
       try {
-        const cvs = await fetchCvs(token);
+        const [cvs, applications] = await Promise.all([
+          fetchCvs(token),
+          fetchApplications(token),
+        ]);
         const analysisResults = await Promise.all(
           cvs.map((cv) => fetchCvAnalyses(token, cv.id)),
         );
         const analyses = sortAnalysesNewestFirst(analysisResults.flat());
 
         if (isActive) {
-          setState({ type: "ready", cvs, analyses });
+          setState({ type: "ready", cvs, analyses, applications });
         }
       } catch (error) {
         if (!isActive) {
@@ -154,7 +230,12 @@ function DashboardContent({ token, user }: { token: string; user: AuthUser }) {
   }
 
   return (
-    <DashboardOverview user={user} cvs={state.cvs} analyses={state.analyses} />
+    <DashboardOverview
+      user={user}
+      cvs={state.cvs}
+      analyses={state.analyses}
+      applications={state.applications}
+    />
   );
 }
 
@@ -162,14 +243,16 @@ function DashboardOverview({
   user,
   cvs,
   analyses,
+  applications,
 }: {
   user: AuthUser;
   cvs: CvItem[];
   analyses: CvAnalysis[];
+  applications: ApplicationItem[];
 }) {
   const displayName = user.name || user.email.split("@")[0] || "there";
   const latestCv = cvs[0];
-  const latestAnalyses = analyses.slice(0, 4);
+  const latestAnalyses = analyses.slice(0, 5);
   const avgScore = useMemo(() => getAverageScore(analyses), [analyses]);
   const coverLetters = analyses.filter(
     (analysis) => analysis.type === "COVER_LETTER",
@@ -178,6 +261,14 @@ function DashboardOverview({
     (analysis) => analysis.type === "JD_MATCH",
   ).length;
   const recommendedAction = getRecommendedAction(cvs, analyses);
+  const statusCounts = getApplicationStatusCounts(applications);
+  const activeApplications =
+    statusCounts.SAVED + statusCounts.APPLIED + statusCounts.INTERVIEWING;
+  const progressHighlights = getProgressHighlights(cvs, analyses, applications);
+  const remainingCredits =
+    typeof user.creditBalance === "number"
+      ? user.creditBalance.toLocaleString()
+      : "Not tracked";
 
   return (
     <div className="space-y-7">
@@ -215,14 +306,13 @@ function DashboardOverview({
 
         <div className="border border-[#e5e5df] bg-[#f7f7f4] p-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6f68]">
-            Current state
+            Workspace state
           </p>
-          <div className="mt-5 grid grid-cols-3 gap-px overflow-hidden border border-[#e5e5df] bg-[#e5e5df]">
-            <StateMetric label="CVs" value={String(cvs.length)} />
-            <StateMetric label="Runs" value={String(analyses.length)} />
+          <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden border border-[#e5e5df] bg-[#e5e5df]">
+            <StateMetric label="Credits" value={remainingCredits} />
             <StateMetric
-              label="Avg"
-              value={avgScore === null ? "--" : `${avgScore}%`}
+              label="Active roles"
+              value={String(activeApplications)}
             />
           </div>
           <div className="mt-5 border-t border-[#e5e5df] pt-5">
@@ -276,25 +366,126 @@ function DashboardOverview({
         </div>
       </section>
 
+      <section
+        aria-labelledby="summary-heading"
+        className="grid gap-px overflow-hidden border border-[#e5e5df] bg-[#e5e5df] sm:grid-cols-2 xl:grid-cols-4"
+      >
+        <h3 id="summary-heading" className="sr-only">
+          Summary stats
+        </h3>
+        <SummaryStat
+          icon={FileText}
+          label="CV library"
+          value={String(cvs.length)}
+          detail={latestCv ? "Latest source is ready" : "Upload a CV to begin"}
+        />
+        <SummaryStat
+          icon={Sparkles}
+          label="AI activity"
+          value={String(analyses.length)}
+          detail={`${analysisCount(analyses, "CV_ANALYSIS")} audits, ${matches} matches, avg ${
+            avgScore === null ? "--" : `${avgScore}%`
+          }`}
+        />
+        <SummaryStat
+          icon={Coins}
+          label="Remaining credits"
+          value={remainingCredits}
+          detail="Used only after successful AI runs"
+        />
+        <SummaryStat
+          icon={BriefcaseBusiness}
+          label="Applications"
+          value={String(applications.length)}
+          detail={`${activeApplications} active, ${statusCounts.OFFER} offers`}
+        />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+        <div className="border border-[#e5e5df] bg-white p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6f68]">
+                Pipeline
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-[#171717]">
+                Application counts by status
+              </h3>
+            </div>
+            <Link
+              href="/dashboard/applications"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#5f5f58] hover:text-[#171717]"
+            >
+              Manage
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="mt-5 space-y-3">
+            {applicationStatuses.map((status) => (
+              <StatusCountRow
+                key={status}
+                label={applicationStatusLabels[status]}
+                value={statusCounts[status]}
+                total={applications.length}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="border border-[#e5e5df] bg-[#f7f7f4] p-5">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6f68]">
+            Progress
+          </p>
+          <h3 className="mt-1 text-lg font-semibold text-[#171717]">
+            Recent progress highlights
+          </h3>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {progressHighlights.map((highlight) => (
+              <Link
+                key={highlight.title}
+                href={highlight.href}
+                className="group min-w-0 border border-[#e5e5df] bg-white p-4 transition hover:border-[#cfcfc8] hover:bg-[#fbfbfa]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <highlight.icon
+                    className="h-4 w-4 shrink-0 text-[#6f6f68] transition group-hover:text-[#171717]"
+                    aria-hidden="true"
+                  />
+                  <ArrowUpRight
+                    className="h-4 w-4 shrink-0 text-[#a1a19a] transition group-hover:text-[#171717]"
+                    aria-hidden="true"
+                  />
+                </div>
+                <p className="mt-4 text-sm font-semibold text-[#171717]">
+                  {highlight.title}
+                </p>
+                <p className="mt-2 text-sm leading-5 text-[#5f5f58]">
+                  {highlight.detail}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section aria-labelledby="workflow-heading">
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6f68]">
-              Workflow
+              Quick actions
             </p>
             <h3
               id="workflow-heading"
               className="mt-1 text-xl font-semibold text-[#171717]"
             >
-              Choose the next task
+              Open the next workspace
             </h3>
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {workflow.map((item) => {
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {quickActions.map((item) => {
             const Icon = item.icon;
-            const status = getWorkflowStatus(item.label, cvs, analyses);
 
             return (
               <Link
@@ -313,16 +504,16 @@ function DashboardOverview({
                   />
                 </div>
                 <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#6f6f68]">
-                  {item.step} / {item.label} / {status}
+                  Workspace link
                 </p>
                 <h4 className="mt-2 text-sm font-semibold text-[#171717]">
-                  {item.title}
+                  {item.label}
                 </h4>
                 <p className="mt-2 min-h-10 text-sm leading-5 text-[#5f5f58]">
                   {item.description}
                 </p>
                 <p className="mt-5 text-xs font-semibold text-[#171717]">
-                  {item.action}
+                  Open
                 </p>
               </Link>
             );
@@ -335,7 +526,7 @@ function DashboardOverview({
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6f68]">
-                Recent activity
+                Recent AI activity
               </p>
               <h3 className="mt-1 text-lg font-semibold text-[#171717]">
                 Analysis timeline
@@ -356,11 +547,17 @@ function DashboardOverview({
                 <li key={analysis.id} className="flex items-start gap-3 py-3">
                   <AnalysisIcon type={analysis.type} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-[#171717]">
-                      {formatAnalysisType(analysis.type)}
-                    </p>
-                    <p className="mt-1 text-xs text-[#6f6f68]">
-                      {formatDateTime(analysis.createdAt)}
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="truncate text-sm font-semibold text-[#171717]">
+                        {formatAnalysisType(analysis.type)}
+                      </p>
+                      <p className="shrink-0 font-mono text-xs font-semibold text-[#171717]">
+                        {formatAnalysisScore(analysis)}
+                      </p>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#6f6f68]">
+                      {formatDateTime(analysis.createdAt)} /{" "}
+                      {getActivitySummary(analysis)}
                     </p>
                   </div>
                 </li>
@@ -388,6 +585,17 @@ function DashboardOverview({
             />
             <SignalRow label="Job matches" value={matches} />
             <SignalRow label="Cover letters" value={coverLetters} />
+            <SignalRow
+              label="Interview prep"
+              value={analysisCount(analyses, "INTERVIEW_PREP")}
+            />
+            <SignalRow
+              label="Rewrite actions"
+              value={
+                analysisCount(analyses, "RESUME_REWRITE") +
+                analysisCount(analyses, "REWRITE_REFINEMENT")
+              }
+            />
           </div>
           <div className="mt-6 border-t border-[#e5e5df] pt-5">
             <Link
@@ -403,6 +611,33 @@ function DashboardOverview({
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function SummaryStat({
+  icon: Icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: typeof FileText;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="min-w-0 bg-white p-5">
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-[0.65rem] font-bold uppercase text-[#6f6f68]">
+          {label}
+        </p>
+        <Icon className="h-4 w-4 shrink-0 text-[#6f6f68]" aria-hidden="true" />
+      </div>
+      <p className="mt-4 truncate text-2xl font-semibold text-[#171717]">
+        {value}
+      </p>
+      <p className="mt-2 text-sm leading-5 text-[#5f5f58]">{detail}</p>
     </div>
   );
 }
@@ -457,13 +692,48 @@ function SignalRow({ label, value }: { label: string; value: number }) {
   );
 }
 
+function StatusCountRow({
+  label,
+  value,
+  total,
+}: {
+  label: string;
+  value: number;
+  total: number;
+}) {
+  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+
+  return (
+    <div className="border border-[#e5e5df] bg-[#fbfbfa] p-3">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm font-semibold text-[#171717]">{label}</span>
+        <span className="font-mono text-sm font-semibold text-[#171717]">
+          {value}
+        </span>
+      </div>
+      <div className="mt-3 h-1.5 bg-[#e5e5df]">
+        <div
+          className="h-full bg-[#171717]"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function AnalysisIcon({ type }: { type: CvAnalysis["type"] }) {
   const Icon =
     type === "JD_MATCH"
       ? GitCompare
       : type === "COVER_LETTER"
         ? FilePenLine
-        : FileText;
+        : type === "INTERVIEW_PREP"
+          ? ClipboardList
+          : type === "APPLICATION_FOLLOW_UP"
+            ? BriefcaseBusiness
+            : type === "RESUME_REWRITE" || type === "REWRITE_REFINEMENT"
+              ? FilePenLine
+              : FileText;
 
   return (
     <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#f1f1ee] text-[#343430]">
@@ -474,6 +744,22 @@ function AnalysisIcon({ type }: { type: CvAnalysis["type"] }) {
 
 function analysisCount(analyses: CvAnalysis[], type: CvAnalysis["type"]) {
   return analyses.filter((analysis) => analysis.type === type).length;
+}
+
+function getApplicationStatusCounts(applications: ApplicationItem[]) {
+  return applications.reduce<Record<ApplicationStatus, number>>(
+    (counts, application) => ({
+      ...counts,
+      [application.status]: counts[application.status] + 1,
+    }),
+    {
+      SAVED: 0,
+      APPLIED: 0,
+      INTERVIEWING: 0,
+      OFFER: 0,
+      REJECTED: 0,
+    },
+  );
 }
 
 function getRecommendedAction(cvs: CvItem[], analyses: CvAnalysis[]) {
@@ -529,34 +815,6 @@ function getRecommendedAction(cvs: CvItem[], analyses: CvAnalysis[]) {
   };
 }
 
-function getWorkflowStatus(
-  label: string,
-  cvs: CvItem[],
-  analyses: CvAnalysis[],
-) {
-  if (label === "Repository") {
-    return cvs.length > 0 ? "ready" : "empty";
-  }
-
-  if (label === "Audit") {
-    return analysisCount(analyses, "CV_ANALYSIS") > 0 ? "active" : "next";
-  }
-
-  if (label === "Match") {
-    return analysisCount(analyses, "JD_MATCH") > 0 ? "active" : "ready";
-  }
-
-  if (label === "Draft") {
-    return analysisCount(analyses, "COVER_LETTER") > 0 ? "active" : "ready";
-  }
-
-  if (label === "Coach") {
-    return analysisCount(analyses, "INTERVIEW_PREP") > 0 ? "active" : "ready";
-  }
-
-  return "ready";
-}
-
 function getAverageScore(analyses: CvAnalysis[]) {
   const scores = analyses
     .map((analysis) => {
@@ -579,4 +837,119 @@ function getAverageScore(analyses: CvAnalysis[]) {
   return Math.round(
     scores.reduce((total, score) => total + score, 0) / scores.length,
   );
+}
+
+function getProgressHighlights(
+  cvs: CvItem[],
+  analyses: CvAnalysis[],
+  applications: ApplicationItem[],
+) {
+  const latestScore = getLatestCvScore(analyses);
+  const bestMatch = getBestMatchScore(analyses);
+  const latestApplication = applications[0];
+  const rewriteActions =
+    analysisCount(analyses, "RESUME_REWRITE") +
+    analysisCount(analyses, "REWRITE_REFINEMENT");
+
+  return [
+    {
+      href: "/dashboard/progress",
+      title: latestScore === null ? "No score baseline" : `${latestScore}% latest score`,
+      detail:
+        latestScore === null
+          ? "Run a CV audit to start measuring quality."
+          : `${analysisCount(analyses, "CV_ANALYSIS")} audit records are available.`,
+      icon: TrendingUp,
+    },
+    {
+      href: "/dashboard/match",
+      title: bestMatch === null ? "No role match yet" : `${bestMatch}% best match`,
+      detail:
+        bestMatch === null
+          ? "Paste a job description to reveal matched and missing signals."
+          : `${analysisCount(analyses, "JD_MATCH")} role comparisons saved.`,
+      icon: Target,
+    },
+    {
+      href: latestApplication
+        ? "/dashboard/applications"
+        : cvs.length > 0
+          ? "/dashboard/rewrite"
+          : "/dashboard/cvs",
+      title: latestApplication
+        ? applicationStatusLabels[latestApplication.status]
+        : `${rewriteActions} rewrite actions`,
+      detail: latestApplication
+        ? `${latestApplication.roleTitle} at ${latestApplication.companyName}`
+        : rewriteActions > 0
+          ? "Recent rewrite work is stored in history."
+          : "Use rewrites after the first audit surfaces weak bullets.",
+      icon: latestApplication ? BriefcaseBusiness : ListChecks,
+    },
+  ];
+}
+
+function getLatestCvScore(analyses: CvAnalysis[]) {
+  const latestAnalysis = analyses.find(
+    (analysis) =>
+      analysis.type === "CV_ANALYSIS" &&
+      "score" in analysis.result &&
+      typeof analysis.result.score === "number",
+  );
+
+  return latestAnalysis && "score" in latestAnalysis.result
+    ? latestAnalysis.result.score
+    : null;
+}
+
+function getBestMatchScore(analyses: CvAnalysis[]) {
+  const matchScores = analyses
+    .filter((analysis) => analysis.type === "JD_MATCH")
+    .map((analysis) =>
+      isJdMatchResult(analysis.result) ? analysis.result.matchingScore : null,
+    )
+    .filter((score): score is number => typeof score === "number");
+
+  return matchScores.length > 0 ? Math.max(...matchScores) : null;
+}
+
+function formatAnalysisScore(analysis: CvAnalysis) {
+  if (isJdMatchResult(analysis.result)) {
+    return `${analysis.result.matchingScore}%`;
+  }
+
+  if ("score" in analysis.result && typeof analysis.result.score === "number") {
+    return `${analysis.result.score}%`;
+  }
+
+  return "";
+}
+
+function getActivitySummary(analysis: CvAnalysis) {
+  const result = analysis.result;
+
+  if (isJdMatchResult(result)) {
+    const missingCount = result.missingSkills?.length ?? 0;
+    return missingCount > 0
+      ? `${missingCount} missing skills flagged`
+      : "Role fit signals saved";
+  }
+
+  if ("suggestions" in result && Array.isArray(result.suggestions)) {
+    return `${result.suggestions.length} suggestions saved`;
+  }
+
+  if ("questions" in result && Array.isArray(result.questions)) {
+    return `${result.questions.length} interview prompts generated`;
+  }
+
+  if ("highlights" in result && Array.isArray(result.highlights)) {
+    return `${result.highlights.length} cover letter highlights used`;
+  }
+
+  if ("draft" in result) {
+    return "Follow-up draft saved";
+  }
+
+  return "Saved AI workspace output";
 }

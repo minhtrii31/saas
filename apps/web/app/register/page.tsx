@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { ApiClientError, apiClient } from "../../lib/api";
+import type { AuthResponse } from "../../lib/api";
 
 type RegisterStatus =
   | { type: "idle" }
@@ -12,6 +14,7 @@ type RegisterStatus =
   | { type: "error"; message: string };
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<RegisterStatus>({ type: "idle" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,7 +27,7 @@ export default function RegisterPage() {
     setStatus({ type: "idle" });
 
     try {
-      await apiClient.request("/auth/register", {
+      const response = await apiClient.request<AuthResponse>("/auth/register", {
         method: "POST",
         body: {
           name: String(formData.get("name") ?? ""),
@@ -33,11 +36,8 @@ export default function RegisterPage() {
         },
       });
 
-      setStatus({
-        type: "success",
-        message: "Account created successfully. You can log in when login is available.",
-      });
-      form.reset();
+      localStorage.setItem("accessToken", response.data.accessToken);
+      router.push("/dashboard");
     } catch (error) {
       setStatus({
         type: "error",

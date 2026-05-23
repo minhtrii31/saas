@@ -13,7 +13,7 @@ test("register page renders form", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Register" })).toBeVisible();
 });
 
-test("register page shows success after successful submit", async ({ page }) => {
+test("register redirects to dashboard after successful submit", async ({ page }) => {
   await page.route("**/auth/register", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("POST");
@@ -34,9 +34,25 @@ test("register page shows success after successful submit", async ({ page }) => 
             email: "ada@example.com",
             name: "Ada Lovelace",
           },
-          tokens: {
-            accessToken: "test-token",
-          },
+          accessToken: "test-register-token",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.route("**/auth/me", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer test-register-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: "user_1",
+          email: "ada@example.com",
+          name: "Ada Lovelace",
+          creditBalance: 24,
         },
         meta: {},
       }),
@@ -52,11 +68,13 @@ test("register page shows success after successful submit", async ({ page }) => 
   await expect(
     page.getByRole("button", { name: "Creating account..." }),
   ).toBeDisabled();
+  await expect(page).toHaveURL(/\/dashboard$/);
   await expect(
-    page.getByText(
-      "Account created successfully. You can log in when login is available.",
-    ),
+    page.getByRole("heading", { name: "Dashboard", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.evaluate(() => localStorage.getItem("accessToken")),
+  ).resolves.toBe("test-register-token");
 });
 
 test("register page shows API error after failed submit", async ({ page }) => {
