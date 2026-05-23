@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Coins,
   History,
   LogOut,
   Menu,
@@ -95,6 +96,20 @@ export function TopHeader({
           </form>
 
           <div className="ml-auto flex shrink-0 items-center gap-3">
+            {typeof user?.creditBalance === "number" ? (
+              <div className="hidden items-center gap-2 border border-[#e5e5df] bg-white px-3 py-2 text-xs text-[#5f5f58] md:flex">
+                <Coins className="h-3.5 w-3.5 text-[#171717]" aria-hidden="true" />
+                <span className="font-semibold text-[#171717]">
+                  {user.creditBalance.toLocaleString()} credits
+                </span>
+                <button
+                  type="button"
+                  className="ml-1 border-l border-[#e5e5df] pl-2 font-semibold text-[#5f5f58] transition hover:text-[#171717]"
+                >
+                  Manage credits
+                </button>
+              </div>
+            ) : null}
             <div className="hidden items-center gap-2 border border-[#e5e5df] bg-[#f7f7f4] px-3 py-2 text-xs text-[#5f5f58] xl:flex">
               <ShieldCheck className="h-3.5 w-3.5 text-[#171717]" aria-hidden="true" />
               <span className="font-semibold text-[#171717]">{headerMeta.mode}</span>
@@ -146,6 +161,22 @@ export function TopHeader({
                       {headerMeta.section}
                     </span>
                   </div>
+                  {typeof user?.creditBalance === "number" ? (
+                    <div className="mt-2 flex items-center justify-between gap-3 border border-[#e5e5df] bg-white px-3 py-2">
+                      <span className="flex min-w-0 items-center gap-2 text-xs text-[#5f5f58]">
+                        <Coins className="h-3.5 w-3.5 shrink-0 text-[#171717]" aria-hidden="true" />
+                        <span className="truncate">
+                          {user.creditBalance.toLocaleString()} credits remaining
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 text-xs font-semibold text-[#171717]"
+                      >
+                        Manage credits
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               }
               items={[

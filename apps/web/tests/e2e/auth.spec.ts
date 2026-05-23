@@ -116,6 +116,7 @@ test("login redirects to dashboard after successful submit", async ({ page }) =>
             id: "user_1",
             email: "ada@example.com",
             name: "Ada Lovelace",
+            creditBalance: 24,
           },
           accessToken: "test-access-token",
         },
@@ -135,6 +136,7 @@ test("login redirects to dashboard after successful submit", async ({ page }) =>
           id: "user_1",
           email: "ada@example.com",
           name: "Ada Lovelace",
+          creditBalance: 24,
         },
         meta: {},
       }),
@@ -204,6 +206,7 @@ test("dashboard shows user info when token is valid", async ({ page }) => {
           id: "user_1",
           email: "ada@example.com",
           name: "Ada Lovelace",
+          creditBalance: 24,
         },
         meta: {},
       }),
@@ -223,6 +226,8 @@ test("dashboard shows user info when token is valid", async ({ page }) => {
     page.getByText("Ada Lovelace"),
   ).toBeVisible();
   await expect(page.getByText("ada@example.com")).toBeVisible();
+  await expect(page.getByText("24 credits")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Manage credits" })).toBeVisible();
 });
 
 test("dashboard clears invalid token and redirects to login", async ({ page }) => {
@@ -265,6 +270,7 @@ test("dashboard logout clears token and redirects to login", async ({ page }) =>
           id: "user_1",
           email: "ada@example.com",
           name: "Ada Lovelace",
+          creditBalance: 24,
         },
         meta: {},
       }),

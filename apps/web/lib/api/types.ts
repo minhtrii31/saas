@@ -27,6 +27,7 @@ export type AuthUser = {
   id: string;
   email: string;
   name?: string | null;
+  creditBalance?: number;
 };
 
 export type AuthResponse = {

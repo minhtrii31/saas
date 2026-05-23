@@ -157,7 +157,15 @@ export async function refineRewrite(
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiClientError ? error.error.message : fallback;
+  if (!(error instanceof ApiClientError)) {
+    return fallback;
+  }
+
+  if (error.error.code === "INSUFFICIENT_CREDITS") {
+    return "You’re out of credits.";
+  }
+
+  return error.error.message;
 }
 
 export function isUnauthorizedError(error: unknown) {

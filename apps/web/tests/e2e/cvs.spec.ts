@@ -129,6 +129,14 @@ const rewriteRefinementAnalysis = {
   createdAt: "2026-05-22T13:45:00.000Z",
 };
 
+const insufficientCreditsError = {
+  error: {
+    code: "INSUFFICIENT_CREDITS",
+    message: "Insufficient credits for this action.",
+  },
+  meta: {},
+};
+
 test("/dashboard/cvs redirects to login when token is missing", async ({
   page,
 }) => {
@@ -358,6 +366,29 @@ test("/dashboard/analyze API error displays error", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("/dashboard/analyze insufficient credits displays clear message", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page, 0);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/analyze", async (route) => {
+    await route.fulfill({
+      status: 402,
+      contentType: "application/json",
+      body: JSON.stringify(insufficientCreditsError),
+    });
+  });
+
+  await page.goto("/dashboard/analyze");
+  await page.getByRole("button", { name: "Analyze CV" }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
+  ).toBeVisible();
+  await expect(page.getByText("0 credits")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Manage credits" })).toBeVisible();
+});
+
 test("/dashboard/match can select CV and submit JD", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
@@ -435,6 +466,28 @@ test("/dashboard/match API error displays error", async ({ page }) => {
     page
       .getByRole("alert")
       .filter({ hasText: "CV text has not been extracted" }),
+  ).toBeVisible();
+});
+
+test("/dashboard/match insufficient credits displays clear message", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page, 0);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/match", async (route) => {
+    await route.fulfill({
+      status: 402,
+      contentType: "application/json",
+      body: JSON.stringify(insufficientCreditsError),
+    });
+  });
+
+  await page.goto("/dashboard/match");
+  await page.getByLabel("Job description").fill("We need TypeScript.");
+  await page.getByRole("button", { name: "Run match" }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
   ).toBeVisible();
 });
 
@@ -525,6 +578,28 @@ test("/dashboard/cover-letter API error displays error", async ({ page }) => {
     page
       .getByRole("alert")
       .filter({ hasText: "CV text has not been extracted" }),
+  ).toBeVisible();
+});
+
+test("/dashboard/cover-letter insufficient credits displays clear message", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page, 0);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/cover-letter", async (route) => {
+    await route.fulfill({
+      status: 402,
+      contentType: "application/json",
+      body: JSON.stringify(insufficientCreditsError),
+    });
+  });
+
+  await page.goto("/dashboard/cover-letter");
+  await page.getByLabel("Job description").fill("Build APIs with TypeScript.");
+  await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
   ).toBeVisible();
 });
 
@@ -707,6 +782,41 @@ test("/dashboard/rewrite refinement API error displays per-card error", async ({
   ).toBeVisible();
 });
 
+test("/dashboard/rewrite refinement insufficient credits displays clear message", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page, 0);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/rewrite", async (route) => {
+    if (route.request().url().endsWith("/rewrite/refine")) {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: rewriteAnalysis, meta: {} }),
+    });
+  });
+  await page.route("**://*/cvs/*/rewrite/refine", async (route) => {
+    await route.fulfill({
+      status: 402,
+      contentType: "application/json",
+      body: JSON.stringify(insufficientCreditsError),
+    });
+  });
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByRole("button", { name: "ATS-friendly" }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
+  ).toBeVisible();
+});
+
 test("/dashboard/rewrite missing CV selection shows error", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
@@ -746,6 +856,28 @@ test("/dashboard/rewrite API error displays error", async ({ page }) => {
     page
       .getByRole("alert")
       .filter({ hasText: "CV text has not been extracted" }),
+  ).toBeVisible();
+});
+
+test("/dashboard/rewrite insufficient credits displays clear message", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page, 0);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/rewrite", async (route) => {
+    await route.fulfill({
+      status: 402,
+      contentType: "application/json",
+      body: JSON.stringify(insufficientCreditsError),
+    });
+  });
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
   ).toBeVisible();
 });
 
@@ -835,8 +967,11 @@ test("/dashboard/history empty state works", async ({ page }) => {
   ).toBeVisible();
 });
 
-async function mockAuthenticatedPage(page: import("@playwright/test").Page) {
-  await mockAuthMe(page);
+async function mockAuthenticatedPage(
+  page: import("@playwright/test").Page,
+  creditBalance = 24,
+) {
+  await mockAuthMe(page, creditBalance);
   await page.addInitScript(() => {
     localStorage.setItem("accessToken", "valid-token");
   });
@@ -858,7 +993,10 @@ async function mockCvs(
   });
 }
 
-async function mockAuthMe(page: import("@playwright/test").Page) {
+async function mockAuthMe(
+  page: import("@playwright/test").Page,
+  creditBalance = 24,
+) {
   await page.route("**://*/auth/me", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("GET");
@@ -871,6 +1009,7 @@ async function mockAuthMe(page: import("@playwright/test").Page) {
           id: "user_1",
           email: "ada@example.com",
           name: "Ada Lovelace",
+          creditBalance,
         },
         meta: {},
       }),
