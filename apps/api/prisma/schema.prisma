@@ -32,6 +32,7 @@ model User {
   passwordHash  String        @map("password_hash")
   name          String?
   cvs           Cv[]
+  jobTargets    JobTarget[]
   usageRecords  UsageRecord[]
   creditBalance Int           @default(0) @map("credit_balance")
 
@@ -108,4 +109,22 @@ model UsageRecord {
   @@index([action])
   @@index([createdAt])
   @@map("usage_records")
+}
+
+model JobTarget {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  title              String
+  companyName        String @map("company_name")
+  jobDescriptionText String @map("job_description_text")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("job_targets")
 }

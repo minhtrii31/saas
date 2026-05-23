@@ -8,10 +8,17 @@ import { AppService } from './app.service';
 import { EnvironmentService } from './config/environment.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { CvsModule } from './modules/cvs/cvs.module';
+import { JobTargetsModule } from './modules/job-targets/job-targets.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [ApiThrottlingModule, PrismaModule, AuthModule, CvsModule],
+  imports: [
+    ApiThrottlingModule,
+    PrismaModule,
+    AuthModule,
+    CvsModule,
+    JobTargetsModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,

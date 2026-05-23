@@ -16,7 +16,7 @@ export async function resetTestDatabase(prisma: PrismaService): Promise<void> {
 
   await removeLocalUploadFiles(prisma);
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "usage_records", "cv_analyses", "cvs", "users" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "usage_records", "cv_analyses", "job_targets", "cvs", "users" RESTART IDENTITY CASCADE',
   );
 }
 

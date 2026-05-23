@@ -466,6 +466,92 @@ describe('API PostgreSQL integration', () => {
     });
   });
 
+  it('persists job targets and enforces ownership through PostgreSQL', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'job-target.integration@example.com',
+    );
+    const { accessToken: otherAccessToken } = await registerAndLogin(
+      'job-target-other.integration@example.com',
+    );
+
+    const createResponse = await request(app.getHttpServer())
+      .post('/job-targets')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        title: ' Senior Backend Engineer ',
+        companyName: ' Acme ',
+        jobDescriptionText:
+          ' Build APIs with TypeScript, NestJS, and PostgreSQL. ',
+      })
+      .expect(201);
+
+    expect(createResponse.body).toEqual({
+      data: {
+        id: expect.any(String),
+        userId,
+        title: 'Senior Backend Engineer',
+        companyName: 'Acme',
+        jobDescriptionText:
+          'Build APIs with TypeScript, NestJS, and PostgreSQL.',
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      },
+      meta: {},
+    });
+
+    const targetId = createResponse.body.data.id as string;
+
+    await request(app.getHttpServer())
+      .get(`/job-targets/${targetId}`)
+      .set('Authorization', `Bearer ${otherAccessToken}`)
+      .expect(404);
+
+    const patchResponse = await request(app.getHttpServer())
+      .patch(`/job-targets/${targetId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        companyName: 'Acme AI',
+      })
+      .expect(200);
+
+    expect(patchResponse.body.data.companyName).toBe('Acme AI');
+
+    const listResponse = await request(app.getHttpServer())
+      .get('/job-targets')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(listResponse.body.data).toHaveLength(1);
+    expect(listResponse.body.data[0]).toMatchObject({
+      id: targetId,
+      userId,
+      title: 'Senior Backend Engineer',
+      companyName: 'Acme AI',
+    });
+
+    await request(app.getHttpServer())
+      .delete(`/job-targets/${targetId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/job-targets/${targetId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(404);
+
+    await expect(
+      prisma.jobTarget.findFirstOrThrow({
+        where: {
+          id: targetId,
+        },
+      }),
+    ).resolves.toMatchObject({
+      userId,
+      title: 'Senior Backend Engineer',
+      deletedAt: expect.any(Date),
+    });
+  });
+
   async function registerUser(email: string): Promise<string> {
     const response = await request(app.getHttpServer())
       .post('/auth/register')

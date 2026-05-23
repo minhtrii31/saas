@@ -15,6 +15,18 @@ const cvList = [
   },
 ];
 
+const jobTargets = [
+  {
+    id: "a9df94a5-b938-4932-ac3c-7c99d6380b12",
+    userId: "user_1",
+    title: "Backend Engineer",
+    companyName: "Acme",
+    jobDescriptionText: "Build APIs with TypeScript, NestJS, and PostgreSQL.",
+    createdAt: "2026-05-23T09:00:00.000Z",
+    updatedAt: "2026-05-23T10:00:00.000Z",
+  },
+];
+
 const cvAnalysis = {
   id: "2f8d69b3-9274-496d-a9a4-2df643f0fe9a",
   cvId: cvList[0].id,
@@ -268,6 +280,108 @@ test("/dashboard/cvs clears invalid token and redirects", async ({ page }) => {
   ).resolves.toBeNull();
 });
 
+test("/dashboard/job-targets creates, edits, and deletes saved targets", async ({
+  page,
+}) => {
+  let targets = [...jobTargets];
+
+  await mockAuthenticatedPage(page);
+  await page.route("**://*/job-targets", async (route) => {
+    const request = route.request();
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    if (request.method() === "GET") {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: targets, meta: {} }),
+      });
+      return;
+    }
+
+    expect(request.method()).toBe("POST");
+    expect(request.postDataJSON()).toEqual({
+      title: "Frontend Engineer",
+      companyName: "Northstar",
+      jobDescriptionText: "Build product interfaces with React and TypeScript.",
+    });
+    targets = [
+      {
+        id: "d575603f-cbf4-4462-b132-2573bd72651b",
+        userId: "user_1",
+        title: "Frontend Engineer",
+        companyName: "Northstar",
+        jobDescriptionText: "Build product interfaces with React and TypeScript.",
+        createdAt: "2026-05-23T11:00:00.000Z",
+        updatedAt: "2026-05-23T11:00:00.000Z",
+      },
+      ...targets,
+    ];
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: targets[0], meta: {} }),
+    });
+  });
+  await page.route("**://*/job-targets/*", async (route) => {
+    const request = route.request();
+
+    if (request.method() === "PATCH") {
+      expect(request.postDataJSON()).toEqual({
+        title: "Backend Engineer",
+        companyName: "Acme AI",
+        jobDescriptionText: jobTargets[0].jobDescriptionText,
+      });
+      targets = targets.map((target) =>
+        target.id === jobTargets[0].id
+          ? { ...target, companyName: "Acme AI" }
+          : target,
+      );
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: targets[1], meta: {} }),
+      });
+      return;
+    }
+
+    expect(request.method()).toBe("DELETE");
+    targets = targets.filter((target) => target.id !== jobTargets[0].id);
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: jobTargets[0].id,
+          deletedAt: "2026-05-23T12:00:00.000Z",
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.goto("/dashboard/job-targets");
+  await expect(
+    page.getByRole("heading", { name: "Job Targets", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Backend Engineer")).toBeVisible();
+
+  await page.getByLabel("Title").fill("Frontend Engineer");
+  await page.getByLabel("Company name").fill("Northstar");
+  await page
+    .getByLabel("Job description")
+    .fill("Build product interfaces with React and TypeScript.");
+  await page.getByRole("button", { name: "Save target" }).click();
+  await expect(page.getByText("Target saved.")).toBeVisible();
+  await expect(page.getByText("Frontend Engineer")).toBeVisible();
+
+  await page.getByRole("button", { name: "Edit Backend Engineer" }).click();
+  await page.getByLabel("Company name").fill("Acme AI");
+  await page.getByRole("button", { name: "Save target" }).click();
+  await expect(page.getByText("Target updated.")).toBeVisible();
+  await expect(page.getByText("Acme AI")).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete Backend Engineer" }).click();
+  await expect(page.getByText("Backend Engineer")).toBeHidden();
+});
+
 test("/dashboard/cvs/[id] shows CV metadata and extracted text", async ({
   page,
 }) => {
@@ -392,6 +506,7 @@ test("/dashboard/analyze insufficient credits displays clear message", async ({
 test("/dashboard/match can select CV and submit JD", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
   await page.route("**://*/cvs/*/match", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("POST");
@@ -422,14 +537,45 @@ test("/dashboard/match can select CV and submit JD", async ({ page }) => {
     page.getByRole("region", { name: "JD match result for Backend CV" }),
   ).toBeVisible();
   await expect(page.getByText("Matching score: 75")).toBeVisible();
-  await expect(page.getByText("TypeScript")).toBeVisible();
+  await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
   await expect(page.getByText("Redis", { exact: true })).toBeVisible();
   await expect(page.getByText("Add Redis project examples")).toBeVisible();
+});
+
+test("/dashboard/match can reuse a saved job target", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await mockJobTargets(page, jobTargets);
+  await page.route("**://*/cvs/*/match", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.postDataJSON()).toEqual({
+      jobDescriptionText: jobTargets[0].jobDescriptionText,
+    });
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: matchAnalysis, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/match");
+  await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
+  await expect(page.getByLabel("Job description")).toHaveValue(
+    jobTargets[0].jobDescriptionText,
+  );
+  await page.getByRole("button", { name: "Run match" }).click();
+
+  await expect(
+    page.getByRole("region", { name: "JD match result for Backend CV" }),
+  ).toBeVisible();
 });
 
 test("/dashboard/match empty JD validation works", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
 
   await page.goto("/dashboard/match");
   await page.getByRole("button", { name: "Run match" }).click();
@@ -444,6 +590,7 @@ test("/dashboard/match empty JD validation works", async ({ page }) => {
 test("/dashboard/match API error displays error", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
   await page.route("**://*/cvs/*/match", async (route) => {
     await route.fulfill({
       status: 422,
@@ -474,6 +621,7 @@ test("/dashboard/match insufficient credits displays clear message", async ({
 }) => {
   await mockAuthenticatedPage(page, 0);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
   await page.route("**://*/cvs/*/match", async (route) => {
     await route.fulfill({
       status: 402,
@@ -494,6 +642,7 @@ test("/dashboard/match insufficient credits displays clear message", async ({
 test("/dashboard/cover-letter can generate cover letter", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
   await page.route("**://*/cvs/*/cover-letter", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("POST");
@@ -537,9 +686,45 @@ test("/dashboard/cover-letter can generate cover letter", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Copy" })).toBeVisible();
 });
 
+test("/dashboard/cover-letter can reuse a saved job target", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await mockJobTargets(page, jobTargets);
+  await page.route("**://*/cvs/*/cover-letter", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.postDataJSON()).toEqual({
+      jobDescriptionText: jobTargets[0].jobDescriptionText,
+      companyName: jobTargets[0].companyName,
+      roleTitle: jobTargets[0].title,
+      tone: "professional",
+    });
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: coverLetterAnalysis, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/cover-letter");
+  await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
+  await expect(page.getByLabel("Company name")).toHaveValue("Acme");
+  await expect(page.getByLabel("Role title")).toHaveValue("Backend Engineer");
+  await expect(page.getByLabel("Job description")).toHaveValue(
+    jobTargets[0].jobDescriptionText,
+  );
+  await page.getByRole("button", { name: "Generate", exact: true }).click();
+
+  await expect(
+    page.getByRole("region", { name: "Cover letter result for Backend CV" }),
+  ).toBeVisible();
+});
+
 test("/dashboard/cover-letter empty JD validation works", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
 
   await page.goto("/dashboard/cover-letter");
   await page.getByRole("button", { name: "Generate", exact: true }).click();
@@ -556,6 +741,7 @@ test("/dashboard/cover-letter empty JD validation works", async ({ page }) => {
 test("/dashboard/cover-letter API error displays error", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
   await page.route("**://*/cvs/*/cover-letter", async (route) => {
     await route.fulfill({
       status: 422,
@@ -586,6 +772,7 @@ test("/dashboard/cover-letter insufficient credits displays clear message", asyn
 }) => {
   await mockAuthenticatedPage(page, 0);
   await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
   await page.route("**://*/cvs/*/cover-letter", async (route) => {
     await route.fulfill({
       status: 402,
@@ -982,6 +1169,22 @@ async function mockCvs(
   data: typeof cvList,
 ) {
   await page.route("**://*/cvs", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data, meta: {} }),
+    });
+  });
+}
+
+async function mockJobTargets(
+  page: import("@playwright/test").Page,
+  data: typeof jobTargets,
+) {
+  await page.route("**://*/job-targets", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("GET");
     expect(request.headers().authorization).toBe("Bearer valid-token");

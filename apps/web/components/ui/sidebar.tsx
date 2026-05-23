@@ -2,6 +2,7 @@
 
 import {
   ArrowUpRight,
+  BookmarkCheck,
   FilePenLine,
   FileText,
   GitCompare,
@@ -40,6 +41,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
       { href: "/dashboard/cvs", label: "CV Repository", icon: FileText },
+      { href: "/dashboard/job-targets", label: "Job Targets", icon: BookmarkCheck },
     ],
   },
   {

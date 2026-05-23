@@ -8,10 +8,13 @@ import type {
   CvAnalysisResult,
   CvItem,
   JdMatchResult,
+  JobTargetItem,
   RewriteRefinementInstruction,
   RewriteRefinementResult,
   ResumeRewriteGoal,
   ResumeRewriteResult,
+  CreateJobTargetRequest,
+  UpdateJobTargetRequest,
 } from "@/lib/api";
 
 type SingleResumeRewriteResult = {
@@ -53,6 +56,54 @@ export async function fetchCvAnalyses(token: string, cvId: string) {
     `/cvs/${cvId}/analyses`,
     {
       method: "GET",
+      headers: authHeaders(token),
+    },
+  );
+
+  return response.data;
+}
+
+export async function fetchJobTargets(token: string) {
+  const response = await apiClient.request<JobTargetItem[]>("/job-targets", {
+    method: "GET",
+    headers: authHeaders(token),
+  });
+
+  return response.data;
+}
+
+export async function createJobTarget(
+  token: string,
+  input: CreateJobTargetRequest,
+) {
+  const response = await apiClient.request<JobTargetItem>("/job-targets", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: input,
+  });
+
+  return response.data;
+}
+
+export async function updateJobTarget(
+  token: string,
+  id: string,
+  input: UpdateJobTargetRequest,
+) {
+  const response = await apiClient.request<JobTargetItem>(`/job-targets/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(token),
+    body: input,
+  });
+
+  return response.data;
+}
+
+export async function deleteJobTarget(token: string, id: string) {
+  const response = await apiClient.request<{ id: string; deletedAt: string }>(
+    `/job-targets/${id}`,
+    {
+      method: "DELETE",
       headers: authHeaders(token),
     },
   );

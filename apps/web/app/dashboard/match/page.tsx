@@ -7,18 +7,20 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   fetchCvs,
+  fetchJobTargets,
   getApiErrorMessage,
   isUnauthorizedError,
   matchCv,
 } from "@/components/dashboard/api";
 import { CvSelector } from "@/components/dashboard/cv-selector";
+import { JobTargetSelector } from "@/components/dashboard/job-target-selector";
 import { MatchResult } from "@/components/dashboard/match/match-result";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
 import { LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
-import type { CvItem, JdMatchResult } from "@/lib/api";
+import type { CvItem, JdMatchResult, JobTargetItem } from "@/lib/api";
 
 type CvsState =
   | { type: "loading" }
@@ -29,6 +31,11 @@ type MatchState =
   | { type: "idle" }
   | { type: "loading" }
   | { type: "success"; result: JdMatchResult }
+  | { type: "error"; message: string };
+
+type TargetsState =
+  | { type: "loading" }
+  | { type: "ready"; targets: JobTargetItem[] }
   | { type: "error"; message: string };
 
 export default function MatchPage() {
@@ -45,21 +52,30 @@ export default function MatchPage() {
 function MatchContent({ token }: { token: string }) {
   const router = useRouter();
   const [cvsState, setCvsState] = useState<CvsState>({ type: "loading" });
+  const [targetsState, setTargetsState] = useState<TargetsState>({
+    type: "loading",
+  });
   const [selectedCvId, setSelectedCvId] = useState("");
+  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [jobDescriptionText, setJobDescriptionText] = useState("");
   const [matchState, setMatchState] = useState<MatchState>({ type: "idle" });
 
   useEffect(() => {
     let isActive = true;
 
-    async function loadCvs() {
+    async function loadWorkflowInputs() {
       try {
-        const cvs = await fetchCvs(token);
+        const [cvs, targets] = await Promise.all([
+          fetchCvs(token),
+          fetchJobTargets(token),
+        ]);
 
         if (!isActive) {
           return;
         }
 
         setCvsState({ type: "ready", cvs });
+        setTargetsState({ type: "ready", targets });
         setSelectedCvId((current) => current || cvs[0]?.id || "");
       } catch (error) {
         if (!isActive) {
@@ -76,10 +92,17 @@ function MatchContent({ token }: { token: string }) {
           type: "error",
           message: getApiErrorMessage(error, "Unable to load CVs. Please try again."),
         });
+        setTargetsState({
+          type: "error",
+          message: getApiErrorMessage(
+            error,
+            "Unable to load saved job targets.",
+          ),
+        });
       }
     }
 
-    void loadCvs();
+    void loadWorkflowInputs();
 
     return () => {
       isActive = false;
@@ -95,10 +118,7 @@ function MatchContent({ token }: { token: string }) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const formData = new FormData(event.currentTarget);
-    const jobDescriptionText = formData.get("jobDescriptionText");
-    const trimmedJobDescriptionText =
-      typeof jobDescriptionText === "string" ? jobDescriptionText.trim() : "";
+    const trimmedJobDescriptionText = jobDescriptionText.trim();
 
     if (!trimmedJobDescriptionText) {
       setMatchState({
@@ -188,6 +208,28 @@ function MatchContent({ token }: { token: string }) {
                 setMatchState({ type: "idle" });
               }}
             />
+            {targetsState.type === "ready" ? (
+              <JobTargetSelector
+                targets={targetsState.targets}
+                selectedTargetId={selectedTargetId}
+                onChange={(targetId) => {
+                  setSelectedTargetId(targetId);
+                  const target = targetsState.targets.find(
+                    (item) => item.id === targetId,
+                  );
+                  setJobDescriptionText(target?.jobDescriptionText ?? "");
+                  setMatchState({ type: "idle" });
+                }}
+              />
+            ) : null}
+            {targetsState.type === "error" ? (
+              <p
+                role="alert"
+                className="border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
+              >
+                {targetsState.message}
+              </p>
+            ) : null}
             <div>
               <label
                 htmlFor="jobDescriptionText"
@@ -199,6 +241,13 @@ function MatchContent({ token }: { token: string }) {
                 id="jobDescriptionText"
                 name="jobDescriptionText"
                 rows={8}
+                value={jobDescriptionText}
+                onChange={(event) => {
+                  setJobDescriptionText(event.currentTarget.value);
+                  if (selectedTargetId) {
+                    setSelectedTargetId("");
+                  }
+                }}
                 className="mt-2 block w-full border border-[#e5e5df] bg-[#f7f7f4] px-3 py-3 text-sm leading-6 text-[#171717] outline-none transition placeholder:text-[#9a9288] hover:border-[#cfcfc8] focus:border-[#171717] focus:bg-white"
                 placeholder="Paste the role requirements, responsibilities, and required skills."
               />

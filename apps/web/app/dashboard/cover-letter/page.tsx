@@ -7,12 +7,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   fetchCvs,
+  fetchJobTargets,
   generateCoverLetter,
   getApiErrorMessage,
   isUnauthorizedError,
 } from "@/components/dashboard/api";
 import { CoverLetterResultPanel } from "@/components/dashboard/cover-letter/cover-letter-result";
 import { CvSelector } from "@/components/dashboard/cv-selector";
+import { JobTargetSelector } from "@/components/dashboard/job-target-selector";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
 import { LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
@@ -24,7 +26,7 @@ import {
   TextInput,
   Textarea,
 } from "@/components/ui/form-field";
-import type { CoverLetterResult, CvItem } from "@/lib/api";
+import type { CoverLetterResult, CvItem, JobTargetItem } from "@/lib/api";
 
 type CvsState =
   | { type: "loading" }
@@ -35,6 +37,11 @@ type CoverLetterState =
   | { type: "idle" }
   | { type: "loading" }
   | { type: "success"; result: CoverLetterResult; copied: boolean }
+  | { type: "error"; message: string };
+
+type TargetsState =
+  | { type: "loading" }
+  | { type: "ready"; targets: JobTargetItem[] }
   | { type: "error"; message: string };
 
 export default function CoverLetterPage() {
@@ -51,22 +58,33 @@ export default function CoverLetterPage() {
 function CoverLetterContent({ token }: { token: string }) {
   const router = useRouter();
   const [cvsState, setCvsState] = useState<CvsState>({ type: "loading" });
+  const [targetsState, setTargetsState] = useState<TargetsState>({
+    type: "loading",
+  });
   const [selectedCvId, setSelectedCvId] = useState("");
+  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [jobDescriptionText, setJobDescriptionText] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [roleTitle, setRoleTitle] = useState("");
   const [coverLetterState, setCoverLetterState] =
     useState<CoverLetterState>({ type: "idle" });
 
   useEffect(() => {
     let isActive = true;
 
-    async function loadCvs() {
+    async function loadWorkflowInputs() {
       try {
-        const cvs = await fetchCvs(token);
+        const [cvs, targets] = await Promise.all([
+          fetchCvs(token),
+          fetchJobTargets(token),
+        ]);
 
         if (!isActive) {
           return;
         }
 
         setCvsState({ type: "ready", cvs });
+        setTargetsState({ type: "ready", targets });
         setSelectedCvId((current) => current || cvs[0]?.id || "");
       } catch (error) {
         if (!isActive) {
@@ -83,10 +101,17 @@ function CoverLetterContent({ token }: { token: string }) {
           type: "error",
           message: getApiErrorMessage(error, "Unable to load CVs. Please try again."),
         });
+        setTargetsState({
+          type: "error",
+          message: getApiErrorMessage(
+            error,
+            "Unable to load saved job targets.",
+          ),
+        });
       }
     }
 
-    void loadCvs();
+    void loadWorkflowInputs();
 
     return () => {
       isActive = false;
@@ -103,16 +128,10 @@ function CoverLetterContent({ token }: { token: string }) {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
-    const jobDescriptionText = formData.get("jobDescriptionText");
-    const companyName = formData.get("companyName");
-    const roleTitle = formData.get("roleTitle");
     const tone = formData.get("tone");
-    const trimmedJobDescriptionText =
-      typeof jobDescriptionText === "string" ? jobDescriptionText.trim() : "";
-    const trimmedCompanyName =
-      typeof companyName === "string" ? companyName.trim() : "";
-    const trimmedRoleTitle =
-      typeof roleTitle === "string" ? roleTitle.trim() : "";
+    const trimmedJobDescriptionText = jobDescriptionText.trim();
+    const trimmedCompanyName = companyName.trim();
+    const trimmedRoleTitle = roleTitle.trim();
     const trimmedTone = typeof tone === "string" ? tone.trim() : "";
 
     if (!trimmedJobDescriptionText) {
@@ -226,6 +245,30 @@ function CoverLetterContent({ token }: { token: string }) {
                 setCoverLetterState({ type: "idle" });
               }}
             />
+            {targetsState.type === "ready" ? (
+              <JobTargetSelector
+                targets={targetsState.targets}
+                selectedTargetId={selectedTargetId}
+                onChange={(targetId) => {
+                  setSelectedTargetId(targetId);
+                  const target = targetsState.targets.find(
+                    (item) => item.id === targetId,
+                  );
+                  setJobDescriptionText(target?.jobDescriptionText ?? "");
+                  setCompanyName(target?.companyName ?? "");
+                  setRoleTitle(target?.title ?? "");
+                  setCoverLetterState({ type: "idle" });
+                }}
+              />
+            ) : null}
+            {targetsState.type === "error" ? (
+              <p
+                role="alert"
+                className="border border-[#e7d8cf] bg-[#fff7f2] px-3 py-2 text-sm text-[#8a3f24]"
+              >
+                {targetsState.message}
+              </p>
+            ) : null}
             <div>
               <FieldLabel htmlFor="jobDescriptionText">
                 Job description
@@ -235,12 +278,31 @@ function CoverLetterContent({ token }: { token: string }) {
                 name="jobDescriptionText"
                 rows={8}
                 required
+                value={jobDescriptionText}
+                onChange={(event) => {
+                  setJobDescriptionText(event.currentTarget.value);
+                  if (selectedTargetId) {
+                    setSelectedTargetId("");
+                  }
+                }}
                 placeholder="Paste the role requirements, responsibilities, and required skills."
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextField id="companyName" label="Company name" placeholder="Optional" />
-              <TextField id="roleTitle" label="Role title" placeholder="Optional" />
+              <TextField
+                id="companyName"
+                label="Company name"
+                placeholder="Optional"
+                value={companyName}
+                onChange={(value) => setCompanyName(value)}
+              />
+              <TextField
+                id="roleTitle"
+                label="Role title"
+                placeholder="Optional"
+                value={roleTitle}
+                onChange={(value) => setRoleTitle(value)}
+              />
             </div>
             <div>
               <FieldLabel htmlFor="tone">Tone</FieldLabel>
@@ -315,10 +377,14 @@ function TextField({
   id,
   label,
   placeholder,
+  value,
+  onChange,
 }: {
   id: string;
   label: string;
   placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
 }) {
   return (
     <div>
@@ -330,6 +396,8 @@ function TextField({
         name={id}
         type="text"
         placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
       />
     </div>
   );

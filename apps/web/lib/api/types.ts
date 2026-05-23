@@ -48,6 +48,24 @@ export type CvItem = {
   createdAt: string;
 };
 
+export type JobTargetItem = {
+  id: string;
+  userId: string;
+  title: string;
+  companyName: string;
+  jobDescriptionText: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateJobTargetRequest = {
+  title: string;
+  companyName: string;
+  jobDescriptionText: string;
+};
+
+export type UpdateJobTargetRequest = Partial<CreateJobTargetRequest>;
+
 export type CvAnalysisResult = {
   score: number;
   scoringCategories?: {
