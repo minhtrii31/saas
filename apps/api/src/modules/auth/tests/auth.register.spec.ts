@@ -41,7 +41,7 @@ describe('POST /auth/register', () => {
     await app.close();
   });
 
-  it('creates a user with a hashed password and returns the public user fields', async () => {
+  it('creates a user with a hashed password and returns a signed access token', async () => {
     const createdAt = new Date('2026-05-22T10:30:00.000Z');
 
     prisma.user.findUnique.mockResolvedValue(null);
@@ -66,13 +66,17 @@ describe('POST /auth/register', () => {
 
     expect(response.body).toEqual({
       data: {
-        id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
-        email: 'user@example.com',
-        name: 'Ada Lovelace',
-        createdAt: createdAt.toISOString(),
+        user: {
+          id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
+          email: 'user@example.com',
+          name: 'Ada Lovelace',
+          createdAt: createdAt.toISOString(),
+        },
+        accessToken: expect.any(String),
       },
       meta: {},
     });
+    expect(response.body.data.accessToken.split('.')).toHaveLength(3);
 
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: {
@@ -114,7 +118,7 @@ describe('POST /auth/register', () => {
       })
       .expect(201);
 
-    expect(response.body.data).toEqual({
+    expect(response.body.data.user).toEqual({
       id: '43a84c6a-4bcf-47c1-a1e1-215ba79c9404',
       email: 'user@example.com',
       name: null,

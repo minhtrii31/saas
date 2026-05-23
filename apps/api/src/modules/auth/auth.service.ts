@@ -35,9 +35,10 @@ export class AuthService {
     private readonly tokenService: TokenService,
   ) {}
 
-  async register(
-    dto: RegisterDto,
-  ): Promise<{ data: PublicUser; meta: Record<string, never> }> {
+  async register(dto: RegisterDto): Promise<{
+    data: { user: PublicUser; accessToken: string };
+    meta: Record<string, never>;
+  }> {
     const email = this.normalizeEmail(dto.email);
     const password = this.validatePassword(dto.password);
     const name = this.normalizeName(dto.name);
@@ -78,10 +79,13 @@ export class AuthService {
 
     return {
       data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        createdAt: user.createdAt,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          createdAt: user.createdAt,
+        },
+        accessToken: this.tokenService.signAccessToken(user.id),
       },
       meta: {},
     };
