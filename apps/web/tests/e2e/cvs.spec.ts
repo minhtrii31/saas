@@ -586,14 +586,16 @@ test("/dashboard/job-targets creates, edits, and deletes saved targets", async (
     page.getByRole("heading", { name: "Backend Engineer" }),
   ).toBeVisible();
 
-  await page.getByLabel("Title").fill("Frontend Engineer");
+  await page.getByLabel("Role title").fill("Frontend Engineer");
   await page.getByLabel("Company name").fill("Northstar");
   await page
     .getByLabel("Job description")
     .fill("Build product interfaces with React and TypeScript.");
   await page.getByRole("button", { name: "Save target" }).click();
   await expect(page.getByText("Target saved.")).toBeVisible();
-  await expect(page.getByText("Frontend Engineer")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Frontend Engineer" }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Edit Backend Engineer" }).click();
   await page.getByLabel("Company name").fill("Acme AI");
@@ -603,6 +605,25 @@ test("/dashboard/job-targets creates, edits, and deletes saved targets", async (
 
   await page.getByRole("button", { name: "Delete Backend Engineer" }).click();
   await expect(page.getByText("Backend Engineer")).toBeHidden();
+});
+
+test("/dashboard/job-targets shows saved target structure when empty", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page);
+  await mockJobTargets(page, []);
+
+  await page.goto("/dashboard/job-targets");
+
+  await expect(page.getByText("Saved targets").first()).toBeVisible();
+  await expect(page.getByText("Latest updated")).toBeVisible();
+  await expect(page.getByText("None yet")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No saved targets yet" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Create your first target" }),
+  ).toBeVisible();
 });
 
 test("/dashboard/applications tracks status and generates follow-up draft", async ({
