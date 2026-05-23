@@ -2,7 +2,7 @@
 
 import { FilePenLine, FileText, GitCompare } from "lucide-react";
 
-import type { CvAnalysis, CvItem } from "@/lib/api";
+import type { CvAnalysis, CvAnalysisResult, CvItem } from "@/lib/api";
 
 import {
   hasSuggestions,
@@ -112,6 +112,8 @@ export function HistoryList({
                     title="Weaknesses"
                     items={analysis.result.weaknesses}
                   />
+                  <ScoreCategorySummary result={analysis.result} />
+                  <ActionableInsightSummary result={analysis.result} />
                 </>
               )}
 
@@ -129,6 +131,103 @@ export function HistoryList({
         })}
       </ul>
     </section>
+  );
+}
+
+const scoringCategoryLabels: Array<{
+  key: keyof NonNullable<CvAnalysisResult["scoringCategories"]>;
+  label: string;
+}> = [
+  { key: "atsReadiness", label: "ATS" },
+  { key: "readability", label: "Readability" },
+  { key: "impact", label: "Impact" },
+  { key: "keywordOptimization", label: "Keywords" },
+  { key: "structure", label: "Structure" },
+  { key: "experienceQuality", label: "Experience" },
+];
+
+const actionableInsightLabels: Array<{
+  key: keyof NonNullable<CvAnalysisResult["actionableInsights"]>;
+  label: string;
+}> = [
+  { key: "missingQuantifiedAchievements", label: "Missing metrics" },
+  { key: "weakActionVerbs", label: "Weak verbs" },
+  { key: "missingSections", label: "Missing sections" },
+  { key: "overlyGenericWording", label: "Generic wording" },
+  { key: "formattingConcerns", label: "Formatting" },
+  { key: "keywordGaps", label: "Keyword gaps" },
+];
+
+function ScoreCategorySummary({ result }: { result: CvAnalysisResult }) {
+  const categories = scoringCategoryLabels.flatMap(({ key, label }) => {
+    const value = result.scoringCategories?.[key];
+
+    return typeof value === "number" ? [{ key, label, value }] : [];
+  });
+
+  if (categories.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4">
+      <h3 className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+        Scorecard
+      </h3>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {categories.map((category) => (
+          <div
+            key={category.key}
+            className="flex items-center justify-between gap-2 border border-[#e5e5df] bg-[#f7f7f4] px-2 py-1 text-sm"
+          >
+            <span className="min-w-0 text-[#5f5f58] [overflow-wrap:anywhere]">
+              {category.label}
+            </span>
+            <span className="font-mono font-semibold text-[#171717]">
+              {category.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ActionableInsightSummary({ result }: { result: CvAnalysisResult }) {
+  const groups = actionableInsightLabels
+    .map(({ key, label }) => ({ key, label, items: result.actionableInsights?.[key] }))
+    .filter(({ items }) => Boolean(items?.length));
+
+  if (groups.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4">
+      <h3 className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+        Actionable insights
+      </h3>
+      <div className="mt-2 grid gap-3 lg:grid-cols-2">
+        {groups.map((group) => (
+          <div key={group.key} className="border border-[#e5e5df] bg-white p-3">
+            <p className="text-xs font-semibold text-[#171717]">
+              {group.label}
+            </p>
+            <ul className="mt-2 space-y-2 text-sm leading-6 text-[#343430]">
+              {group.items?.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#a1a19a]"
+                  />
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

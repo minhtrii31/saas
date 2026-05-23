@@ -49,8 +49,24 @@ export type CvItem = {
 
 export type CvAnalysisResult = {
   score: number;
+  scoringCategories?: {
+    atsReadiness?: number;
+    readability?: number;
+    impact?: number;
+    keywordOptimization?: number;
+    structure?: number;
+    experienceQuality?: number;
+  };
   strengths?: string[];
   weaknesses?: string[];
+  actionableInsights?: {
+    missingQuantifiedAchievements?: string[];
+    weakActionVerbs?: string[];
+    missingSections?: string[];
+    overlyGenericWording?: string[];
+    formattingConcerns?: string[];
+    keywordGaps?: string[];
+  };
   suggestions?: string[];
 };
 

@@ -23,11 +23,42 @@ const cvAnalysis = {
   aiModel: "mock-cv-analyzer-v1",
   result: {
     score: 82,
+    scoringCategories: {
+      atsReadiness: 88,
+      readability: 84,
+      impact: 70,
+      keywordOptimization: 76,
+      structure: 90,
+      experienceQuality: 81,
+    },
     strengths: ["Clear technical experience"],
     weaknesses: ["Impact metrics are limited"],
+    actionableInsights: {
+      missingQuantifiedAchievements: ["Add delivery metrics to backend work"],
+      weakActionVerbs: ["Replace helped with led or delivered"],
+      missingSections: ["Add a technical skills section"],
+      overlyGenericWording: ["Clarify ownership in project summaries"],
+      formattingConcerns: ["Keep section headings consistent"],
+      keywordGaps: ["Add Redis and queue processing keywords"],
+    },
     suggestions: ["Add quantified achievements"],
   },
   createdAt: "2026-05-22T11:00:00.000Z",
+};
+
+const legacyCvAnalysis = {
+  id: "legacy-cv-analysis-1",
+  cvId: cvList[0].id,
+  type: "CV_ANALYSIS",
+  aiProvider: "mock",
+  aiModel: "mock-cv-analyzer-v1",
+  result: {
+    score: 68,
+    strengths: ["Concise summary"],
+    weaknesses: ["Missing project outcomes"],
+    suggestions: ["Add stronger bullet evidence"],
+  },
+  createdAt: "2026-05-22T10:45:00.000Z",
 };
 
 const matchAnalysis = {
@@ -248,6 +279,13 @@ test("/dashboard/analyze can select CV and displays result", async ({
     page.getByRole("region", { name: "Analysis result for Backend CV" }),
   ).toBeVisible();
   await expect(page.getByText("Score: 82")).toBeVisible();
+  await expect(page.getByText("Recruiter and ATS scorecard")).toBeVisible();
+  await expect(page.getByText("ATS readiness")).toBeVisible();
+  await expect(page.getByText("88")).toBeVisible();
+  await expect(page.getByText("Actionable insight queue")).toBeVisible();
+  await expect(page.getByText("Missing quantified achievements")).toBeVisible();
+  await expect(page.getByText("Add delivery metrics to backend work")).toBeVisible();
+  await expect(page.getByText("Add Redis and queue processing keywords")).toBeVisible();
   await expect(page.getByText("Clear technical experience")).toBeVisible();
   await expect(page.getByText("Impact metrics are limited")).toBeVisible();
   await expect(page.getByText("Add quantified achievements")).toBeVisible();
@@ -466,7 +504,7 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        data: [cvAnalysis, matchAnalysis, coverLetterAnalysis],
+        data: [cvAnalysis, legacyCvAnalysis, matchAnalysis, coverLetterAnalysis],
         meta: {},
       }),
     });
@@ -477,6 +515,12 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
   const history = page.getByRole("region", { name: "Analysis history" });
   await expect(history.getByText("Backend CV").first()).toBeVisible();
   await expect(history.getByText("Score: 82")).toBeVisible();
+  await expect(history.getByText("Scorecard")).toBeVisible();
+  await expect(history.getByText("ATS")).toBeVisible();
+  await expect(history.getByText("Actionable insights")).toBeVisible();
+  await expect(history.getByText("Add delivery metrics to backend work")).toBeVisible();
+  await expect(history.getByText("Score: 68")).toBeVisible();
+  await expect(history.getByText("Concise summary")).toBeVisible();
   await expect(history.getByText("Matching score: 75")).toBeVisible();
   await expect(
     history.getByText("I am excited to apply for the Backend Engineer role."),
