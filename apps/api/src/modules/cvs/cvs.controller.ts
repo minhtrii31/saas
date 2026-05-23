@@ -81,6 +81,15 @@ export class CvsController {
     return this.cvsService.findAnalyses(user.id, id);
   }
 
+  @Get(':id/progress')
+  @UseGuards(JwtAuthGuard)
+  findProgress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+  ) {
+    return this.cvsService.findProgress(user.id, id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(

@@ -552,6 +552,129 @@ describe('API PostgreSQL integration', () => {
     });
   });
 
+  it('returns CV progress trends through PostgreSQL', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'progress.integration@example.com',
+    );
+    const cv = await prisma.cv.create({
+      data: {
+        userId,
+        title: 'Progress CV',
+        originalName: 'progress-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        storageProvider: 'local',
+        storageKey: `cvs/${userId}/progress-cv.pdf`,
+        storageUrl: null,
+        extractedText:
+          'Backend engineer with TypeScript and measurable impact.',
+      },
+    });
+
+    await prisma.cvAnalysis.createMany({
+      data: [
+        {
+          cvId: cv.id,
+          type: 'CV_ANALYSIS',
+          result: {
+            score: 64,
+            scoringCategories: {
+              atsReadiness: 60,
+              readability: 66,
+              impact: 55,
+              keywordOptimization: 58,
+              structure: 68,
+              experienceQuality: 62,
+            },
+          },
+          createdAt: new Date('2026-05-18T10:00:00.000Z'),
+        },
+        {
+          cvId: cv.id,
+          type: 'RESUME_REWRITE',
+          result: {
+            originalText: 'Worked on APIs.',
+            rewrittenText: 'Delivered APIs that reduced review time by 20%.',
+            explanation: 'Adds impact.',
+            rewriteGoal: 'stronger-impact',
+          },
+          createdAt: new Date('2026-05-20T10:00:00.000Z'),
+        },
+        {
+          cvId: cv.id,
+          type: 'CV_ANALYSIS',
+          result: {
+            score: 78,
+            scoringCategories: {
+              atsReadiness: 72,
+              readability: 76,
+              impact: 68,
+              keywordOptimization: 74,
+              structure: 80,
+              experienceQuality: 76,
+            },
+          },
+          createdAt: new Date('2026-05-22T10:00:00.000Z'),
+        },
+      ],
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/cvs/${cv.id}/progress`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      cvId: cv.id,
+      scoreTimeline: [
+        {
+          score: 64,
+          createdAt: '2026-05-18T10:00:00.000Z',
+        },
+        {
+          score: 78,
+          createdAt: '2026-05-22T10:00:00.000Z',
+        },
+      ],
+      atsTrend: [
+        {
+          score: 60,
+          createdAt: '2026-05-18T10:00:00.000Z',
+        },
+        {
+          score: 72,
+          createdAt: '2026-05-22T10:00:00.000Z',
+        },
+      ],
+      rewriteActivityTrend: [
+        {
+          date: '2026-05-20',
+          total: 1,
+          resumeRewrite: 1,
+          rewriteRefinement: 0,
+        },
+      ],
+      improvementDeltas: {
+        score: 14,
+        atsReadiness: 12,
+        keywordOptimization: 16,
+        impact: 13,
+      },
+      summary: {
+        earliestScore: 64,
+        latestScore: 78,
+        latestScoreVsEarliestScore: 14,
+        totalScoreAnalyses: 2,
+        totalRewriteActions: 1,
+        rewritesThisWeek: expect.any(Number),
+        insights: expect.arrayContaining([
+          'ATS readiness improved +12',
+          'Keyword optimization improved +16',
+        ]),
+      },
+    });
+  });
+
   async function registerUser(email: string): Promise<string> {
     const response = await request(app.getHttpServer())
       .post('/auth/register')

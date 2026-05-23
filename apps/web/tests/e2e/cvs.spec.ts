@@ -141,6 +141,87 @@ const rewriteRefinementAnalysis = {
   createdAt: "2026-05-22T13:45:00.000Z",
 };
 
+const cvProgress = {
+  cvId: cvList[0].id,
+  scoreTimeline: [
+    {
+      analysisId: legacyCvAnalysis.id,
+      createdAt: "2026-05-22T10:45:00.000Z",
+      score: 68,
+    },
+    {
+      analysisId: cvAnalysis.id,
+      createdAt: "2026-05-22T11:00:00.000Z",
+      score: 82,
+    },
+  ],
+  atsTrend: [
+    {
+      analysisId: legacyCvAnalysis.id,
+      createdAt: "2026-05-22T10:45:00.000Z",
+      score: 76,
+    },
+    {
+      analysisId: cvAnalysis.id,
+      createdAt: "2026-05-22T11:00:00.000Z",
+      score: 88,
+    },
+  ],
+  scoringCategoryTrends: [
+    {
+      analysisId: legacyCvAnalysis.id,
+      createdAt: "2026-05-22T10:45:00.000Z",
+      categories: {
+        atsReadiness: 76,
+        readability: 78,
+        impact: 60,
+        keywordOptimization: 64,
+        structure: 82,
+        experienceQuality: 72,
+      },
+    },
+    {
+      analysisId: cvAnalysis.id,
+      createdAt: "2026-05-22T11:00:00.000Z",
+      categories: {
+        atsReadiness: 88,
+        readability: 84,
+        impact: 70,
+        keywordOptimization: 76,
+        structure: 90,
+        experienceQuality: 81,
+      },
+    },
+  ],
+  rewriteActivityTrend: [
+    {
+      date: "2026-05-22",
+      total: 3,
+      resumeRewrite: 2,
+      rewriteRefinement: 1,
+    },
+  ],
+  improvementDeltas: {
+    score: 14,
+    atsReadiness: 12,
+    keywordOptimization: 12,
+    impact: 10,
+  },
+  summary: {
+    earliestScore: 68,
+    latestScore: 82,
+    latestScoreVsEarliestScore: 14,
+    totalScoreAnalyses: 2,
+    totalRewriteActions: 3,
+    rewritesThisWeek: 3,
+    insights: [
+      "ATS readiness improved +12",
+      "3 rewrites generated this week",
+      "Keyword optimization improved +12",
+    ],
+  },
+};
+
 const insufficientCreditsError = {
   error: {
     code: "INSUFFICIENT_CREDITS",
@@ -1151,6 +1232,52 @@ test("/dashboard/history empty state works", async ({ page }) => {
 
   await expect(
     page.getByText("No analysis history yet. Run an analysis to create one."),
+  ).toBeVisible();
+});
+
+test("/dashboard/progress shows resume quality trends", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/progress", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.url()).toContain(`/cvs/${cvList[0].id}/progress`);
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: cvProgress, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/progress");
+
+  await expect(
+    page.getByRole("heading", { name: "Progress", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Latest score")).toBeVisible();
+  await expect(page.getByText("+14")).toBeVisible();
+  await expect(page.getByText("ATS readiness improved +12")).toBeVisible();
+  await expect(page.getByText("3 rewrites generated this week")).toBeVisible();
+  await expect(page.getByText("Keyword optimization improved +12")).toBeVisible();
+  await expect(page.getByText("Score trend")).toBeVisible();
+  await expect(page.getByLabel("Score 82")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Rewrite activity" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Category movement" }),
+  ).toBeVisible();
+});
+
+test("/dashboard/progress handles empty CV library", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, []);
+
+  await page.goto("/dashboard/progress");
+
+  await expect(
+    page.getByText("Upload a CV and run an analysis to start tracking progress."),
   ).toBeVisible();
 });
 

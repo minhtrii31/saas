@@ -95,6 +95,64 @@ export type CvAnalysisHistoryItem = {
   createdAt: Date;
 };
 
+export type CvProgressAnalysisItem = Pick<
+  CvAnalysisHistoryItem,
+  'id' | 'type' | 'result' | 'createdAt'
+>;
+
+export type CvProgressPoint = {
+  analysisId: string;
+  createdAt: Date;
+  score: number;
+};
+
+export type CvScoringCategoryTrendPoint = {
+  analysisId: string;
+  createdAt: Date;
+  categories: {
+    atsReadiness: number | null;
+    readability: number | null;
+    impact: number | null;
+    keywordOptimization: number | null;
+    structure: number | null;
+    experienceQuality: number | null;
+  };
+};
+
+export type CvRewriteActivityPoint = {
+  date: string;
+  total: number;
+  resumeRewrite: number;
+  rewriteRefinement: number;
+};
+
+export type CvImprovementDeltas = {
+  score: number | null;
+  atsReadiness: number | null;
+  keywordOptimization: number | null;
+  impact: number | null;
+};
+
+export type CvProgressSummary = {
+  earliestScore: number | null;
+  latestScore: number | null;
+  latestScoreVsEarliestScore: number | null;
+  totalScoreAnalyses: number;
+  totalRewriteActions: number;
+  rewritesThisWeek: number;
+  insights: string[];
+};
+
+export type CvProgress = {
+  cvId: string;
+  scoreTimeline: CvProgressPoint[];
+  atsTrend: CvProgressPoint[];
+  scoringCategoryTrends: CvScoringCategoryTrendPoint[];
+  rewriteActivityTrend: CvRewriteActivityPoint[];
+  improvementDeltas: CvImprovementDeltas;
+  summary: CvProgressSummary;
+};
+
 export const cvSelect = {
   id: true,
   title: true,
@@ -136,6 +194,13 @@ export const cvAnalysisHistorySelect = {
   jobDescriptionText: true,
   aiProvider: true,
   aiModel: true,
+  result: true,
+  createdAt: true,
+};
+
+export const cvProgressAnalysisSelect = {
+  id: true,
+  type: true,
   result: true,
   createdAt: true,
 };

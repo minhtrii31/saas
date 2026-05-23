@@ -15,9 +15,11 @@ import {
   type CvAnalysisHistoryItem,
   type CvDetail,
   type CvListItem,
+  type CvProgress,
   type DeletedCv,
 } from './cvs.types';
 import { CvAnalysisWorkflowService } from './services/cv-analysis-workflow.service';
+import { CvProgressService } from './services/cv-progress.service';
 import { CvRecordsService } from './services/cv-records.service';
 import { CvUploadService } from './services/cv-upload.service';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
@@ -28,6 +30,7 @@ export class CvsService {
     private readonly cvRecordsService: CvRecordsService,
     private readonly cvUploadService: CvUploadService,
     private readonly cvAnalysisWorkflowService: CvAnalysisWorkflowService,
+    private readonly cvProgressService: CvProgressService,
   ) {}
 
   async findMany(
@@ -71,6 +74,18 @@ export class CvsService {
 
     return {
       data: analyses,
+      meta: {},
+    };
+  }
+
+  async findProgress(
+    userId: string,
+    id: string,
+  ): Promise<{ data: CvProgress; meta: Record<string, never> }> {
+    const progress = await this.cvProgressService.getProgress(userId, id);
+
+    return {
+      data: progress,
       meta: {},
     };
   }

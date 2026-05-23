@@ -6,6 +6,7 @@ import type {
   CoverLetterResult,
   CvAnalysis,
   CvAnalysisResult,
+  CvProgress,
   CvItem,
   JdMatchResult,
   JobTargetItem,
@@ -59,6 +60,15 @@ export async function fetchCvAnalyses(token: string, cvId: string) {
       headers: authHeaders(token),
     },
   );
+
+  return response.data;
+}
+
+export async function fetchCvProgress(token: string, cvId: string) {
+  const response = await apiClient.request<CvProgress>(`/cvs/${cvId}/progress`, {
+    method: "GET",
+    headers: authHeaders(token),
+  });
 
   return response.data;
 }

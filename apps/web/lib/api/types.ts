@@ -154,6 +154,55 @@ export type CvAnalysis = {
   createdAt: string;
 };
 
+export type CvProgressPoint = {
+  analysisId: string;
+  createdAt: string;
+  score: number;
+};
+
+export type CvScoringCategoryTrendPoint = {
+  analysisId: string;
+  createdAt: string;
+  categories: {
+    atsReadiness: number | null;
+    readability: number | null;
+    impact: number | null;
+    keywordOptimization: number | null;
+    structure: number | null;
+    experienceQuality: number | null;
+  };
+};
+
+export type CvRewriteActivityPoint = {
+  date: string;
+  total: number;
+  resumeRewrite: number;
+  rewriteRefinement: number;
+};
+
+export type CvProgress = {
+  cvId: string;
+  scoreTimeline: CvProgressPoint[];
+  atsTrend: CvProgressPoint[];
+  scoringCategoryTrends: CvScoringCategoryTrendPoint[];
+  rewriteActivityTrend: CvRewriteActivityPoint[];
+  improvementDeltas: {
+    score: number | null;
+    atsReadiness: number | null;
+    keywordOptimization: number | null;
+    impact: number | null;
+  };
+  summary: {
+    earliestScore: number | null;
+    latestScore: number | null;
+    latestScoreVsEarliestScore: number | null;
+    totalScoreAnalyses: number;
+    totalRewriteActions: number;
+    rewritesThisWeek: number;
+    insights: string[];
+  };
+};
+
 export type CreateCvRequest = {
   title?: string;
   originalName: string;

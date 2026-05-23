@@ -11,6 +11,7 @@ import { PdfTextExtractor } from './services/pdf-text-extractor.service';
 import { CvRecordsService } from './services/cv-records.service';
 import { CvUploadService } from './services/cv-upload.service';
 import { CvAnalysisWorkflowService } from './services/cv-analysis-workflow.service';
+import { CvProgressService } from './services/cv-progress.service';
 
 @Module({
   imports: [PrismaModule, AuthModule, AnalysisModule, UsageModule],
@@ -20,6 +21,7 @@ import { CvAnalysisWorkflowService } from './services/cv-analysis-workflow.servi
     CvRecordsService,
     CvUploadService,
     CvAnalysisWorkflowService,
+    CvProgressService,
     FileStorageService,
     PdfTextExtractor,
     EnvironmentService,
