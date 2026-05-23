@@ -26,16 +26,16 @@ export function CoverLetterResultPanel({
         <div>
           <div className="flex items-center gap-2">
             <FilePenLine className="h-4 w-4 text-[#6f6f68]" aria-hidden="true" />
-            <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
-              Draft
+          <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
+              Collaborative draft
             </p>
           </div>
           <h2 className="mt-2 text-lg font-semibold text-[#171717]">
-            Generated cover letter
+            Starting cover letter draft
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5f5f58]">
-            A clean draft view for reading, checking tone, and copying into an
-            editor.
+            Nyx creates a strong starting draft you can personalize before
+            sending.
           </p>
         </div>
         <button
@@ -53,7 +53,7 @@ export function CoverLetterResultPanel({
             <div className="flex items-center gap-2">
               <Quote className="h-4 w-4 text-[#6f6f68]" aria-hidden="true" />
               <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
-                Draft document
+                Editable draft
               </p>
             </div>
             <p className="text-sm font-semibold text-[#171717]">

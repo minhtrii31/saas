@@ -1110,10 +1110,10 @@ test("/dashboard/cover-letter can generate cover letter", async ({ page }) => {
     .fill("Build APIs with TypeScript, NestJS, and PostgreSQL.");
   await page.getByLabel("Company name").fill("Acme");
   await page.getByLabel("Role title").fill("Backend Engineer");
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await page.getByRole("button", { name: "Create draft", exact: true }).click();
 
   await expect(
-    page.getByRole("button", { name: "Generating..." }),
+    page.getByRole("button", { name: "Drafting..." }),
   ).toBeDisabled();
   await expect(
     page.getByRole("region", { name: "Cover letter result for Backend CV" }),
@@ -1154,7 +1154,7 @@ test("/dashboard/cover-letter can reuse a saved job target", async ({ page }) =>
   await expect(page.getByLabel("Job description")).toHaveValue(
     jobTargets[0].jobDescriptionText,
   );
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await page.getByRole("button", { name: "Create draft", exact: true }).click();
 
   await expect(
     page.getByRole("region", { name: "Cover letter result for Backend CV" }),
@@ -1167,13 +1167,13 @@ test("/dashboard/cover-letter empty JD validation works", async ({ page }) => {
   await mockJobTargets(page, []);
 
   await page.goto("/dashboard/cover-letter");
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await page.getByRole("button", { name: "Create draft", exact: true }).click();
 
   await expect(
     page
       .getByRole("alert")
       .filter({
-        hasText: "Enter a job description before generating a cover letter.",
+        hasText: "Add a saved target or paste role context before creating a draft.",
       }),
   ).toBeVisible();
 });
@@ -1198,7 +1198,7 @@ test("/dashboard/cover-letter API error displays error", async ({ page }) => {
 
   await page.goto("/dashboard/cover-letter");
   await page.getByLabel("Job description").fill("Build APIs with TypeScript.");
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await page.getByRole("button", { name: "Create draft", exact: true }).click();
 
   await expect(
     page
@@ -1223,7 +1223,7 @@ test("/dashboard/cover-letter insufficient credits displays clear message", asyn
 
   await page.goto("/dashboard/cover-letter");
   await page.getByLabel("Job description").fill("Build APIs with TypeScript.");
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await page.getByRole("button", { name: "Create draft", exact: true }).click();
 
   await expect(
     page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
