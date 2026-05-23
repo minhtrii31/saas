@@ -8,6 +8,8 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Sparkles,
+  Target,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,7 +30,6 @@ import { ProtectedPage } from "@/components/dashboard/protected-page";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, TextInput, Textarea } from "@/components/ui/form-field";
-import { MetricGrid, MetricTile } from "@/components/ui/metric";
 import { SectionTitle } from "@/components/ui/section-heading";
 import { StatusMessage } from "@/components/ui/status-message";
 import { Surface } from "@/components/ui/surface";
@@ -224,8 +225,11 @@ function JobTargetsContent({ token }: { token: string }) {
     <div className="space-y-5">
       <WorkspaceHero
         eyebrow="Target role workspace"
-        title="Save target roles once."
-        description="Keep job descriptions connected to your CV work so match checks, cover letters, and interview prep can start from saved context."
+        title="Build a role dossier."
+        description="Save the job context once, then let every CV match, cover letter, and interview session start from the same source of truth."
+        aside={
+          <TargetDossierAside targets={targets} currentTarget={currentTarget} />
+        }
       >
         <Button
           type="button"
@@ -268,21 +272,36 @@ function JobTargetsContent({ token }: { token: string }) {
           />
         ) : null}
 
+        {state.type === "ready" ? (
+          <TargetSignalStrip targets={targets} />
+        ) : null}
+
         <section
           id="create-target-role"
           ref={formSectionRef}
           className="xl:col-start-3 xl:row-span-3 xl:row-start-1 xl:h-full"
         >
-          <Surface tone="subtle" className="xl:h-fit">
-            <div className="flex items-center gap-2">
-              <Plus className="h-3.5 w-3.5 text-[#8f8f87]" aria-hidden="true" />
-              <SectionTitle className="text-sm font-semibold text-[#343430]">
-                {editingTarget ? "Edit target role" : "Create target role"}
-              </SectionTitle>
+          <Surface tone="subtle" shadow className="xl:h-fit">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Plus
+                    className="h-3.5 w-3.5 text-[#8f8f87]"
+                    aria-hidden="true"
+                  />
+                  <SectionTitle className="text-sm font-semibold text-[#343430]">
+                    Capture station
+                  </SectionTitle>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[#6f6f68]">
+                  Paste the full JD for stronger matching, cover letters, and
+                  interview prep.
+                </p>
+              </div>
+              <span className="border border-[#e5e5df] bg-white px-2 py-1 text-[10px] font-semibold uppercase text-[#6f6f68] text-center">
+                {editingTarget ? "Edit" : "Create"}
+              </span>
             </div>
-            <p className="mt-2 text-xs leading-5 text-[#6f6f68]">
-              Paste the full JD for better match and cover letter results.
-            </p>
 
             <form
               key={editingTarget?.id ?? "new-target"}
@@ -373,42 +392,27 @@ function JobTargetsContent({ token }: { token: string }) {
         </section>
 
         {state.type === "ready" ? (
-          <Surface shadow className="xl:col-span-2">
-            <MetricGrid className="sm:grid-cols-2">
-              <MetricTile
-                label="Saved targets"
-                value={String(targets.length)}
-              />
-              <MetricTile
-                label="Latest updated"
-                value={
-                  targets[0] ? formatDateTime(targets[0].updatedAt) : "None yet"
-                }
-              />
-            </MetricGrid>
-          </Surface>
-        ) : null}
-
-        {state.type === "ready" ? (
-          <Surface shadow className="xl:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <BookmarkCheck
-                  className="h-4 w-4 text-[#6f6f68]"
-                  aria-hidden="true"
-                />
-                <SectionTitle className="text-sm">Saved targets</SectionTitle>
+          <Surface shadow className="xl:col-span-2" padding="none">
+            <div className="border-b border-[#e5e5df] bg-[#f7f7f4] px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <BookmarkCheck
+                    className="h-4 w-4 text-[#6f6f68]"
+                    aria-hidden="true"
+                  />
+                  <SectionTitle className="text-sm">Saved targets</SectionTitle>
+                </div>
+                {targets.length > 5 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAllTargets((current) => !current)}
+                  >
+                    {showAllTargets ? "Show latest 5" : "Show all targets"}
+                  </Button>
+                ) : null}
               </div>
-              {targets.length > 5 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAllTargets((current) => !current)}
-                >
-                  {showAllTargets ? "Show latest 5" : "Show all targets"}
-                </Button>
-              ) : null}
             </div>
 
             <TargetList
@@ -437,6 +441,87 @@ function JobTargetsContent({ token }: { token: string }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+function TargetDossierAside({
+  targets,
+  currentTarget,
+}: {
+  targets: JobTargetItem[];
+  currentTarget?: JobTargetItem;
+}) {
+  return (
+    <Surface tone="subtle" shadow className="relative overflow-hidden">
+      <div className="relative">
+        <p className="text-xs font-semibold uppercase text-[#6f6f68]">
+          Target dossier
+        </p>
+        <p className="mt-3 text-lg font-semibold leading-6 text-[#171717]">
+          {currentTarget
+            ? `${currentTarget.title} at ${currentTarget.companyName}`
+            : "No target selected yet"}
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <DossierMetric label="Saved targets" value={targets.length} />
+          <DossierMetric
+            label="Ready workflows"
+            value={currentTarget ? 3 : 0}
+          />
+        </div>
+        <div className="mt-5 border-t border-[#e5e5df] pt-4">
+          <p className="text-xs font-semibold uppercase text-[#6f6f68]">
+            Next reuse
+          </p>
+          <p className="mt-1 text-sm leading-6 text-[#343430]">
+            {currentTarget
+              ? "Match a CV, draft a letter, or prep for the interview."
+              : "Capture a role to unlock job-specific workflows."}
+          </p>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function TargetSignalStrip({ targets }: { targets: JobTargetItem[] }) {
+  return (
+    <Surface padding="none" className="overflow-hidden xl:col-span-2" shadow>
+      <div className="grid md:grid-cols-[16rem_minmax(0,1fr)]">
+        <div className="border-b border-[#e5e5df] bg-[#f7f7f4] p-5 md:border-b-0 md:border-r">
+          <p className="text-xs font-semibold uppercase text-[#6f6f68]">
+            Saved targets
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-[#171717]">
+            {targets.length}
+          </p>
+          <p className="mt-3 text-xs leading-5 text-[#6f6f68]">
+            Latest updated:{" "}
+            {targets[0] ? formatDateTime(targets[0].updatedAt) : "None yet"}
+          </p>
+        </div>
+        <div className="grid gap-0 sm:grid-cols-3">
+          <WorkflowTile
+            href="/dashboard/match"
+            label="Match"
+            description="Compare fit against an uploaded CV."
+            icon={<BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />}
+          />
+          <WorkflowTile
+            href="/dashboard/cover-letter"
+            label="Letter"
+            description="Start from the same role context."
+            icon={<FileText className="h-4 w-4" aria-hidden="true" />}
+          />
+          <WorkflowTile
+            href="/dashboard/interview-prep"
+            label="Interview"
+            description="Turn requirements into practice."
+            icon={<MessageSquareText className="h-4 w-4" aria-hidden="true" />}
+          />
+        </div>
+      </div>
+    </Surface>
   );
 }
 
@@ -474,7 +559,7 @@ function TargetList({
   }
 
   return (
-    <ul className="mt-5 divide-y divide-[#e5e5df] border-y border-[#e5e5df]">
+    <ul className="px-5 divide-y divide-[#e5e5df]">
       {targets.map((target) => {
         const isCurrent = target.id === currentTargetId;
 
@@ -588,21 +673,32 @@ function CurrentTarget({
   onEdit: (target: JobTargetItem) => void;
 }) {
   return (
-    <Surface shadow padding="lg" className={className}>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="min-w-0">
+    <Surface shadow padding="none" className={`overflow-hidden ${className}`}>
+      <div className="border-b border-[#e5e5df] bg-[#f7f7f4] px-5 py-3">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-[#6f6f68]" aria-hidden="true" />
           <p className="text-[0.7rem] font-bold uppercase text-[#6f6f68]">
             Current target
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-[#171717]">
+        </div>
+      </div>
+      <div className="grid gap-5 p-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-semibold text-[#171717]">
             {target.title}
           </h2>
           <p className="mt-1 text-sm font-semibold text-[#5f5f58]">
             {target.companyName}
           </p>
-          <p className="mt-3 line-clamp-3 max-w-3xl text-sm leading-6 text-[#5f5f58]">
-            {target.jobDescriptionText}
-          </p>
+          <div className="mt-5 border-l-2 border-[#cfcfc8] pl-4">
+            <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase text-[#6f6f68]">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Reusable context
+            </p>
+            <p className="line-clamp-4 max-w-3xl text-sm leading-6 text-[#343430]">
+              {target.jobDescriptionText}
+            </p>
+          </div>
           <p className="mt-3 text-xs text-[#6f6f68]">
             {getTargetDateLabel(target)}
           </p>
@@ -636,6 +732,42 @@ function CurrentTarget({
         </div>
       </div>
     </Surface>
+  );
+}
+
+function DossierMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border border-[#e5e5df] bg-white p-3">
+      <p className="text-2xl font-semibold text-[#171717]">{value}</p>
+      <p className="mt-1 text-xs font-semibold uppercase text-[#6f6f68]">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function WorkflowTile({
+  href,
+  label,
+  description,
+  icon,
+}: {
+  href: string;
+  label: string;
+  description: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group border-b border-[#e5e5df] p-5 transition hover:bg-[#f7f7f4] sm:border-b-0 sm:border-r sm:last:border-r-0"
+    >
+      <span className="flex h-9 w-9 items-center justify-center border border-[#e5e5df] bg-white text-[#5f5f58] transition group-hover:text-[#171717]">
+        {icon}
+      </span>
+      <p className="mt-4 text-sm font-semibold text-[#171717]">{label}</p>
+      <p className="mt-1 text-xs leading-5 text-[#6f6f68]">{description}</p>
+    </Link>
   );
 }
 
