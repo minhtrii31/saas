@@ -4,15 +4,16 @@ Last verified: 2026-05-23
 
 ## Product summary
 
-Nyx is an AI-assisted CV workspace for job seekers. The MVP helps users keep CVs organized, analyze CV quality, compare a CV with a target job description, generate a tailored cover letter, improve resume bullets, iteratively refine rewrite suggestions, and revisit saved analysis history.
+Nyx is an AI-assisted CV workspace for job seekers. The MVP helps users keep CVs organized, analyze CV quality, compare a CV with a target job description, generate a tailored cover letter, prepare for interviews, improve resume bullets, iteratively refine rewrite suggestions, and revisit saved analysis history.
 
 ## Current implementation
 
 - Branding: the product is now presented as **Nyx**, with a calm, task-oriented CV workspace direction.
 - Frontend: Next.js app under `apps/web` with productized home, auth screens, protected dashboard shell, task-oriented SaaS navigation, and focused workflow routes.
-- Backend: NestJS API under `apps/api` with modular `auth`, `cvs`, `analysis`, `config`, and `prisma` modules.
-- Database: Prisma models and migrations exist for `User`, `Cv`, and `CvAnalysis`; `CvAnalysis.type` supports `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, and `REWRITE_REFINEMENT`.
-- AI: provider abstraction supports deterministic mock output and an OpenAI provider backed by reusable prompt builders, strict JSON schemas, and structured output validation for analysis, matching, cover letters, resume rewrite, and rewrite refinement.
+- Backend: NestJS API under `apps/api` with modular `auth`, `cvs`, `analysis`, `usage`, `config`, and `prisma` modules.
+- Database: Prisma models and migrations exist for `User`, `Cv`, `CvAnalysis`, and `UsageRecord`; `CvAnalysis.type` supports `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, `REWRITE_REFINEMENT`, and `INTERVIEW_PREP`.
+- AI: provider abstraction supports deterministic mock output and an OpenAI provider backed by reusable prompt builders, strict JSON schemas, and structured output validation for analysis, matching, cover letters, interview preparation, resume rewrite, and rewrite refinement.
+- Usage: AI workflows check available credits before provider calls, deduct credits only after successful AI responses, and persist usage ledger records with the saved analysis where applicable.
 - CI: GitHub Actions is configured on push and pull request. It runs API and web checks against PostgreSQL 17 with `AI_PROVIDER=mock`.
 
 ## Frontend capabilities
@@ -28,6 +29,7 @@ Implemented routes:
 - `/dashboard/analyze`: select a CV and run AI CV analysis.
 - `/dashboard/match`: compare a selected CV against pasted job description text.
 - `/dashboard/cover-letter`: generate cover letter content from CV and job description text.
+- `/dashboard/interview-prep`: generate interview questions and practice guidance from a selected CV and either a saved job target or pasted role context.
 - `/dashboard/rewrite`: generate before/after resume bullet rewrite suggestions from a selected CV, then refine each suggestion interactively.
 - `/dashboard/history`: aggregate saved analysis history across CVs.
 - `/dashboard/settings`: placeholder/settings route.
@@ -36,10 +38,11 @@ Frontend API access is centralized under `apps/web/lib/api` and dashboard-specif
 
 Recent frontend AI result work:
 
-- Analysis, match, cover letter, rewrite, and history views render structured result panels rather than raw JSON.
-- Result UI now emphasizes scores, strengths, weaknesses, missing skills, suggestions, provider/model metadata, generated cover letter text, and rewrite rationale.
+- Analysis, match, cover letter, interview prep, rewrite, and history views render structured result panels rather than raw JSON.
+- Result UI now emphasizes scores, strengths, weaknesses, missing skills, suggestions, provider/model metadata, generated cover letter text, interview questions, practice guidance, and rewrite rationale.
+- Interview prep can reuse a saved job target from previous job-specific workflows instead of requiring the user to paste the same role context again.
 - Rewrite result cards include per-suggestion refinement actions for `stronger`, `shorter`, `more-technical`, `more-leadership`, `more-ats-friendly`, and `more-results-focused`. Each card shows its own loading and error state while refinement is in progress.
-- Dashboard pages are organized around user tasks: CV repository, analyze, match, cover letter, rewrite, history, and settings.
+- Dashboard pages are organized around user tasks: CV repository, analyze, match, cover letter, interview prep, rewrite, history, and settings.
 
 ## Backend capabilities
 
@@ -56,6 +59,7 @@ Implemented API surface:
 - `GET /cvs/:id/analyses`
 - `POST /cvs/:id/analyze`
 - `POST /cvs/:id/match`
+- `POST /cvs/:id/interview-prep`
 - `POST /cvs/:id/cover-letter`
 - `POST /cvs/:id/rewrite`
 - `POST /cvs/:id/rewrite/refine`
@@ -65,19 +69,19 @@ The API uses centralized response wrapping and exception formatting. Controllers
 ## AI architecture status
 
 - Prompt construction lives in `apps/api/src/modules/analysis/prompts/analysis-prompt.builder.ts`.
-- Prompt builders produce workflow-specific system/user prompts plus JSON schema metadata for CV analysis, JD matching, cover letter generation, resume rewrite, and rewrite refinement.
+- Prompt builders produce workflow-specific system/user prompts plus JSON schema metadata for CV analysis, JD matching, cover letter generation, interview preparation, resume rewrite, and rewrite refinement.
 - Structured output parsing and normalization lives in `apps/api/src/modules/analysis/utils/structured-output.validator.ts`.
 - OpenAI responses are parsed, normalized, score-clamped, and rejected when required structured fields are missing or invalid.
 - Provider errors surface as clean `AI_PROVIDER_ERROR` API responses instead of leaking provider internals.
-- Mock provider behavior is more product-like and deterministic: it scores CV strength from text signals, extracts likely skills, produces concrete missing-skill guidance, rewrites weak bullets with goal-specific rationale, refines existing rewrite suggestions by instruction, and returns separate mock model names for analysis, matching, cover letters, and resume rewrite/refinement.
+- Mock provider behavior is more product-like and deterministic: it scores CV strength from text signals, extracts likely skills, produces concrete missing-skill guidance, generates interview practice from CV and role context, rewrites weak bullets with goal-specific rationale, refines existing rewrite suggestions by instruction, and returns separate mock model names for analysis, matching, cover letters, interview prep, and resume rewrite/refinement.
 - Real OpenAI use remains opt-in with `AI_PROVIDER=openai`; automated tests and CI must continue using `AI_PROVIDER=mock`.
 
 ## Testing status
 
 Current test counts:
 
-- API: 146 Jest/Supertest test cases.
-- Web: 36 Playwright test cases.
+- API: 169 Jest/Supertest test cases.
+- Web: 51 Playwright test cases.
 
 Verification commands:
 
@@ -141,6 +145,7 @@ Nyx should feel like a focused CV workbench, not a generic SaaS landing page. Pr
 - Local file storage is implemented; S3/Cloudinary storage is still future work.
 - AI work is synchronous; Redis/BullMQ queues are not wired in.
 - Job description upload is not implemented; matching and cover letters use pasted text.
+- Interview prep works from an uploaded CV plus pasted role context or a saved job target, and stores results as `INTERVIEW_PREP` history records.
 - Resume rewrite currently works from extracted CV text and stores results as `RESUME_REWRITE` history records. Interactive refinements of individual suggestions are stored as `REWRITE_REFINEMENT` records.
 - Settings route is present but minimal.
 - OpenAI integration uses `fetch` directly and is covered with unit tests, but live provider behavior needs manual validation with real credentials.

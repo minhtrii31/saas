@@ -108,6 +108,7 @@ Examples:
 - User can upload CV
 - User can start CV analysis
 - User can compare CV with JD
+- User can reuse saved job target context for interview preparation
 - User can generate and refine resume rewrite suggestions
 - User can generate interview preparation questions and guidance
 

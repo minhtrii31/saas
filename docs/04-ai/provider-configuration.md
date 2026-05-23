@@ -8,6 +8,7 @@ The current provider boundary is `CvAnalysisProvider`. It supports:
 - CV quality analysis.
 - Job description matching.
 - Cover letter generation.
+- Interview preparation.
 - Resume rewrite.
 - Rewrite refinement.
 
@@ -38,7 +39,7 @@ Use the OpenAI provider only when validating real AI behavior manually or in a c
 
 Behavior:
 
-- Sends the workflow input to OpenAI, such as CV text, job description text, cover letter options, rewrite goals, or refinement instructions.
+- Sends the workflow input to OpenAI, such as CV text, job description text, saved job target context, interview focus, cover letter options, rewrite goals, or refinement instructions.
 - Requires `OPENAI_API_KEY`.
 - Uses `OPENAI_MODEL` when set.
 - Falls back to the backend default model when `OPENAI_MODEL` is not set.
@@ -91,6 +92,8 @@ Current providers:
 
 - `MockCvAnalysisProvider`
 - `OpenAiAnalysisProvider`
+
+Interview prep accepts CV text plus role context from pasted text or a saved job target, with behavioral, technical, or mixed focus. The backend persists interview prep output as `INTERVIEW_PREP` history records after successful credit deduction.
 
 Rewrite refinement accepts one current rewrite plus the original wording and one supported instruction:
 
