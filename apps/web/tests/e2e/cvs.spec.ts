@@ -134,6 +134,14 @@ const legacyCvAnalysis = {
   aiModel: "mock-cv-analyzer-v1",
   result: {
     score: 68,
+    scoringCategories: {
+      atsReadiness: 76,
+      readability: 78,
+      impact: 60,
+      keywordOptimization: 64,
+      structure: 82,
+      experienceQuality: 72,
+    },
     strengths: ["Concise summary"],
     weaknesses: ["Missing project outcomes"],
     suggestions: ["Add stronger bullet evidence"],
@@ -1106,7 +1114,7 @@ test("/dashboard/cover-letter can generate cover letter", async ({ page }) => {
   await page.goto("/dashboard/cover-letter");
   await page.getByLabel("CV").selectOption(cvList[0].id);
   await page
-    .getByLabel("Job description")
+    .getByLabel("Manual role context")
     .fill("Build APIs with TypeScript, NestJS, and PostgreSQL.");
   await page.getByLabel("Company name").fill("Acme");
   await page.getByLabel("Role title").fill("Backend Engineer");
@@ -1151,7 +1159,7 @@ test("/dashboard/cover-letter can reuse a saved job target", async ({ page }) =>
   await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
   await expect(page.getByLabel("Company name")).toHaveValue("Acme");
   await expect(page.getByLabel("Role title")).toHaveValue("Backend Engineer");
-  await expect(page.getByLabel("Job description")).toHaveValue(
+  await expect(page.getByLabel("Manual role context")).toHaveValue(
     jobTargets[0].jobDescriptionText,
   );
   await page.getByRole("button", { name: "Create draft", exact: true }).click();
@@ -1197,7 +1205,9 @@ test("/dashboard/cover-letter API error displays error", async ({ page }) => {
   });
 
   await page.goto("/dashboard/cover-letter");
-  await page.getByLabel("Job description").fill("Build APIs with TypeScript.");
+  await page
+    .getByLabel("Manual role context")
+    .fill("Build APIs with TypeScript.");
   await page.getByRole("button", { name: "Create draft", exact: true }).click();
 
   await expect(
@@ -1222,7 +1232,9 @@ test("/dashboard/cover-letter insufficient credits displays clear message", asyn
   });
 
   await page.goto("/dashboard/cover-letter");
-  await page.getByLabel("Job description").fill("Build APIs with TypeScript.");
+  await page
+    .getByLabel("Manual role context")
+    .fill("Build APIs with TypeScript.");
   await page.getByRole("button", { name: "Create draft", exact: true }).click();
 
   await expect(
@@ -1696,51 +1708,112 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
 
   await page.goto("/dashboard/history");
 
-  const history = page.getByRole("region", { name: "Analysis history" });
+  await expect(
+    page.getByText(
+      "Review your resume improvements, role targeting, and application work over time.",
+    ).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Latest score")).toBeVisible();
+  await expect(page.getByText("overall score improved +14")).toBeVisible();
+  await expect(page.getByText("Best match")).toBeVisible();
+
+  const history = page.getByRole("region", {
+    name: "Career improvement timeline",
+  });
+  await expect(history.getByText("Career improvement timeline")).toBeVisible();
+  await expect(
+    history.getByRole("heading", { name: /May 22, 2026/ }),
+  ).toBeVisible();
   await expect(history.getByText("Backend CV").first()).toBeVisible();
-  await expect(history.getByText("Score: 82")).toBeVisible();
-  await expect(history.getByText("Scorecard")).toBeVisible();
-  await expect(history.getByText("ATS")).toBeVisible();
-  await expect(history.getByText("Actionable insights")).toBeVisible();
-  await expect(history.getByText("Add delivery metrics to backend work")).toBeVisible();
-  await expect(history.getByText("Score: 68")).toBeVisible();
-  await expect(history.getByText("Concise summary")).toBeVisible();
-  await expect(history.getByText("Matching score: 75")).toBeVisible();
+  await expect(history.getByText("Showing 5 of 7")).toBeVisible();
+  await expect(history.getByText("Show older activity (2)")).toBeVisible();
+  await expect(history.getByText("Resume analysis").first()).toBeHidden();
+  await expect(history.getByText("Score 82").first()).toBeHidden();
+  await expect(history.getByText("Role match").first()).toBeVisible();
+  await expect(history.getByText("Match 75").first()).toBeVisible();
+  await expect(
+    history.getByText("Role fit is strongest where skills match").first(),
+  ).toBeVisible();
+  await expect(history.getByText("1 gaps to close")).toBeVisible();
+  await expect(history.getByText("Scorecard").first()).toBeHidden();
+  await expect(
+    history.getByText("Add delivery metrics to backend work"),
+  ).toBeHidden();
+  await expect(history.getByText("Matching score: 75")).toBeHidden();
+  await expect(
+    history.getByText("Dear Acme team,", { exact: true }).first(),
+  ).toBeVisible();
   await expect(
     history.getByText("I am excited to apply for the Backend Engineer role."),
-  ).toBeVisible();
-  await expect(history.getByText("Rewrite goal: Stronger Impact")).toBeVisible();
+  ).toBeHidden();
+  await expect(history.getByText("Stronger Impact").first()).toBeVisible();
   await expect(
     history.getByText("Worked on backend APIs for customer workflows."),
-  ).toBeVisible();
+  ).toBeHidden();
   await expect(
     history.getByText(
       "Delivered customer workflow APIs that reduced manual review time by 35%.",
+    ).first(),
+  ).toBeVisible();
+  await expect(
+    history.getByText(
+      "The revised bullet uses an action verb and adds measurable business impact.",
     ),
+  ).toBeHidden();
+  await expect(
+    history.getByText("Refinement", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    history.getByText(
+      "Owned customer workflow API delivery with TypeScript, reducing manual review time by 35%.",
+    ).first(),
+  ).toBeVisible();
+  await expect(
+    history.getByText(
+      "The refined rewrite adds technical detail while preserving the measurable result.",
+    ),
+  ).toBeHidden();
+  await expect(
+    history.getByText("Interview prep", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    history.getByText("Tell me about a TypeScript API you improved.").first(),
+  ).toBeVisible();
+  await expect(history.getByText("Prepare Redis bridge answers")).toBeHidden();
+
+  await history.getByText("Show older activity (2)").click();
+  await expect(history.getByText("Showing 7 of 7")).toBeVisible();
+  await expect(history.getByText("Resume analysis").first()).toBeVisible();
+  await expect(history.getByText("Score 82").first()).toBeVisible();
+  await expect(history.getByText("Score improved +14")).toBeVisible();
+  await expect(history.getByText("ATS improved +12")).toBeVisible();
+  await expect(history.getByText("Stronger keyword alignment")).toBeVisible();
+  await expect(history.getByText("Score 68").first()).toBeVisible();
+  await expect(history.getByText("Repeated workflow summarized")).toBeVisible();
+
+  const latestScoreItem = page.getByTestId(`history-item-${cvAnalysis.id}`);
+  await expect(history.getByText("Scorecard").first()).toBeHidden();
+  await latestScoreItem.getByText("View full result").click();
+  await expect(history.getByText("Scorecard").first()).toBeVisible();
+  await expect(history.getByText("Actionable insights")).toBeVisible();
+  await expect(
+    history.getByText("Add delivery metrics to backend work"),
+  ).toBeVisible();
+
+  const matchItem = page.getByTestId(`history-item-${matchAnalysis.id}`);
+  await matchItem.getByText("View full result").click();
+  await expect(history.getByText("Matching score: 75")).toBeVisible();
+
+  const rewriteItem = page.getByTestId(`history-item-${rewriteAnalysis.id}`);
+  await rewriteItem.getByText("View full result").click();
+  await expect(
+    history.getByText("Worked on backend APIs for customer workflows."),
   ).toBeVisible();
   await expect(
     history.getByText(
       "The revised bullet uses an action verb and adds measurable business impact.",
     ),
   ).toBeVisible();
-  await expect(
-    history.getByText("Rewrite refinement", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    history.getByText(
-      "Owned customer workflow API delivery with TypeScript, reducing manual review time by 35%.",
-    ),
-  ).toBeVisible();
-  await expect(
-    history.getByText(
-      "The refined rewrite adds technical detail while preserving the measurable result.",
-    ),
-  ).toBeVisible();
-  await expect(history.getByText("Interview prep", { exact: true })).toBeVisible();
-  await expect(
-    history.getByText("Tell me about a TypeScript API you improved."),
-  ).toBeVisible();
-  await expect(history.getByText("Prepare Redis bridge answers")).toBeVisible();
 });
 
 test("/dashboard/history empty state works", async ({ page }) => {
@@ -1756,7 +1829,9 @@ test("/dashboard/history empty state works", async ({ page }) => {
   await page.goto("/dashboard/history");
 
   await expect(
-    page.getByText("No analysis history yet. Run an analysis to create one."),
+    page.getByText(
+      "Your AI activity timeline will appear here after analyses, rewrites, matches, and interview prep sessions.",
+    ),
   ).toBeVisible();
 });
 
