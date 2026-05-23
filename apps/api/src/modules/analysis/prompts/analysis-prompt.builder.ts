@@ -1,5 +1,6 @@
 import type {
   CoverLetterGenerationInput,
+  InterviewPrepInput,
   RewriteRefinementInput,
   ResumeRewriteInput,
 } from '../types/cv-analysis-provider';
@@ -134,6 +135,29 @@ export function buildRewriteRefinementPrompt(
   };
 }
 
+export function buildInterviewPrepPrompt(
+  extractedText: string,
+  input: InterviewPrepInput,
+): StructuredPrompt {
+  return {
+    schemaName: 'interview_prep',
+    jsonSchema: interviewPrepSchema(),
+    systemPrompt: [
+      baseSystemInstructions,
+      'Act as an interview coach preparing the candidate from their CV evidence and optional target role context.',
+      'Generate practical interview questions aligned to the requested focus: behavioral, technical, or mixed.',
+      'For each question, explain why it matters to an interviewer and give a suggested answer direction grounded in the CV.',
+      'Include STAR guidance for behavioral questions or for mixed questions where a story structure would help.',
+      'Weak-point focus areas must name gaps the candidate should practice before the interview; do not invent experience to fill them.',
+    ].join(' '),
+    userPrompt: [
+      `CV text:\n${extractedText.trim()}`,
+      `Target role context:\n${input.jobDescriptionText?.trim() || 'Not provided'}`,
+      `Interview focus: ${input.interviewFocus}`,
+    ].join('\n\n'),
+  };
+}
+
 function cvAnalysisSchema(): JsonObject {
   return {
     type: 'object',
@@ -220,6 +244,57 @@ function rewriteRefinementSchema(): JsonObject {
     properties: {
       improved: { type: 'string', minLength: 1 },
       reason: { type: 'string', minLength: 1 },
+    },
+  };
+}
+
+function interviewPrepSchema(): JsonObject {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['focus', 'questions', 'weakPointFocusAreas'],
+    properties: {
+      focus: {
+        type: 'string',
+        enum: ['behavioral', 'technical', 'mixed'],
+      },
+      questions: {
+        type: 'array',
+        minItems: 3,
+        maxItems: 8,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: [
+            'question',
+            'whyItMatters',
+            'suggestedAnswerDirection',
+            'starGuidance',
+          ],
+          properties: {
+            question: { type: 'string', minLength: 1 },
+            whyItMatters: { type: 'string', minLength: 1 },
+            suggestedAnswerDirection: { type: 'string', minLength: 1 },
+            starGuidance: {
+              anyOf: [
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['situation', 'task', 'action', 'result'],
+                  properties: {
+                    situation: { type: 'string', minLength: 1 },
+                    task: { type: 'string', minLength: 1 },
+                    action: { type: 'string', minLength: 1 },
+                    result: { type: 'string', minLength: 1 },
+                  },
+                },
+                { type: 'null' },
+              ],
+            },
+          },
+        },
+      },
+      weakPointFocusAreas: stringArraySchema(2, 6),
     },
   };
 }

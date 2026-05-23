@@ -270,4 +270,53 @@ describe('OpenAiAnalysisProvider', () => {
       'rewrite_refinement',
     );
   });
+
+  it('normalizes interview prep output before returning it', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                focus: ' technical ',
+                questions: [
+                  {
+                    question: ' Explain a NestJS API you built. ',
+                    whyItMatters: ' Tests practical backend depth. ',
+                    suggestedAnswerDirection:
+                      ' Anchor the answer in a shipped API. ',
+                  },
+                ],
+                weakPointFocusAreas: [' Prepare Redis tradeoffs '],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const provider = new OpenAiAnalysisProvider(new EnvironmentService());
+
+    await expect(
+      provider.generateInterviewPrep('CV text', {
+        interviewFocus: 'technical',
+        jobDescriptionText: 'JD text',
+      }),
+    ).resolves.toEqual({
+      focus: 'technical',
+      questions: [
+        {
+          question: 'Explain a NestJS API you built.',
+          whyItMatters: 'Tests practical backend depth.',
+          suggestedAnswerDirection: 'Anchor the answer in a shipped API.',
+        },
+      ],
+      weakPointFocusAreas: ['Prepare Redis tradeoffs'],
+    });
+
+    const fetchMock = global.fetch as jest.Mock;
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(requestBody.response_format.json_schema.name).toBe('interview_prep');
+  });
 });

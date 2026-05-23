@@ -466,6 +466,94 @@ describe('API PostgreSQL integration', () => {
     });
   });
 
+  it('persists interview prep through PostgreSQL and the mock AI provider', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'interview-prep.integration@example.com',
+    );
+    const cv = await prisma.cv.create({
+      data: {
+        userId,
+        title: 'Backend CV',
+        originalName: 'backend-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        storageProvider: 'local',
+        storageKey: `cvs/${userId}/backend-cv.pdf`,
+        storageUrl: null,
+        extractedText:
+          'Backend engineer with TypeScript, NestJS, PostgreSQL, and API testing experience. Improved latency by 35%.',
+      },
+    });
+    const target = await prisma.jobTarget.create({
+      data: {
+        userId,
+        title: 'Senior Backend Engineer',
+        companyName: 'Example Corp',
+        jobDescriptionText:
+          'Backend role requiring TypeScript, NestJS, PostgreSQL, Redis, and system design.',
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cv.id}/interview-prep`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        jobTargetId: target.id,
+        interviewFocus: 'mixed',
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      data: {
+        id: expect.any(String),
+        cvId: cv.id,
+        type: 'INTERVIEW_PREP',
+        jobDescriptionText: target.jobDescriptionText,
+        aiProvider: 'mock',
+        aiModel: 'mock-interview-prep-v1',
+        result: {
+          focus: 'mixed',
+          questions: expect.arrayContaining([
+            {
+              question: expect.any(String),
+              whyItMatters: expect.any(String),
+              suggestedAnswerDirection: expect.any(String),
+              starGuidance: expect.any(Object),
+            },
+          ]),
+          weakPointFocusAreas: expect.arrayContaining([expect.any(String)]),
+        },
+        createdAt: expect.any(String),
+      },
+      meta: {},
+    });
+
+    await expect(
+      prisma.cvAnalysis.findFirstOrThrow({
+        where: {
+          id: response.body.data.id as string,
+          cvId: cv.id,
+          type: 'INTERVIEW_PREP',
+        },
+      }),
+    ).resolves.toMatchObject({
+      jobDescriptionText: target.jobDescriptionText,
+      aiProvider: 'mock',
+      aiModel: 'mock-interview-prep-v1',
+    });
+    await expect(
+      prisma.usageRecord.findFirstOrThrow({
+        where: {
+          userId,
+          action: 'INTERVIEW_PREP',
+          cvAnalysisId: response.body.data.id as string,
+        },
+      }),
+    ).resolves.toMatchObject({
+      creditsUsed: 1,
+    });
+  });
+
   it('persists job targets and enforces ownership through PostgreSQL', async () => {
     const { accessToken, userId } = await registerAndLogin(
       'job-target.integration@example.com',

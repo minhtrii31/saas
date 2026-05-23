@@ -12,6 +12,7 @@ enum AnalysisType {
   COVER_LETTER
   RESUME_REWRITE
   REWRITE_REFINEMENT
+  INTERVIEW_PREP
 
   @@map("analysis_type")
 }
@@ -22,6 +23,7 @@ enum UsageAction {
   COVER_LETTER
   RESUME_REWRITE
   REWRITE_REFINEMENT
+  INTERVIEW_PREP
 
   @@map("usage_action")
 }

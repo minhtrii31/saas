@@ -1,12 +1,18 @@
 "use client";
 
-import { FilePenLine, FileText, GitCompare } from "lucide-react";
+import {
+  ClipboardList,
+  FilePenLine,
+  FileText,
+  GitCompare,
+} from "lucide-react";
 
 import type { CvAnalysis, CvAnalysisResult, CvItem } from "@/lib/api";
 
 import {
   hasSuggestions,
   isCoverLetterResult,
+  isInterviewPrepResult,
   isJdMatchResult,
   isRewriteRefinementResult,
   isResumeRewriteResult,
@@ -128,6 +134,34 @@ export function HistoryList({
                   <AnalysisList
                     title="Highlights"
                     items={analysis.result.highlights}
+                  />
+                </>
+              ) : isInterviewPrepResult(analysis.result) ? (
+                <>
+                  <p className="mt-3 inline-flex border border-[#e5e5df] bg-[#f7f7f4] px-2 py-1 text-sm capitalize text-[#5f5f58]">
+                    Focus:{" "}
+                    <span className="font-semibold text-[#171717]">
+                      {analysis.result.focus}
+                    </span>
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {analysis.result.questions.slice(0, 3).map((question) => (
+                      <div
+                        key={question.question}
+                        className="border border-[#e5e5df] bg-[#fafaf8] p-3"
+                      >
+                        <p className="text-sm font-semibold leading-6 text-[#171717] [overflow-wrap:anywhere]">
+                          {question.question}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-[#5f5f58] [overflow-wrap:anywhere]">
+                          {question.suggestedAnswerDirection}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <AnalysisList
+                    title="Weak points"
+                    items={analysis.result.weakPointFocusAreas}
                   />
                 </>
               ) : isJdMatchResult(analysis.result) ? (
@@ -288,6 +322,8 @@ function AnalysisTypeIcon({ type }: { type: CvAnalysis["type"] }) {
     type === "RESUME_REWRITE" ||
     type === "REWRITE_REFINEMENT"
       ? GitCompare
+      : type === "INTERVIEW_PREP"
+        ? ClipboardList
       : type === "COVER_LETTER"
         ? FilePenLine
         : FileText;

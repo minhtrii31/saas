@@ -5,6 +5,8 @@ import type {
   CoverLetterResult,
   CvAnalysisProvider,
   CvAnalysisResult,
+  InterviewPrepInput,
+  InterviewPrepResult,
   JdMatchResult,
   RewriteRefinementInput,
   RewriteRefinementResult,
@@ -14,6 +16,7 @@ import type {
 import {
   buildCoverLetterPrompt,
   buildCvAnalysisPrompt,
+  buildInterviewPrepPrompt,
   buildJdMatchPrompt,
   buildRewriteRefinementPrompt,
   buildResumeRewritePrompt,
@@ -24,6 +27,7 @@ import {
   parseJsonObject,
   validateCoverLetterResult,
   validateCvAnalysisResult,
+  validateInterviewPrepResult,
   validateJdMatchResult,
   validateRewriteRefinementResult,
   validateResumeRewriteResult,
@@ -56,6 +60,10 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
   }
 
   get resumeRewriteModelName(): string {
+    return this.environmentService.openAiModel;
+  }
+
+  get interviewPrepModelName(): string {
     return this.environmentService.openAiModel;
   }
 
@@ -109,6 +117,17 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
     );
 
     return validateRewriteRefinementResult(content);
+  }
+
+  async generateInterviewPrep(
+    extractedText: string,
+    input: InterviewPrepInput,
+  ): Promise<InterviewPrepResult> {
+    const content = await this.requestStructuredJson(
+      buildInterviewPrepPrompt(extractedText, input),
+    );
+
+    return validateInterviewPrepResult(content);
   }
 
   private async requestStructuredJson(

@@ -1,6 +1,7 @@
 import type {
   CoverLetterResult,
   CvAnalysisResult,
+  InterviewPrepResult,
   JdMatchResult,
   RewriteRefinementResult,
   ResumeRewriteResult,
@@ -81,6 +82,17 @@ export type CreatedRewriteRefinementAnalysis = {
   aiProvider: string | null;
   aiModel: string | null;
   result: RewriteRefinementResult;
+  createdAt: Date;
+};
+
+export type CreatedInterviewPrepAnalysis = {
+  id: string;
+  cvId: string;
+  type: string;
+  jobDescriptionText: string | null;
+  aiProvider: string | null;
+  aiModel: string | null;
+  result: InterviewPrepResult;
   createdAt: Date;
 };
 

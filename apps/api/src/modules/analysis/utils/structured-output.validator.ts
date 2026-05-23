@@ -4,6 +4,9 @@ import type {
   CvActionableInsights,
   CvAnalysisResult,
   CvScoringCategories,
+  InterviewFocus,
+  InterviewPrepQuestion,
+  InterviewPrepResult,
   JdMatchResult,
   ResumeRewriteGoal,
   ResumeRewriteResult,
@@ -72,6 +75,19 @@ export function validateRewriteRefinementResult(
   return {
     improved: normalizeString(value.improved, 'improved'),
     reason: normalizeString(value.reason, 'reason'),
+  };
+}
+
+export function validateInterviewPrepResult(
+  value: JsonObject,
+): InterviewPrepResult {
+  return {
+    focus: normalizeInterviewFocus(value.focus),
+    questions: normalizeInterviewPrepQuestions(value.questions),
+    weakPointFocusAreas: normalizeStringArray(
+      value.weakPointFocusAreas,
+      'weakPointFocusAreas',
+    ),
   };
 }
 
@@ -167,6 +183,68 @@ function normalizeRewriteGoal(value: unknown): ResumeRewriteGoal {
   }
 
   throw invalidStructuredOutput('rewriteGoal');
+}
+
+function normalizeInterviewPrepQuestions(
+  value: unknown,
+): InterviewPrepQuestion[] {
+  if (!Array.isArray(value)) {
+    throw invalidStructuredOutput('questions');
+  }
+
+  const questions = value.map((item) => {
+    if (!isJsonObject(item)) {
+      throw invalidStructuredOutput('questions');
+    }
+
+    const normalized: InterviewPrepQuestion = {
+      question: normalizeString(item.question, 'question'),
+      whyItMatters: normalizeString(item.whyItMatters, 'whyItMatters'),
+      suggestedAnswerDirection: normalizeString(
+        item.suggestedAnswerDirection,
+        'suggestedAnswerDirection',
+      ),
+    };
+
+    if (item.starGuidance !== undefined && item.starGuidance !== null) {
+      normalized.starGuidance = normalizeStarGuidance(item.starGuidance);
+    }
+
+    return normalized;
+  });
+
+  if (questions.length === 0) {
+    throw invalidStructuredOutput('questions');
+  }
+
+  return questions;
+}
+
+function normalizeStarGuidance(value: unknown) {
+  if (!isJsonObject(value)) {
+    throw invalidStructuredOutput('starGuidance');
+  }
+
+  return {
+    situation: normalizeString(value.situation, 'situation'),
+    task: normalizeString(value.task, 'task'),
+    action: normalizeString(value.action, 'action'),
+    result: normalizeString(value.result, 'result'),
+  };
+}
+
+function normalizeInterviewFocus(value: unknown): InterviewFocus {
+  const normalized = normalizeString(value, 'focus');
+
+  if (isInterviewFocus(normalized)) {
+    return normalized;
+  }
+
+  throw invalidStructuredOutput('focus');
+}
+
+function isInterviewFocus(value: string): value is InterviewFocus {
+  return ['behavioral', 'technical', 'mixed'].includes(value);
 }
 
 function isResumeRewriteGoal(value: string): value is ResumeRewriteGoal {

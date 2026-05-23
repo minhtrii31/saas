@@ -2,6 +2,7 @@
 
 import {
   ArrowUpRight,
+  ClipboardList,
   FilePenLine,
   FileText,
   GitCompare,
@@ -61,8 +62,17 @@ const workflow = [
     action: "Match role",
   },
   {
-    href: "/dashboard/cover-letter",
+    href: "/dashboard/interview-prep",
     step: "04",
+    label: "Coach",
+    title: "Interview prep workspace",
+    description: "Practice questions from CV and role context.",
+    icon: ClipboardList,
+    action: "Generate prep",
+  },
+  {
+    href: "/dashboard/cover-letter",
+    step: "05",
     label: "Draft",
     title: "Cover letter studio",
     description: "Draft a tailored application note.",
@@ -493,6 +503,15 @@ function getRecommendedAction(cvs: CvItem[], analyses: CvAnalysis[]) {
     };
   }
 
+  if (analysisCount(analyses, "INTERVIEW_PREP") === 0) {
+    return {
+      href: "/dashboard/interview-prep",
+      title: "Prepare for interviews",
+      description:
+        "Practice questions that connect your CV evidence to the role.",
+    };
+  }
+
   if (analysisCount(analyses, "COVER_LETTER") === 0) {
     return {
       href: "/dashboard/cover-letter",
@@ -529,6 +548,10 @@ function getWorkflowStatus(
 
   if (label === "Draft") {
     return analysisCount(analyses, "COVER_LETTER") > 0 ? "active" : "ready";
+  }
+
+  if (label === "Coach") {
+    return analysisCount(analyses, "INTERVIEW_PREP") > 0 ? "active" : "ready";
   }
 
   return "ready";

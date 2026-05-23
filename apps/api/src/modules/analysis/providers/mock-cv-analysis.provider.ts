@@ -6,6 +6,9 @@ import type {
   CvAnalysisProvider,
   CvAnalysisResult,
   CvScoringCategories,
+  InterviewPrepInput,
+  InterviewPrepResult,
+  InterviewPrepQuestion,
   JdMatchResult,
   RewriteRefinementInput,
   RewriteRefinementResult,
@@ -24,6 +27,7 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
   readonly jdMatcherModelName = 'mock-jd-matcher-v1';
   readonly coverLetterModelName = 'mock-cover-letter-v1';
   readonly resumeRewriteModelName = 'mock-resume-rewrite-v1';
+  readonly interviewPrepModelName = 'mock-interview-prep-v1';
   private readonly cvAnalyzerModelName = 'mock-cv-analyzer-v1';
 
   get modelName(): string {
@@ -156,6 +160,37 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
     return Promise.resolve({
       improved,
       reason: this.buildRefinementReason(input.instruction),
+    });
+  }
+
+  generateInterviewPrep(
+    extractedText: string,
+    input: InterviewPrepInput,
+  ): Promise<InterviewPrepResult> {
+    const combinedTargetText = input.jobDescriptionText ?? '';
+    const cvSkills = this.findKnownSkills(extractedText);
+    const targetSkills = this.findKnownSkills(combinedTargetText);
+    const sharedSkills = targetSkills.filter((skill) =>
+      cvSkills.includes(skill),
+    );
+    const missingSkills = targetSkills.filter(
+      (skill) => !cvSkills.includes(skill),
+    );
+    const anchorSkill = sharedSkills[0] ?? cvSkills[0] ?? 'your core work';
+    const targetSkill = targetSkills[0] ?? anchorSkill;
+
+    return Promise.resolve({
+      focus: input.interviewFocus,
+      questions: this.buildInterviewQuestions({
+        focus: input.interviewFocus,
+        anchorSkill,
+        targetSkill,
+        missingSkills,
+      }),
+      weakPointFocusAreas: this.buildInterviewWeakPoints({
+        missingSkills,
+        cvProfile: this.profileText(extractedText),
+      }),
     });
   }
 
@@ -708,6 +743,122 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
     };
 
     return reasons[instruction];
+  }
+
+  private buildInterviewQuestions(input: {
+    focus: InterviewPrepInput['interviewFocus'];
+    anchorSkill: string;
+    targetSkill: string;
+    missingSkills: string[];
+  }): InterviewPrepQuestion[] {
+    const behavioral: InterviewPrepQuestion[] = [
+      {
+        question: `Tell me about a time you improved a system or workflow using ${input.anchorSkill}.`,
+        whyItMatters:
+          'Interviewers use this to test ownership, judgment, and evidence of impact.',
+        suggestedAnswerDirection:
+          'Choose one recent example, name the problem, explain your specific actions, and close with the measurable result or learning.',
+        starGuidance: {
+          situation: 'Briefly describe the team, system, or business context.',
+          task: 'Name the goal you were accountable for.',
+          action: `Explain the decisions and hands-on work you contributed around ${input.anchorSkill}.`,
+          result:
+            'Share the outcome, metric, quality improvement, or stakeholder effect.',
+        },
+      },
+      {
+        question:
+          'Describe a time you handled unclear requirements or competing priorities.',
+        whyItMatters:
+          'This reveals how you communicate, clarify tradeoffs, and protect delivery quality.',
+        suggestedAnswerDirection:
+          'Use a project story where you aligned stakeholders, reduced ambiguity, and kept progress visible.',
+        starGuidance: {
+          situation: 'Set up the ambiguity or conflict.',
+          task: 'Clarify what decision or delivery outcome was needed.',
+          action:
+            'Describe how you gathered context, proposed options, and communicated tradeoffs.',
+          result:
+            'End with the decision, delivery result, or relationship outcome.',
+        },
+      },
+    ];
+    const technical: InterviewPrepQuestion[] = [
+      {
+        question: `How would you explain your strongest ${input.anchorSkill} project to another engineer?`,
+        whyItMatters:
+          'This tests whether the CV skill is backed by real implementation depth.',
+        suggestedAnswerDirection:
+          'Walk through architecture, constraints, key decisions, testing approach, and what you would improve next.',
+      },
+      {
+        question: `What tradeoffs would you consider when using ${input.targetSkill} in this role?`,
+        whyItMatters:
+          'Role interviews often probe practical decision-making beyond keyword familiarity.',
+        suggestedAnswerDirection:
+          'Compare reliability, maintainability, team familiarity, cost, performance, and operational risk.',
+      },
+    ];
+    const gapQuestion: InterviewPrepQuestion = {
+      question:
+        input.missingSkills.length > 0
+          ? `The role mentions ${input.missingSkills[0]}. How would you address that gap honestly?`
+          : 'What part of your background should the interviewer probe most deeply?',
+      whyItMatters:
+        'Strong candidates can discuss limits without overstating experience.',
+      suggestedAnswerDirection:
+        input.missingSkills.length > 0
+          ? `Connect adjacent experience to ${input.missingSkills[0]}, then state what you would learn or validate first.`
+          : 'Name one area where you want sharper evidence and explain the preparation you have done.',
+      starGuidance: {
+        situation: 'Name the adjacent experience or current gap.',
+        task: 'Explain the role requirement or interview concern.',
+        action:
+          'Describe preparation, learning, or related work without claiming unsupported experience.',
+        result: 'Show how you would reduce risk quickly if hired.',
+      },
+    };
+
+    if (input.focus === 'behavioral') {
+      return [...behavioral, gapQuestion];
+    }
+
+    if (input.focus === 'technical') {
+      return [...technical, gapQuestion];
+    }
+
+    return [behavioral[0], technical[0], technical[1], gapQuestion];
+  }
+
+  private buildInterviewWeakPoints(input: {
+    missingSkills: string[];
+    cvProfile: ReturnType<MockCvAnalysisProvider['profileText']>;
+  }): string[] {
+    const weakPoints: string[] = [];
+
+    if (input.missingSkills.length > 0) {
+      weakPoints.push(
+        `Prepare honest bridge answers for ${input.missingSkills.slice(0, 3).join(', ')}`,
+      );
+    }
+
+    if (!input.cvProfile.hasMetrics) {
+      weakPoints.push(
+        'Practice adding measurable outcomes to project stories instead of describing only responsibilities',
+      );
+    }
+
+    if (input.cvProfile.weakVerbMatches.length > 0) {
+      weakPoints.push(
+        'Convert responsibility-heavy CV language into ownership stories with clear actions',
+      );
+    }
+
+    weakPoints.push(
+      'Prepare one concise opening summary that connects your CV evidence to the target role',
+    );
+
+    return weakPoints.slice(0, 4);
   }
 
   private pickImpactObject(originalText: string, primarySkill: string): string {

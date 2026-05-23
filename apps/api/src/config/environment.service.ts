@@ -28,6 +28,7 @@ export class EnvironmentService {
         'USAGE_COST_REWRITE_REFINEMENT',
         1,
       ),
+      INTERVIEW_PREP: this.nonNegativeInt('USAGE_COST_INTERVIEW_PREP', 1),
     };
   }
 

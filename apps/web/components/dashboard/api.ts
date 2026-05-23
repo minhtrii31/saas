@@ -8,6 +8,8 @@ import type {
   CvAnalysisResult,
   CvProgress,
   CvItem,
+  InterviewFocus,
+  InterviewPrepResult,
   JdMatchResult,
   JobTargetItem,
   RewriteRefinementInstruction,
@@ -178,6 +180,27 @@ export async function generateCoverLetter(
   return toCoverLetterResult(response.data.result);
 }
 
+export async function generateInterviewPrep(
+  token: string,
+  cvId: string,
+  input: {
+    interviewFocus: InterviewFocus;
+    jobTargetId?: string;
+    jobDescriptionText?: string;
+  },
+) {
+  const response = await apiClient.request<CvAnalysis>(
+    `/cvs/${cvId}/interview-prep`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: input,
+    },
+  );
+
+  return toInterviewPrepResult(response.data.result);
+}
+
 export async function rewriteResume(
   token: string,
   cvId: string,
@@ -246,7 +269,8 @@ export function isJdMatchResult(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ): result is JdMatchResult {
   return "matchingScore" in result;
 }
@@ -257,7 +281,8 @@ export function isCoverLetterResult(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ): result is CoverLetterResult {
   return "coverLetter" in result;
 }
@@ -269,6 +294,7 @@ export function isResumeRewriteResult(
     | CoverLetterResult
     | ResumeRewriteResult
     | RewriteRefinementResult
+    | InterviewPrepResult
     | SingleResumeRewriteResult,
 ): result is ResumeRewriteResult {
   return "suggestions" in result && Array.isArray(result.suggestions)
@@ -289,9 +315,22 @@ export function isRewriteRefinementResult(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ): result is RewriteRefinementResult {
   return "improved" in result && "reason" in result;
+}
+
+export function isInterviewPrepResult(
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult
+    | RewriteRefinementResult
+    | InterviewPrepResult,
+): result is InterviewPrepResult {
+  return "questions" in result && "weakPointFocusAreas" in result;
 }
 
 export function hasSuggestions(
@@ -300,12 +339,14 @@ export function hasSuggestions(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ): result is CvAnalysisResult | JdMatchResult {
   return (
     "suggestions" in result &&
     !isResumeRewriteResult(result) &&
-    !isRewriteRefinementResult(result)
+    !isRewriteRefinementResult(result) &&
+    !isInterviewPrepResult(result)
   );
 }
 
@@ -315,13 +356,15 @@ function toCvAnalysisResult(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ) {
   if (
     !isJdMatchResult(result) &&
     !isCoverLetterResult(result) &&
     !isResumeRewriteResult(result) &&
-    !isRewriteRefinementResult(result)
+    !isRewriteRefinementResult(result) &&
+    !isInterviewPrepResult(result)
   ) {
     return result;
   }
@@ -338,7 +381,8 @@ function toJdMatchResult(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ) {
   if (isJdMatchResult(result)) {
     return result;
@@ -348,7 +392,8 @@ function toJdMatchResult(
     matchingScore:
       isCoverLetterResult(result) ||
       isResumeRewriteResult(result) ||
-      isRewriteRefinementResult(result)
+      isRewriteRefinementResult(result) ||
+      isInterviewPrepResult(result)
         ? 0
         : result.score,
     suggestions: hasSuggestions(result) ? result.suggestions : undefined,
@@ -361,7 +406,8 @@ function toCoverLetterResult(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ) {
   if (isCoverLetterResult(result)) {
     return result;
@@ -381,6 +427,7 @@ function toResumeRewriteResult(
     | CoverLetterResult
     | ResumeRewriteResult
     | RewriteRefinementResult
+    | InterviewPrepResult
     | SingleResumeRewriteResult,
   goal: ResumeRewriteGoal,
 ) {
@@ -426,7 +473,8 @@ function toRewriteRefinementResult(
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult,
+    | RewriteRefinementResult
+    | InterviewPrepResult,
 ) {
   if (isRewriteRefinementResult(result)) {
     return result;
@@ -435,6 +483,26 @@ function toRewriteRefinementResult(
   return {
     improved: "",
     reason: "",
+  };
+}
+
+function toInterviewPrepResult(
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult
+    | RewriteRefinementResult
+    | InterviewPrepResult,
+) {
+  if (isInterviewPrepResult(result)) {
+    return result;
+  }
+
+  return {
+    focus: "mixed" as const,
+    questions: [],
+    weakPointFocusAreas: [],
   };
 }
 

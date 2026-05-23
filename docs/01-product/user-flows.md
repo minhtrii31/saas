@@ -84,3 +84,17 @@ Expected result:
 
 Expected result:
 - Users can track improvement over time
+
+---
+
+## Flow 7 — Prepare for Interview
+
+1. User opens `/dashboard/interview-prep`
+2. User selects an uploaded CV
+3. User optionally selects a saved job target or pastes role context
+4. User chooses behavioral, technical, or mixed interview focus
+5. AI generates interview questions, answer direction, STAR guidance where useful, and weak-point practice areas
+
+Expected result:
+- Interview prep is saved to history
+- User can practice role-specific questions grounded in their CV evidence

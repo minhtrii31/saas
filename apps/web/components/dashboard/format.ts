@@ -50,5 +50,9 @@ export function formatAnalysisType(type: CvAnalysis["type"]) {
     return "Rewrite refinement";
   }
 
+  if (type === "INTERVIEW_PREP") {
+    return "Interview prep";
+  }
+
   return "CV analysis";
 }

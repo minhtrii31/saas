@@ -5,6 +5,8 @@ import type {
   CvAnalysisResponse,
   CoverLetterGenerationInput,
   CoverLetterResponse,
+  InterviewPrepInput,
+  InterviewPrepResponse,
   JdMatchResponse,
   ResumeRewriteInput,
   ResumeRewriteResponse,
@@ -89,6 +91,22 @@ export class AnalysisService {
     return {
       aiProvider: this.cvAnalysisProvider.providerName,
       aiModel: this.cvAnalysisProvider.resumeRewriteModelName,
+      result,
+    };
+  }
+
+  async generateInterviewPrep(
+    extractedText: string,
+    input: InterviewPrepInput,
+  ): Promise<InterviewPrepResponse> {
+    const result = await this.cvAnalysisProvider.generateInterviewPrep(
+      extractedText,
+      input,
+    );
+
+    return {
+      aiProvider: this.cvAnalysisProvider.providerName,
+      aiModel: this.cvAnalysisProvider.interviewPrepModelName,
       result,
     };
   }

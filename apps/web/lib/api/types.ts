@@ -133,6 +133,28 @@ export type RewriteRefinementResult = {
   reason: string;
 };
 
+export type InterviewFocus = "behavioral" | "technical" | "mixed";
+
+export type StarGuidance = {
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+};
+
+export type InterviewPrepQuestion = {
+  question: string;
+  whyItMatters: string;
+  suggestedAnswerDirection: string;
+  starGuidance?: StarGuidance | null;
+};
+
+export type InterviewPrepResult = {
+  focus: InterviewFocus;
+  questions: InterviewPrepQuestion[];
+  weakPointFocusAreas: string[];
+};
+
 export type CvAnalysis = {
   id: string;
   cvId: string;
@@ -141,7 +163,8 @@ export type CvAnalysis = {
     | "JD_MATCH"
     | "COVER_LETTER"
     | "RESUME_REWRITE"
-    | "REWRITE_REFINEMENT";
+    | "REWRITE_REFINEMENT"
+    | "INTERVIEW_PREP";
   jobDescriptionText?: string;
   aiProvider: string;
   aiModel: string;
@@ -150,7 +173,8 @@ export type CvAnalysis = {
     | JdMatchResult
     | CoverLetterResult
     | ResumeRewriteResult
-    | RewriteRefinementResult;
+    | RewriteRefinementResult
+    | InterviewPrepResult;
   createdAt: string;
 };
 

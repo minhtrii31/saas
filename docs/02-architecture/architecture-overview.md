@@ -8,7 +8,7 @@ The current implementation favors small vertical slices:
 
 - Authenticated user account access.
 - CV upload, storage metadata, text extraction, listing, detail, and soft deletion.
-- CV analysis, job description matching, and cover letter generation.
+- CV analysis, job description matching, interview preparation, and cover letter generation.
 - Saved analysis history through `CvAnalysis` records.
 
 ## Applications
@@ -33,7 +33,7 @@ AI:
 
 - `CvAnalysisProvider` abstraction
 - Mock provider for local development and automated tests
-- OpenAI provider for structured JSON CV analysis, JD matching, and cover letter generation
+- OpenAI provider for structured JSON CV analysis, JD matching, interview preparation, and cover letter generation
 
 ## Planned but not implemented
 
@@ -75,7 +75,7 @@ Current Prisma models:
 - `CvAnalysis`
 - `UsageRecord`
 
-`CvAnalysis.type` distinguishes `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, and `REWRITE_REFINEMENT`, allowing one history table for the current AI outputs.
+`CvAnalysis.type` distinguishes `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, `REWRITE_REFINEMENT`, and `INTERVIEW_PREP`, allowing one history table for the current AI outputs.
 `User.creditBalance` stores remaining credits. `UsageRecord` stores the user, action, credits used, timestamp, and optional linked `CvAnalysis` so successful AI actions can be audited.
 
 ## System principles

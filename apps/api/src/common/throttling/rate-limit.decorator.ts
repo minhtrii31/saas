@@ -29,6 +29,10 @@ export const rateLimits = {
     limit: 10,
     ttl: rateLimitWindowMs,
   },
+  cvInterviewPrep: {
+    limit: 10,
+    ttl: rateLimitWindowMs,
+  },
   cvRewrite: {
     limit: 10,
     ttl: rateLimitWindowMs,

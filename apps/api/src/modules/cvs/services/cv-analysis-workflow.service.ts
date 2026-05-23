@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import type { UsageAction } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AnalysisService } from '../../analysis/analysis.service';
+import { jobTargetNotFound } from '../../job-targets/job-targets.errors';
 import { UsageService } from '../../usage/usage.service';
 import { GenerateCoverLetterDto } from '../dto/generate-cover-letter.dto';
+import { GenerateInterviewPrepDto } from '../dto/generate-interview-prep.dto';
 import { MatchCvDto } from '../dto/match-cv.dto';
 import { RefineRewriteDto } from '../dto/refine-rewrite.dto';
 import { RewriteResumeDto } from '../dto/rewrite-resume.dto';
@@ -13,6 +15,7 @@ import {
   jdMatchAnalysisSelect,
   type CreatedCoverLetterAnalysis,
   type CreatedCvAnalysis,
+  type CreatedInterviewPrepAnalysis,
   type CreatedJdMatchAnalysis,
   type CreatedRewriteRefinementAnalysis,
   type CreatedResumeRewriteAnalysis,
@@ -165,6 +168,44 @@ export class CvAnalysisWorkflowService {
     return analysis as unknown as CreatedRewriteRefinementAnalysis;
   }
 
+  async generateInterviewPrep(
+    userId: string,
+    id: string,
+    dto: GenerateInterviewPrepDto,
+  ): Promise<CreatedInterviewPrepAnalysis> {
+    const cv = await this.findOwnedCvWithExtractedText(userId, id);
+    const jobDescriptionText = await this.resolveInterviewJobDescription(
+      userId,
+      dto,
+    );
+    await this.usageService.checkCredits(userId, 'INTERVIEW_PREP');
+
+    const cvAnalysis = await this.analysisService.generateInterviewPrep(
+      cv.extractedText,
+      {
+        interviewFocus: dto.interviewFocus,
+        jobDescriptionText: jobDescriptionText ?? undefined,
+      },
+    );
+    const analysis = await this.createAnalysisWithUsage(
+      userId,
+      'INTERVIEW_PREP',
+      {
+        data: {
+          cvId: cv.id,
+          type: 'INTERVIEW_PREP',
+          jobDescriptionText,
+          aiProvider: cvAnalysis.aiProvider,
+          aiModel: cvAnalysis.aiModel,
+          result: cvAnalysis.result,
+        },
+        select: jdMatchAnalysisSelect,
+      },
+    );
+
+    return analysis as unknown as CreatedInterviewPrepAnalysis;
+  }
+
   private async createAnalysisWithUsage<T extends { id: string }>(
     userId: string,
     action: UsageAction,
@@ -197,5 +238,36 @@ export class CvAnalysisWorkflowService {
       id: cv.id,
       extractedText: cv.extractedText,
     };
+  }
+
+  private async resolveInterviewJobDescription(
+    userId: string,
+    dto: GenerateInterviewPrepDto,
+  ): Promise<string | null> {
+    if (dto.jobDescriptionText?.trim()) {
+      return dto.jobDescriptionText.trim();
+    }
+
+    if (!dto.jobTargetId) {
+      return null;
+    }
+
+    const target = await this.prisma.jobTarget.findFirst({
+      where: {
+        id: dto.jobTargetId,
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        jobDescriptionText: true,
+      },
+    });
+
+    if (!target) {
+      throw jobTargetNotFound();
+    }
+
+    return target.jobDescriptionText;
   }
 }

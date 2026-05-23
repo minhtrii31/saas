@@ -15,6 +15,7 @@ Protected dashboard:
 - `/dashboard/cvs/[id]`: CV detail with metadata and extracted text.
 - `/dashboard/analyze`: select CV and run CV quality analysis.
 - `/dashboard/match`: select CV and compare against pasted job description.
+- `/dashboard/interview-prep`: select CV, optional saved target or pasted role context, and generate interview preparation.
 - `/dashboard/cover-letter`: select CV and generate cover letter from job description.
 - `/dashboard/history`: saved analysis, match, and cover letter history across CVs.
 - `/dashboard/settings`: placeholder for future user/workspace settings.
@@ -40,6 +41,7 @@ AI workflows:
 
 - `POST /cvs/:id/analyze`
 - `POST /cvs/:id/match`
+- `POST /cvs/:id/interview-prep`
 - `POST /cvs/:id/cover-letter`
 
 ## Current route conventions
@@ -47,5 +49,6 @@ AI workflows:
 - Protected frontend routes validate the stored access token through `GET /auth/me`.
 - Dashboard task routes select an existing CV before calling AI workflow endpoints.
 - Matching and cover letter routes accept pasted job description text.
+- Interview prep accepts an optional saved target, optional pasted role context, and a behavioral, technical, or mixed focus.
 - Backend CV route params use UUID validation.
 - Soft-deleted CVs are hidden and treated as not found for owner workflows.

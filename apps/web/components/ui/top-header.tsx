@@ -255,6 +255,14 @@ function getHeaderMeta(pathname: string) {
     };
   }
 
+  if (pathname.startsWith("/dashboard/interview-prep")) {
+    return {
+      section: "AI tools",
+      mode: "Coaching",
+      status: "interview prep",
+    };
+  }
+
   if (pathname.startsWith("/dashboard/history")) {
     return {
       section: "Workspace",

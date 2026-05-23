@@ -141,6 +141,52 @@ const rewriteRefinementAnalysis = {
   createdAt: "2026-05-22T13:45:00.000Z",
 };
 
+const interviewPrepAnalysis = {
+  id: "interview-prep-1",
+  cvId: cvList[0].id,
+  type: "INTERVIEW_PREP",
+  jobDescriptionText: "Build APIs with TypeScript, NestJS, and PostgreSQL.",
+  aiProvider: "mock",
+  aiModel: "mock-interview-prep-v1",
+  result: {
+    focus: "mixed",
+    questions: [
+      {
+        question: "Tell me about a TypeScript API you improved.",
+        whyItMatters: "Tests ownership and backend impact.",
+        suggestedAnswerDirection:
+          "Use one recent API example with scope, tradeoffs, and outcome.",
+        starGuidance: {
+          situation: "Backend platform context",
+          task: "Improve API reliability",
+          action: "Led TypeScript and NestJS changes",
+          result: "Reduced manual review time",
+        },
+      },
+      {
+        question: "What tradeoffs would you consider for PostgreSQL design?",
+        whyItMatters: "Tests practical technical depth.",
+        suggestedAnswerDirection:
+          "Discuss query shape, indexes, migrations, and operational risk.",
+      },
+      {
+        question: "How would you address limited Redis experience?",
+        whyItMatters: "Tests honesty around gaps.",
+        suggestedAnswerDirection:
+          "Connect adjacent caching or queue work without overstating experience.",
+        starGuidance: {
+          situation: "Role asks for Redis",
+          task: "Close a skill gap",
+          action: "Prepare adjacent examples and learning plan",
+          result: "Reduce onboarding risk",
+        },
+      },
+    ],
+    weakPointFocusAreas: ["Prepare Redis bridge answers"],
+  },
+  createdAt: "2026-05-22T14:00:00.000Z",
+};
+
 const cvProgress = {
   cvId: cvList[0].id,
   scoreTimeline: [
@@ -871,6 +917,149 @@ test("/dashboard/cover-letter insufficient credits displays clear message", asyn
   ).toBeVisible();
 });
 
+test("/dashboard/interview-prep can generate interview practice", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
+  await page.route("**://*/cvs/*/interview-prep", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.url()).toContain(`/cvs/${cvList[0].id}/interview-prep`);
+    expect(request.postDataJSON()).toEqual({
+      interviewFocus: "technical",
+      jobDescriptionText:
+        "Build APIs with TypeScript, NestJS, and PostgreSQL.",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: interviewPrepAnalysis, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/interview-prep");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByLabel("Interview focus").selectOption("technical");
+  await page
+    .getByLabel("Role context")
+    .fill("Build APIs with TypeScript, NestJS, and PostgreSQL.");
+  await page.getByRole("button", { name: "Generate prep" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Generating..." }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("region", { name: "Interview prep result for Backend CV" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Tell me about a TypeScript API you improved."),
+  ).toBeVisible();
+  await expect(page.getByText("Why it matters").first()).toBeVisible();
+  await expect(page.getByText("Answer direction").first()).toBeVisible();
+  await expect(page.getByText("STAR structure").first()).toBeVisible();
+  await expect(page.getByText("Prepare Redis bridge answers")).toBeVisible();
+});
+
+test("/dashboard/interview-prep can reuse a saved job target", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await mockJobTargets(page, jobTargets);
+  await page.route("**://*/cvs/*/interview-prep", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.postDataJSON()).toEqual({
+      interviewFocus: "mixed",
+      jobTargetId: jobTargets[0].id,
+      jobDescriptionText: jobTargets[0].jobDescriptionText,
+    });
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: interviewPrepAnalysis, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/interview-prep");
+  await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
+  await expect(page.getByLabel("Role context")).toHaveValue(
+    jobTargets[0].jobDescriptionText,
+  );
+  await page.getByRole("button", { name: "Generate prep" }).click();
+
+  await expect(
+    page.getByRole("region", { name: "Interview prep result for Backend CV" }),
+  ).toBeVisible();
+});
+
+test("/dashboard/interview-prep handles empty CV library", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, []);
+  await mockJobTargets(page, []);
+
+  await page.goto("/dashboard/interview-prep");
+
+  await expect(page.getByRole("button", { name: "Generate prep" })).toBeDisabled();
+  await expect(page.getByText("No CV selected")).toBeVisible();
+});
+
+test("/dashboard/interview-prep API error displays error", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
+  await page.route("**://*/cvs/*/interview-prep", async (route) => {
+    await route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "CV_TEXT_NOT_EXTRACTED",
+          message: "CV text has not been extracted",
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.goto("/dashboard/interview-prep");
+  await page.getByRole("button", { name: "Generate prep" }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "CV text has not been extracted" }),
+  ).toBeVisible();
+});
+
+test("/dashboard/interview-prep insufficient credits displays clear message", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page, 0);
+  await mockCvs(page, cvList);
+  await mockJobTargets(page, []);
+  await page.route("**://*/cvs/*/interview-prep", async (route) => {
+    await route.fulfill({
+      status: 402,
+      contentType: "application/json",
+      body: JSON.stringify(insufficientCreditsError),
+    });
+  });
+
+  await page.goto("/dashboard/interview-prep");
+  await page.getByRole("button", { name: "Generate prep" }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
+  ).toBeVisible();
+});
+
 test("/dashboard/rewrite can select CV and displays rewrite suggestions", async ({
   page,
 }) => {
@@ -1168,6 +1357,7 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
           coverLetterAnalysis,
           rewriteAnalysis,
           rewriteRefinementAnalysis,
+          interviewPrepAnalysis,
         ],
         meta: {},
       }),
@@ -1216,6 +1406,11 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
       "The refined rewrite adds technical detail while preserving the measurable result.",
     ),
   ).toBeVisible();
+  await expect(history.getByText("Interview prep", { exact: true })).toBeVisible();
+  await expect(
+    history.getByText("Tell me about a TypeScript API you improved."),
+  ).toBeVisible();
+  await expect(history.getByText("Prepare Redis bridge answers")).toBeVisible();
 });
 
 test("/dashboard/history empty state works", async ({ page }) => {

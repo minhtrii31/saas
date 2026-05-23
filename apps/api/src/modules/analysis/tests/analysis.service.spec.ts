@@ -15,17 +15,20 @@ describe('AnalysisService', () => {
     const generateCoverLetter = jest.fn();
     const rewriteResume = jest.fn();
     const refineRewrite = jest.fn();
+    const generateInterviewPrep = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
       resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      interviewPrepModelName: 'mock-interview-prep-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
       refineRewrite,
+      generateInterviewPrep,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -62,17 +65,20 @@ describe('AnalysisService', () => {
     const generateCoverLetter = jest.fn();
     const rewriteResume = jest.fn();
     const refineRewrite = jest.fn();
+    const generateInterviewPrep = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
       resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      interviewPrepModelName: 'mock-interview-prep-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
       refineRewrite,
+      generateInterviewPrep,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -113,17 +119,20 @@ describe('AnalysisService', () => {
     });
     const rewriteResume = jest.fn();
     const refineRewrite = jest.fn();
+    const generateInterviewPrep = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
       resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      interviewPrepModelName: 'mock-interview-prep-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
       refineRewrite,
+      generateInterviewPrep,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -163,6 +172,7 @@ describe('AnalysisService', () => {
     const matchJobDescription = jest.fn();
     const generateCoverLetter = jest.fn();
     const refineRewrite = jest.fn();
+    const generateInterviewPrep = jest.fn();
     const rewriteResume = jest.fn().mockResolvedValue({
       originalText: 'Helped with APIs',
       rewrittenText: 'Delivered API improvements',
@@ -175,11 +185,13 @@ describe('AnalysisService', () => {
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
       resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      interviewPrepModelName: 'mock-interview-prep-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
       refineRewrite,
+      generateInterviewPrep,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -218,6 +230,7 @@ describe('AnalysisService', () => {
     const matchJobDescription = jest.fn();
     const generateCoverLetter = jest.fn();
     const rewriteResume = jest.fn();
+    const generateInterviewPrep = jest.fn();
     const refineRewrite = jest.fn().mockResolvedValue({
       improved: 'Owned API delivery with clearer technical impact',
       reason: 'Adds stronger ownership and technical detail',
@@ -228,11 +241,13 @@ describe('AnalysisService', () => {
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
       resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      interviewPrepModelName: 'mock-interview-prep-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
       refineRewrite,
+      generateInterviewPrep,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -263,6 +278,86 @@ describe('AnalysisService', () => {
       original: 'Helped with APIs',
       currentRewrite: 'Delivered API improvements',
       instruction: 'more-technical',
+    });
+  });
+
+  it('delegates interview prep generation to the configured provider and returns interview prep model metadata', async () => {
+    const analyzeCv = jest.fn();
+    const matchJobDescription = jest.fn();
+    const generateCoverLetter = jest.fn();
+    const rewriteResume = jest.fn();
+    const refineRewrite = jest.fn();
+    const generateInterviewPrep = jest.fn().mockResolvedValue({
+      focus: 'mixed',
+      questions: [
+        {
+          question: 'Tell me about an API you improved.',
+          whyItMatters: 'Tests impact and ownership.',
+          suggestedAnswerDirection: 'Use a recent API example with scope.',
+          starGuidance: {
+            situation: 'Backend system context',
+            task: 'Reliability or performance goal',
+            action: 'Specific TypeScript and NestJS work',
+            result: 'Measured outcome',
+          },
+        },
+      ],
+      weakPointFocusAreas: ['Quantify API outcomes'],
+    });
+    const provider: CvAnalysisProvider = {
+      providerName: 'mock',
+      modelName: 'mock-cv-analyzer-v1',
+      jdMatcherModelName: 'mock-jd-matcher-v1',
+      coverLetterModelName: 'mock-cover-letter-v1',
+      resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      interviewPrepModelName: 'mock-interview-prep-v1',
+      analyzeCv,
+      matchJobDescription,
+      generateCoverLetter,
+      rewriteResume,
+      refineRewrite,
+      generateInterviewPrep,
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AnalysisService,
+        {
+          provide: CV_ANALYSIS_PROVIDER,
+          useValue: provider,
+        },
+      ],
+    }).compile();
+    const service = module.get(AnalysisService);
+
+    await expect(
+      service.generateInterviewPrep('extracted cv text', {
+        interviewFocus: 'mixed',
+        jobDescriptionText: 'job description',
+      }),
+    ).resolves.toEqual({
+      aiProvider: 'mock',
+      aiModel: 'mock-interview-prep-v1',
+      result: {
+        focus: 'mixed',
+        questions: [
+          {
+            question: 'Tell me about an API you improved.',
+            whyItMatters: 'Tests impact and ownership.',
+            suggestedAnswerDirection: 'Use a recent API example with scope.',
+            starGuidance: {
+              situation: 'Backend system context',
+              task: 'Reliability or performance goal',
+              action: 'Specific TypeScript and NestJS work',
+              result: 'Measured outcome',
+            },
+          },
+        ],
+        weakPointFocusAreas: ['Quantify API outcomes'],
+      },
+    });
+    expect(generateInterviewPrep).toHaveBeenCalledWith('extracted cv text', {
+      interviewFocus: 'mixed',
+      jobDescriptionText: 'job description',
     });
   });
 });

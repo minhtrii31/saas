@@ -21,6 +21,7 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-request';
 import { CvsService } from './cvs.service';
 import { CreateCvDto } from './dto/create-cv.dto';
 import { GenerateCoverLetterDto } from './dto/generate-cover-letter.dto';
+import { GenerateInterviewPrepDto } from './dto/generate-interview-prep.dto';
 import { MatchCvDto } from './dto/match-cv.dto';
 import { RefineRewriteDto } from './dto/refine-rewrite.dto';
 import { RewriteResumeDto } from './dto/rewrite-resume.dto';
@@ -135,6 +136,17 @@ export class CvsController {
     @Body() dto: GenerateCoverLetterDto,
   ) {
     return this.cvsService.generateCoverLetter(user.id, id, dto);
+  }
+
+  @Post(':id/interview-prep')
+  @UseGuards(JwtAuthGuard)
+  @RateLimit('cvInterviewPrep')
+  generateInterviewPrep(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+    @Body() dto: GenerateInterviewPrepDto,
+  ) {
+    return this.cvsService.generateInterviewPrep(user.id, id, dto);
   }
 
   @Post(':id/rewrite')

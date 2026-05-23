@@ -91,6 +91,7 @@ Implemented API surface:
 - `GET /cvs/:id/analyses`
 - `POST /cvs/:id/analyze`
 - `POST /cvs/:id/match`
+- `POST /cvs/:id/interview-prep`
 - `POST /cvs/:id/cover-letter`
 
 ## Abuse protection
@@ -104,6 +105,7 @@ Current per-tracker limits:
 - `POST /cvs/upload`: 10 requests per minute
 - `POST /cvs/:id/analyze`: 10 requests per minute
 - `POST /cvs/:id/match`: 10 requests per minute
+- `POST /cvs/:id/interview-prep`: 10 requests per minute
 - `POST /cvs/:id/cover-letter`: 10 requests per minute
 
 Authenticated requests are tracked by user id when available. Public auth requests fall back to the request IP. Throttled requests return the standard API error envelope with `TOO_MANY_REQUESTS`.
@@ -117,7 +119,7 @@ Prisma models currently cover:
 - `CvAnalysis`
 - `UsageRecord`
 
-`CvAnalysis.type` stores `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, and `REWRITE_REFINEMENT` records. Soft deletion is represented with `deletedAt`.
+`CvAnalysis.type` stores `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, `REWRITE_REFINEMENT`, and `INTERVIEW_PREP` records. Soft deletion is represented with `deletedAt`.
 `User.creditBalance` stores the current credit balance. `UsageRecord` stores AI action usage with `userId`, action type, credits used, creation timestamp, and an optional `CvAnalysis` link.
 
 ## Usage limits
@@ -125,7 +127,7 @@ Prisma models currently cover:
 The `usage` module prepares Nyx for SaaS quotas without billing integration.
 
 - New users receive starter credits from `FREE_STARTER_CREDITS`.
-- AI actions are charged with `USAGE_COST_CV_ANALYSIS`, `USAGE_COST_JD_MATCH`, `USAGE_COST_COVER_LETTER`, `USAGE_COST_RESUME_REWRITE`, and `USAGE_COST_REWRITE_REFINEMENT`.
+- AI actions are charged with `USAGE_COST_CV_ANALYSIS`, `USAGE_COST_JD_MATCH`, `USAGE_COST_COVER_LETTER`, `USAGE_COST_RESUME_REWRITE`, `USAGE_COST_REWRITE_REFINEMENT`, and `USAGE_COST_INTERVIEW_PREP`.
 - CV AI workflows check credits before provider calls.
 - Credits are deducted only after a successful provider response, inside the same transaction that creates `CvAnalysis` history and the corresponding `UsageRecord`.
 - Insufficient credits return the standard API error envelope with `INSUFFICIENT_CREDITS`.

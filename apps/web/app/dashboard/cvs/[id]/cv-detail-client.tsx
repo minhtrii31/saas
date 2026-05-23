@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  ClipboardList,
   FilePenLine,
   FileText,
   GitCompare,
@@ -186,6 +187,12 @@ function CvDetailContent({ token, cvId }: { token: string; cvId: string }) {
               icon={FilePenLine}
               title="Draft cover letter"
               description="Generate an application note from your CV."
+            />
+            <ActionLink
+              href="/dashboard/interview-prep"
+              icon={ClipboardList}
+              title="Prep interviews"
+              description="Practice questions from your CV evidence."
             />
           </div>
         </aside>

@@ -3,6 +3,7 @@ import {
   parseJsonObject,
   validateCoverLetterResult,
   validateCvAnalysisResult,
+  validateInterviewPrepResult,
   validateJdMatchResult,
   validateRewriteRefinementResult,
   validateResumeRewriteResult,
@@ -145,6 +146,60 @@ describe('structured output validator', () => {
       tone: 'professional',
       highlights: ['NestJS APIs'],
     });
+  });
+
+  it('normalizes interview prep output', () => {
+    expect(
+      validateInterviewPrepResult({
+        focus: ' mixed ',
+        questions: [
+          {
+            question: ' Tell me about a backend system you improved. ',
+            whyItMatters: ' Tests ownership and impact. ',
+            suggestedAnswerDirection: ' Use a recent API example. ',
+            starGuidance: {
+              situation: ' System context ',
+              task: ' Reliability goal ',
+              action: ' NestJS work ',
+              result: ' Faster response time ',
+            },
+          },
+        ],
+        weakPointFocusAreas: [' Add clearer metrics '],
+      }),
+    ).toEqual({
+      focus: 'mixed',
+      questions: [
+        {
+          question: 'Tell me about a backend system you improved.',
+          whyItMatters: 'Tests ownership and impact.',
+          suggestedAnswerDirection: 'Use a recent API example.',
+          starGuidance: {
+            situation: 'System context',
+            task: 'Reliability goal',
+            action: 'NestJS work',
+            result: 'Faster response time',
+          },
+        },
+      ],
+      weakPointFocusAreas: ['Add clearer metrics'],
+    });
+  });
+
+  it('rejects interview prep output with an unsupported focus', () => {
+    expect(() =>
+      validateInterviewPrepResult({
+        focus: 'unsupported',
+        questions: [
+          {
+            question: 'Tell me about yourself.',
+            whyItMatters: 'Tests communication.',
+            suggestedAnswerDirection: 'Summarize relevant background.',
+          },
+        ],
+        weakPointFocusAreas: ['Clarify role fit'],
+      }),
+    ).toThrow(ServiceUnavailableException);
   });
 
   it('normalizes resume rewrite output', () => {

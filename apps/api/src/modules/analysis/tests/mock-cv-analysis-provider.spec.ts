@@ -168,4 +168,40 @@ describe('MockCvAnalysisProvider', () => {
     expect(result.improved).toContain('technical delivery');
     expect(result.reason).toContain('technical depth');
   });
+
+  it('returns structured mock interview prep from CV and target role context', async () => {
+    const provider = new MockCvAnalysisProvider();
+
+    const result = await provider.generateInterviewPrep(
+      'Backend engineer with TypeScript, NestJS, PostgreSQL, and API testing experience. Improved latency by 35%.',
+      {
+        interviewFocus: 'mixed',
+        jobDescriptionText:
+          'Backend role requiring TypeScript, NestJS, PostgreSQL, Redis, and system design.',
+      },
+    );
+
+    expect(result).toEqual({
+      focus: 'mixed',
+      questions: expect.arrayContaining([
+        {
+          question: expect.any(String),
+          whyItMatters: expect.any(String),
+          suggestedAnswerDirection: expect.any(String),
+          starGuidance: expect.objectContaining({
+            situation: expect.any(String),
+            task: expect.any(String),
+            action: expect.any(String),
+            result: expect.any(String),
+          }),
+        },
+      ]),
+      weakPointFocusAreas: expect.arrayContaining([expect.any(String)]),
+    });
+    expect(result.questions.length).toBeGreaterThanOrEqual(3);
+    expect(result.questions.map((item) => item.question).join(' ')).toContain(
+      'TypeScript',
+    );
+    expect(result.weakPointFocusAreas.join(' ')).toContain('Redis');
+  });
 });

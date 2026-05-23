@@ -10,8 +10,8 @@ Tests should verify important behavior, not implementation details.
 
 Current source counts:
 
-- API: 141 Jest/Supertest test cases.
-- Web: 36 Playwright test cases.
+- API: 169 Jest/Supertest test cases.
+- Web: 51 Playwright test cases.
 
 Main verification commands:
 
@@ -109,6 +109,7 @@ Examples:
 - User can start CV analysis
 - User can compare CV with JD
 - User can generate and refine resume rewrite suggestions
+- User can generate interview preparation questions and guidance
 
 ### Tools
 

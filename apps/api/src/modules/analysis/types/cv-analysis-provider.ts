@@ -83,6 +83,33 @@ export type RewriteRefinementResult = {
   reason: string;
 };
 
+export type InterviewFocus = 'behavioral' | 'technical' | 'mixed';
+
+export type InterviewPrepInput = {
+  interviewFocus: InterviewFocus;
+  jobDescriptionText?: string;
+};
+
+export type StarGuidance = {
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+};
+
+export type InterviewPrepQuestion = {
+  question: string;
+  whyItMatters: string;
+  suggestedAnswerDirection: string;
+  starGuidance?: StarGuidance;
+};
+
+export type InterviewPrepResult = {
+  focus: InterviewFocus;
+  questions: InterviewPrepQuestion[];
+  weakPointFocusAreas: string[];
+};
+
 export type AnalysisProviderResponse<TResult> = {
   aiProvider: string;
   aiModel: string;
@@ -96,6 +123,8 @@ export type ResumeRewriteResponse =
   AnalysisProviderResponse<ResumeRewriteResult>;
 export type RewriteRefinementResponse =
   AnalysisProviderResponse<RewriteRefinementResult>;
+export type InterviewPrepResponse =
+  AnalysisProviderResponse<InterviewPrepResult>;
 
 export interface CvAnalysisProvider {
   readonly providerName: string;
@@ -103,6 +132,7 @@ export interface CvAnalysisProvider {
   readonly jdMatcherModelName: string;
   readonly coverLetterModelName: string;
   readonly resumeRewriteModelName: string;
+  readonly interviewPrepModelName: string;
   analyzeCv(extractedText: string): Promise<CvAnalysisResult>;
   matchJobDescription(
     extractedText: string,
@@ -120,4 +150,8 @@ export interface CvAnalysisProvider {
     extractedText: string,
     input: RewriteRefinementInput,
   ): Promise<RewriteRefinementResult>;
+  generateInterviewPrep(
+    extractedText: string,
+    input: InterviewPrepInput,
+  ): Promise<InterviewPrepResult>;
 }

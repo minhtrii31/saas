@@ -1,6 +1,7 @@
 import {
   buildCoverLetterPrompt,
   buildCvAnalysisPrompt,
+  buildInterviewPrepPrompt,
   buildJdMatchPrompt,
   buildRewriteRefinementPrompt,
   buildResumeRewritePrompt,
@@ -123,6 +124,27 @@ describe('analysis prompt builders', () => {
     expect(prompt.jsonSchema).toEqual(
       expect.objectContaining({
         required: ['improved', 'reason'],
+      }),
+    );
+  });
+
+  it('builds interview prep prompts with focus and optional role context', () => {
+    const prompt = buildInterviewPrepPrompt(
+      'Backend engineer with TypeScript API delivery.',
+      {
+        interviewFocus: 'behavioral',
+        jobDescriptionText: 'Role needs ownership and stakeholder work.',
+      },
+    );
+
+    expect(prompt.schemaName).toBe('interview_prep');
+    expect(prompt.systemPrompt).toContain('interview coach');
+    expect(prompt.systemPrompt).toContain('STAR');
+    expect(prompt.userPrompt).toContain('Interview focus: behavioral');
+    expect(prompt.userPrompt).toContain('Target role context:');
+    expect(prompt.jsonSchema).toEqual(
+      expect.objectContaining({
+        required: ['focus', 'questions', 'weakPointFocusAreas'],
       }),
     );
   });
