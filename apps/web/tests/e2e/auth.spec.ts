@@ -248,6 +248,68 @@ test("dashboard shows user info when token is valid", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Manage credits" })).toBeVisible();
 });
 
+test("settings shows account, credits, and focused preferences", async ({
+  page,
+}) => {
+  await page.route("**/auth/me", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer settings-token");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: "user_1",
+          email: "ada@example.com",
+          name: "Ada Lovelace",
+          creditBalance: 24,
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    localStorage.setItem("accessToken", "settings-token");
+  });
+
+  await page.goto("/dashboard/settings");
+
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Manage your account, workspace preferences, and AI usage settings.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Ada Lovelace" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator("section[aria-labelledby='account-heading']")
+      .getByText("ada@example.com"),
+  ).toBeVisible();
+  await expect(page.getByText("Active session")).toBeVisible();
+  await expect(
+    page
+      .locator("section[aria-labelledby='credits-heading']")
+      .getByText("24 credits"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Billing coming soon" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("heading", { name: "Simple by design" }),
+  ).toBeVisible();
+  await expect(page.getByText("Notifications")).toBeVisible();
+  await expect(page.getByText("Saved defaults")).toBeVisible();
+  await expect(page.getByText("Provider abstraction")).toHaveCount(0);
+  await expect(page.getByText("Protected workspace")).toHaveCount(0);
+});
+
 test("dashboard clears invalid token and redirects to login", async ({ page }) => {
   await page.route("**/auth/me", async (route) => {
     const request = route.request();
