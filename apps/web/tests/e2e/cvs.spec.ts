@@ -1723,6 +1723,20 @@ test("/dashboard/history empty state works", async ({ page }) => {
 test("/dashboard/progress shows resume quality trends", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/analyses", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("GET");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.url()).toContain(`/cvs/${cvList[0].id}/analyses`);
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [cvAnalysis, legacyCvAnalysis, matchAnalysis, rewriteAnalysis],
+        meta: {},
+      }),
+    });
+  });
   await page.route("**://*/cvs/*/progress", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("GET");
@@ -1738,20 +1752,27 @@ test("/dashboard/progress shows resume quality trends", async ({ page }) => {
   await page.goto("/dashboard/progress");
 
   await expect(
-    page.getByRole("heading", { name: "Progress", exact: true }),
+    page.getByRole("heading", { name: "Resume Progress", exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("Main progress summary")).toBeVisible();
   await expect(page.getByText("Latest score")).toBeVisible();
-  await expect(page.getByText("+14")).toBeVisible();
-  await expect(page.getByText("ATS readiness improved +12")).toBeVisible();
-  await expect(page.getByText("3 rewrites generated this week")).toBeVisible();
-  await expect(page.getByText("Keyword optimization improved +12")).toBeVisible();
-  await expect(page.getByText("Score trend")).toBeVisible();
+  await expect(page.getByText("Best role match")).toBeVisible();
+  await expect(page.getByText("75")).toBeVisible();
+  await expect(page.getByText("Overall resume score is up 14 points.")).toBeVisible();
+  await expect(
+    page.getByText("ATS readiness improved after recent resume work."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Keyword optimization increased in the latest audit."),
+  ).toBeVisible();
+  await expect(page.getByText("3 rewrite sessions are")).toBeVisible();
+  await expect(page.getByText("Resume improvement timeline")).toBeVisible();
   await expect(page.getByLabel("Score 82")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Rewrite activity" }),
+    page.getByRole("heading", { name: "Resume improvement activity" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Category movement" }),
+    page.getByRole("heading", { name: "Improvement areas" }),
   ).toBeVisible();
 });
 
@@ -1762,8 +1783,9 @@ test("/dashboard/progress handles empty CV library", async ({ page }) => {
   await page.goto("/dashboard/progress");
 
   await expect(
-    page.getByText("Upload a CV and run an analysis to start tracking progress."),
+    page.getByText("Your progress workspace starts with one CV"),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Upload CV" })).toBeVisible();
 });
 
 async function mockAuthenticatedPage(
