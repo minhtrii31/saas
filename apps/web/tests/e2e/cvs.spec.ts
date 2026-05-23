@@ -1256,15 +1256,21 @@ test("/dashboard/interview-prep can generate interview practice", async ({
   });
 
   await page.goto("/dashboard/interview-prep");
+  await expect(
+    page.getByRole("heading", { name: "Interview Prep", exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Personalized coaching from")).toBeVisible();
+  await expect(page.getByText("Your resume evidence", { exact: true })).toBeVisible();
+  await expect(page.getByText("Prep session", { exact: true })).toBeVisible();
   await page.getByLabel("CV").selectOption(cvList[0].id);
   await page.getByLabel("Interview focus").selectOption("technical");
   await page
-    .getByLabel("Role context")
+    .getByLabel("Manual role context")
     .fill("Build APIs with TypeScript, NestJS, and PostgreSQL.");
-  await page.getByRole("button", { name: "Generate prep" }).click();
+  await page.getByRole("button", { name: "Start practice session" }).click();
 
   await expect(
-    page.getByRole("button", { name: "Generating..." }),
+    page.getByRole("button", { name: "Preparing coaching..." }),
   ).toBeDisabled();
   await expect(
     page.getByRole("region", { name: "Interview prep result for Backend CV" }),
@@ -1301,11 +1307,15 @@ test("/dashboard/interview-prep can reuse a saved job target", async ({
   });
 
   await page.goto("/dashboard/interview-prep");
-  await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
-  await expect(page.getByLabel("Role context")).toHaveValue(
+  await expect(page.getByText("Backend Engineer at Acme").last()).toBeVisible();
+  await expect(page.getByLabel("Manual role context")).toHaveValue(
     jobTargets[0].jobDescriptionText,
   );
-  await page.getByRole("button", { name: "Generate prep" }).click();
+  await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
+  await expect(page.getByLabel("Manual role context")).toHaveValue(
+    jobTargets[0].jobDescriptionText,
+  );
+  await page.getByRole("button", { name: "Start practice session" }).click();
 
   await expect(
     page.getByRole("region", { name: "Interview prep result for Backend CV" }),
@@ -1319,8 +1329,10 @@ test("/dashboard/interview-prep handles empty CV library", async ({ page }) => {
 
   await page.goto("/dashboard/interview-prep");
 
-  await expect(page.getByRole("button", { name: "Generate prep" })).toBeDisabled();
-  await expect(page.getByText("No CV selected")).toBeVisible();
+  await expect(
+    page.getByText("Upload a resume before interview coaching"),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Upload CV" })).toBeVisible();
 });
 
 test("/dashboard/interview-prep API error displays error", async ({ page }) => {
@@ -1342,7 +1354,7 @@ test("/dashboard/interview-prep API error displays error", async ({ page }) => {
   });
 
   await page.goto("/dashboard/interview-prep");
-  await page.getByRole("button", { name: "Generate prep" }).click();
+  await page.getByRole("button", { name: "Start practice session" }).click();
 
   await expect(
     page
@@ -1366,7 +1378,7 @@ test("/dashboard/interview-prep insufficient credits displays clear message", as
   });
 
   await page.goto("/dashboard/interview-prep");
-  await page.getByRole("button", { name: "Generate prep" }).click();
+  await page.getByRole("button", { name: "Start practice session" }).click();
 
   await expect(
     page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
