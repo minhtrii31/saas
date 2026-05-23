@@ -18,14 +18,46 @@ describe('structured output validator', () => {
     expect(
       validateCvAnalysisResult({
         score: 88.6,
+        scoringCategories: {
+          atsReadiness: 82.4,
+          readability: 91,
+          impact: 77,
+          keywordOptimization: 74,
+          structure: 80,
+          experienceQuality: 86,
+        },
         strengths: [' Clear impact '],
         weaknesses: [' Needs metrics '],
+        actionableInsights: {
+          missingQuantifiedAchievements: [' Add revenue or usage metrics '],
+          weakActionVerbs: ['Responsible for is weaker than Led or Built'],
+          missingSections: ['No certifications section is visible'],
+          overlyGenericWording: ['Hard working team player'],
+          formattingConcerns: ['Long paragraph blocks reduce scanability'],
+          keywordGaps: ['Cloud platform keywords are light'],
+        },
         suggestions: [' Add outcomes '],
       }),
     ).toEqual({
       score: 89,
+      scoringCategories: {
+        atsReadiness: 82,
+        readability: 91,
+        impact: 77,
+        keywordOptimization: 74,
+        structure: 80,
+        experienceQuality: 86,
+      },
       strengths: ['Clear impact'],
       weaknesses: ['Needs metrics'],
+      actionableInsights: {
+        missingQuantifiedAchievements: ['Add revenue or usage metrics'],
+        weakActionVerbs: ['Responsible for is weaker than Led or Built'],
+        missingSections: ['No certifications section is visible'],
+        overlyGenericWording: ['Hard working team player'],
+        formattingConcerns: ['Long paragraph blocks reduce scanability'],
+        keywordGaps: ['Cloud platform keywords are light'],
+      },
       suggestions: ['Add outcomes'],
     });
   });
@@ -34,8 +66,50 @@ describe('structured output validator', () => {
     expect(() =>
       validateCvAnalysisResult({
         score: 75,
+        scoringCategories: {
+          atsReadiness: 70,
+          readability: 70,
+          impact: 70,
+          keywordOptimization: 70,
+          structure: 70,
+          experienceQuality: 70,
+        },
         strengths: [],
         weaknesses: ['Needs metrics'],
+        actionableInsights: {
+          missingQuantifiedAchievements: ['Needs metrics'],
+          weakActionVerbs: ['Uses helped'],
+          missingSections: ['Needs summary'],
+          overlyGenericWording: ['Generic wording'],
+          formattingConcerns: ['Dense text'],
+          keywordGaps: ['Needs role keywords'],
+        },
+        suggestions: ['Add outcomes'],
+      }),
+    ).toThrow(ServiceUnavailableException);
+  });
+
+  it('rejects CV analysis output missing a scoring category', () => {
+    expect(() =>
+      validateCvAnalysisResult({
+        score: 75,
+        scoringCategories: {
+          atsReadiness: 70,
+          readability: 70,
+          impact: 70,
+          keywordOptimization: 70,
+          structure: 70,
+        },
+        strengths: ['Clear skills'],
+        weaknesses: ['Needs metrics'],
+        actionableInsights: {
+          missingQuantifiedAchievements: ['Needs metrics'],
+          weakActionVerbs: ['Uses helped'],
+          missingSections: ['Needs summary'],
+          overlyGenericWording: ['Generic wording'],
+          formattingConcerns: ['Dense text'],
+          keywordGaps: ['Needs role keywords'],
+        },
         suggestions: ['Add outcomes'],
       }),
     ).toThrow(ServiceUnavailableException);

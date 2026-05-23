@@ -6,6 +6,22 @@ import { PrismaService } from '../prisma/prisma.service';
 
 describe('API PostgreSQL integration', () => {
   const password = 'correct-horse-battery-staple';
+  const expectedScoringCategories = {
+    atsReadiness: expect.any(Number),
+    readability: expect.any(Number),
+    impact: expect.any(Number),
+    keywordOptimization: expect.any(Number),
+    structure: expect.any(Number),
+    experienceQuality: expect.any(Number),
+  };
+  const expectedActionableInsights = {
+    missingQuantifiedAchievements: expect.arrayContaining([expect.any(String)]),
+    weakActionVerbs: expect.arrayContaining([expect.any(String)]),
+    missingSections: expect.arrayContaining([expect.any(String)]),
+    overlyGenericWording: expect.arrayContaining([expect.any(String)]),
+    formattingConcerns: expect.arrayContaining([expect.any(String)]),
+    keywordGaps: expect.arrayContaining([expect.any(String)]),
+  };
   let app: INestApplication;
   let prisma: PrismaService;
 
@@ -156,14 +172,26 @@ describe('API PostgreSQL integration', () => {
         aiModel: 'mock-cv-analyzer-v1',
         result: {
           score: expect.any(Number),
+          scoringCategories: expectedScoringCategories,
           strengths: expect.arrayContaining([expect.any(String)]),
           weaknesses: expect.arrayContaining([expect.any(String)]),
+          actionableInsights: expectedActionableInsights,
           suggestions: expect.arrayContaining([expect.any(String)]),
         },
         createdAt: expect.any(String),
       },
       meta: {},
     });
+    expect(response.body.data.result).toEqual(
+      expect.objectContaining({
+        score: expect.any(Number),
+        scoringCategories: expectedScoringCategories,
+        strengths: expect.arrayContaining([expect.any(String)]),
+        weaknesses: expect.arrayContaining([expect.any(String)]),
+        actionableInsights: expectedActionableInsights,
+        suggestions: expect.arrayContaining([expect.any(String)]),
+      }),
+    );
 
     await expect(
       prisma.cvAnalysis.findFirstOrThrow({

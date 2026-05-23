@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  CvActionableInsights,
   CoverLetterGenerationInput,
   CoverLetterResult,
   CvAnalysisProvider,
   CvAnalysisResult,
+  CvScoringCategories,
   JdMatchResult,
 } from '../types/cv-analysis-provider';
 
@@ -30,8 +32,10 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
 
     return Promise.resolve({
       score,
+      scoringCategories: this.scoreCategories(profile),
       strengths: this.buildStrengths(profile),
       weaknesses: this.buildWeaknesses(profile),
+      actionableInsights: this.buildActionableInsights(profile),
       suggestions: this.buildCvSuggestions(profile),
     });
   }
@@ -124,10 +128,29 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
       /\b(experience|education|skills|projects|summary|certifications)\b/i.test(
         text,
       );
+    const hasSummary = /\b(summary|profile|objective)\b/i.test(text);
+    const hasExperience = /\b(experience|employment|work history)\b/i.test(
+      text,
+    );
+    const hasEducation = /\b(education|degree|university|college)\b/i.test(
+      text,
+    );
+    const hasSkillsSection = /\b(skills|technical skills|tooling)\b/i.test(
+      text,
+    );
+    const hasLongLines = text
+      .split(/\n+/)
+      .some((line) => line.trim().length > 180);
     const hasImpactVerbs =
       /\b(built|led|launched|improved|designed|migrated|owned|delivered|automated|optimized)\b/i.test(
         text,
       );
+    const weakVerbMatches = text.match(
+      /\b(responsible for|helped|worked on|assisted|participated in|involved in)\b/gi,
+    );
+    const genericMatches = text.match(
+      /\b(hard working|team player|detail-oriented|results-driven|self-starter|fast learner|go-getter)\b/gi,
+    );
 
     return {
       wordCount: words.length,
@@ -135,7 +158,14 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
       hasMetrics,
       hasRoleSignal,
       hasSectionSignal,
+      hasSummary,
+      hasExperience,
+      hasEducation,
+      hasSkillsSection,
+      hasLongLines,
       hasImpactVerbs,
+      weakVerbMatches: weakVerbMatches ?? [],
+      genericMatches: genericMatches ?? [],
     };
   }
 
@@ -154,6 +184,64 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
     }
 
     return Math.max(35, Math.min(92, score));
+  }
+
+  private scoreCategories(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): CvScoringCategories {
+    const atsReadiness = this.clampScore(
+      50 +
+        (profile.hasSectionSignal ? 14 : 0) +
+        Math.min(18, profile.skills.length * 3) +
+        (profile.hasLongLines ? -8 : 0) +
+        (profile.wordCount > 80 ? 8 : 0),
+    );
+    const readability = this.clampScore(
+      54 +
+        (profile.hasSectionSignal ? 12 : 0) +
+        (profile.hasLongLines ? -14 : 0) +
+        (profile.wordCount > 35 ? 12 : -8) +
+        (profile.genericMatches.length > 0 ? -5 : 0),
+    );
+    const impact = this.clampScore(
+      42 +
+        (profile.hasMetrics ? 24 : 0) +
+        (profile.hasImpactVerbs ? 18 : 0) +
+        (profile.weakVerbMatches.length > 0 ? -8 : 0),
+    );
+    const keywordOptimization = this.clampScore(
+      44 +
+        Math.min(34, profile.skills.length * 7) +
+        (profile.hasRoleSignal ? 8 : 0),
+    );
+    const structure = this.clampScore(
+      42 +
+        (profile.hasSummary ? 12 : 0) +
+        (profile.hasExperience ? 16 : 0) +
+        (profile.hasSkillsSection ? 12 : 0) +
+        (profile.hasEducation ? 8 : 0) +
+        (profile.wordCount < 35 ? -10 : 0),
+    );
+    const experienceQuality = this.clampScore(
+      46 +
+        (profile.hasRoleSignal ? 10 : 0) +
+        (profile.hasMetrics ? 14 : 0) +
+        (profile.hasImpactVerbs ? 14 : 0) +
+        Math.min(10, profile.skills.length * 2),
+    );
+
+    return {
+      atsReadiness,
+      readability,
+      impact,
+      keywordOptimization,
+      structure,
+      experienceQuality,
+    };
+  }
+
+  private clampScore(value: number): number {
+    return Math.max(25, Math.min(96, Math.round(value)));
   }
 
   private buildStrengths(
@@ -230,30 +318,171 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
     profile: ReturnType<MockCvAnalysisProvider['profileText']>,
   ): string[] {
     const suggestions = [
-      'Add a short summary that names the target role, strongest domain, and top evidence for recruiter scanning',
+      'Put a two-line recruiter summary at the top with the target role, strongest domain, and one proof point',
     ];
 
     if (!profile.hasMetrics) {
       suggestions.push(
-        'Rewrite at least two bullets with metrics such as scale, latency, revenue, users, time saved, or quality improvement',
+        'Rewrite at least two bullets to include scale, latency, revenue, users, time saved, or quality improvement',
       );
     }
 
     if (profile.skills.length > 0) {
       suggestions.push(
-        `Place ${profile.skills.slice(0, 3).join(', ')} near the most recent experience where they were used`,
+        `Move ${profile.skills.slice(0, 3).join(', ')} into the top third of the CV and attach each one to recent delivery evidence`,
       );
     } else {
       suggestions.push(
-        'Add a concise skills section with tools, domains, and methods that match the target roles',
+        'Add a compact skills section grouped by tools, domains, and methods a recruiter would search for',
       );
     }
 
     suggestions.push(
-      'Convert responsibility-heavy bullets into achievement statements using action, scope, and outcome',
+      'Replace responsibility-heavy bullets with achievement statements using action, scope, and outcome',
+    );
+    suggestions.push(
+      'Trim generic claims unless they are backed by a project, metric, team size, or business result',
     );
 
-    return suggestions.slice(0, 4);
+    return suggestions.slice(0, 5);
+  }
+
+  private buildActionableInsights(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): CvActionableInsights {
+    return {
+      missingQuantifiedAchievements:
+        this.missingQuantifiedAchievements(profile),
+      weakActionVerbs: this.weakActionVerbs(profile),
+      missingSections: this.missingSections(profile),
+      overlyGenericWording: this.overlyGenericWording(profile),
+      formattingConcerns: this.formattingConcerns(profile),
+      keywordGaps: this.keywordGaps(profile),
+    };
+  }
+
+  private missingQuantifiedAchievements(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): string[] {
+    if (profile.hasMetrics) {
+      return [
+        'Keep the quantified results close to the bullets where the work happened',
+      ];
+    }
+
+    return [
+      'Add metrics to at least two achievements, such as users served, percent improved, cost saved, or cycle time reduced',
+    ];
+  }
+
+  private weakActionVerbs(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): string[] {
+    if (profile.weakVerbMatches.length > 0) {
+      return [
+        `Replace weak phrases such as ${profile.weakVerbMatches.slice(0, 2).join(' and ')} with owned, built, led, improved, or delivered`,
+      ];
+    }
+
+    if (profile.hasImpactVerbs) {
+      return [
+        'Action verbs are mostly delivery-oriented; keep leading bullets with verbs such as built, led, improved, or delivered',
+      ];
+    }
+
+    return [
+      'Start core experience bullets with stronger verbs such as built, led, improved, automated, owned, or delivered',
+    ];
+  }
+
+  private missingSections(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): string[] {
+    const missing: string[] = [];
+
+    if (!profile.hasSummary) {
+      missing.push('Add a short summary section for target role fit');
+    }
+
+    if (!profile.hasExperience) {
+      missing.push('Add a clearly labeled experience section');
+    }
+
+    if (!profile.hasSkillsSection) {
+      missing.push('Add a searchable skills section');
+    }
+
+    if (!profile.hasEducation) {
+      missing.push('Add education or certifications if they are relevant');
+    }
+
+    return missing.length > 0
+      ? missing.slice(0, 4)
+      : [
+          'Core sections are visible; tighten ordering around recent experience',
+        ];
+  }
+
+  private overlyGenericWording(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): string[] {
+    if (profile.genericMatches.length > 0) {
+      return [
+        `Replace generic claims such as ${profile.genericMatches.slice(0, 2).join(' and ')} with evidence from a project or result`,
+      ];
+    }
+
+    return [
+      'Generic wording is limited; keep each claim tied to a role, project, or outcome',
+    ];
+  }
+
+  private formattingConcerns(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): string[] {
+    const concerns: string[] = [];
+
+    if (profile.hasLongLines) {
+      concerns.push('Break dense paragraphs into shorter bullets for scanning');
+    }
+
+    if (!profile.hasSectionSignal) {
+      concerns.push(
+        'Use clear section headings so ATS and recruiters can parse the CV quickly',
+      );
+    }
+
+    if (profile.wordCount < 35) {
+      concerns.push(
+        'The CV is too short to show scope; add role context and selected achievements',
+      );
+    }
+
+    return concerns.length > 0
+      ? concerns
+      : [
+          'Formatting signals are usable; keep headings plain and bullets concise',
+        ];
+  }
+
+  private keywordGaps(
+    profile: ReturnType<MockCvAnalysisProvider['profileText']>,
+  ): string[] {
+    if (profile.skills.length >= 4) {
+      return [
+        'Keyword coverage is broad; align the top skills to the exact target role before applying',
+      ];
+    }
+
+    if (profile.skills.length > 0) {
+      return [
+        `Expand keyword coverage beyond ${profile.skills.join(', ')} with tools, domains, and methods from the target role`,
+      ];
+    }
+
+    return [
+      'Add role-specific keywords from the target role, including tools, frameworks, domains, and delivery methods',
+    ];
   }
 
   private scoreMatch(input: {

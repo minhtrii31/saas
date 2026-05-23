@@ -8,6 +8,22 @@ import { TokenService } from '../../auth/token.service';
 
 describe('POST /cvs/:id/analyze', () => {
   const originalJwtSecret = process.env.JWT_SECRET;
+  const expectedScoringCategories = {
+    atsReadiness: expect.any(Number),
+    readability: expect.any(Number),
+    impact: expect.any(Number),
+    keywordOptimization: expect.any(Number),
+    structure: expect.any(Number),
+    experienceQuality: expect.any(Number),
+  };
+  const expectedActionableInsights = {
+    missingQuantifiedAchievements: expect.arrayContaining([expect.any(String)]),
+    weakActionVerbs: expect.arrayContaining([expect.any(String)]),
+    missingSections: expect.arrayContaining([expect.any(String)]),
+    overlyGenericWording: expect.arrayContaining([expect.any(String)]),
+    formattingConcerns: expect.arrayContaining([expect.any(String)]),
+    keywordGaps: expect.arrayContaining([expect.any(String)]),
+  };
   let app: INestApplication;
   let tokenService: TokenService;
   let prisma: {
@@ -99,8 +115,10 @@ describe('POST /cvs/:id/analyze', () => {
         aiModel: 'mock-cv-analyzer-v1',
         result: {
           score: expect.any(Number),
+          scoringCategories: expectedScoringCategories,
           strengths: expect.any(Array),
           weaknesses: expect.any(Array),
+          actionableInsights: expectedActionableInsights,
           suggestions: expect.any(Array),
         },
         createdAt: createdAt.toISOString(),
@@ -109,11 +127,17 @@ describe('POST /cvs/:id/analyze', () => {
     });
     expect(response.body.data.result.score).toBeGreaterThanOrEqual(0);
     expect(response.body.data.result.score).toBeLessThanOrEqual(100);
+    expect(response.body.data.result.scoringCategories).toEqual(
+      expectedScoringCategories,
+    );
     expect(response.body.data.result.strengths).toEqual(
       expect.arrayContaining([expect.any(String)]),
     );
     expect(response.body.data.result.weaknesses).toEqual(
       expect.arrayContaining([expect.any(String)]),
+    );
+    expect(response.body.data.result.actionableInsights).toEqual(
+      expectedActionableInsights,
     );
     expect(response.body.data.result.suggestions).toEqual(
       expect.arrayContaining([expect.any(String)]),
@@ -137,8 +161,10 @@ describe('POST /cvs/:id/analyze', () => {
         aiModel: 'mock-cv-analyzer-v1',
         result: {
           score: expect.any(Number),
+          scoringCategories: expectedScoringCategories,
           strengths: expect.arrayContaining([expect.any(String)]),
           weaknesses: expect.arrayContaining([expect.any(String)]),
+          actionableInsights: expectedActionableInsights,
           suggestions: expect.arrayContaining([expect.any(String)]),
         },
       },

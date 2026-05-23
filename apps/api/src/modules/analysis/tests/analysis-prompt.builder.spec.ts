@@ -17,9 +17,33 @@ describe('analysis prompt builders', () => {
     expect(prompt.userPrompt).toContain('Senior backend engineer');
     expect(prompt.jsonSchema).toEqual(
       expect.objectContaining({
-        required: ['score', 'strengths', 'weaknesses', 'suggestions'],
+        required: [
+          'score',
+          'scoringCategories',
+          'strengths',
+          'weaknesses',
+          'actionableInsights',
+          'suggestions',
+        ],
       }),
     );
+    expect(
+      (prompt.jsonSchema.properties as Record<string, unknown>)
+        .scoringCategories,
+    ).toEqual(
+      expect.objectContaining({
+        required: [
+          'atsReadiness',
+          'readability',
+          'impact',
+          'keywordOptimization',
+          'structure',
+          'experienceQuality',
+        ],
+      }),
+    );
+    expect(prompt.systemPrompt).toContain('recruiter-style');
+    expect(prompt.systemPrompt).toContain('categorized scores');
   });
 
   it('builds JD matching prompts that ask for useful overlap and gap feedback', () => {

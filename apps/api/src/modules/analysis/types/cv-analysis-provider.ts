@@ -1,7 +1,27 @@
+export type CvScoringCategories = {
+  atsReadiness: number;
+  readability: number;
+  impact: number;
+  keywordOptimization: number;
+  structure: number;
+  experienceQuality: number;
+};
+
+export type CvActionableInsights = {
+  missingQuantifiedAchievements: string[];
+  weakActionVerbs: string[];
+  missingSections: string[];
+  overlyGenericWording: string[];
+  formattingConcerns: string[];
+  keywordGaps: string[];
+};
+
 export type CvAnalysisResult = {
   score: number;
+  scoringCategories: CvScoringCategories;
   strengths: string[];
   weaknesses: string[];
+  actionableInsights: CvActionableInsights;
   suggestions: string[];
 };
 

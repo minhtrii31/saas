@@ -1,7 +1,9 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import type {
   CoverLetterResult,
+  CvActionableInsights,
   CvAnalysisResult,
+  CvScoringCategories,
   JdMatchResult,
 } from '../types/cv-analysis-provider';
 import type { JsonObject } from '../prompts/analysis-prompt.builder';
@@ -23,8 +25,10 @@ export function parseJsonObject(content: string): JsonObject {
 export function validateCvAnalysisResult(value: JsonObject): CvAnalysisResult {
   return {
     score: normalizeScore(value.score, 'score'),
+    scoringCategories: normalizeScoringCategories(value.scoringCategories),
     strengths: normalizeStringArray(value.strengths, 'strengths'),
     weaknesses: normalizeStringArray(value.weaknesses, 'weaknesses'),
+    actionableInsights: normalizeActionableInsights(value.actionableInsights),
     suggestions: normalizeStringArray(value.suggestions, 'suggestions'),
   };
 }
@@ -54,6 +58,57 @@ function normalizeScore(value: unknown, fieldName: string): number {
   }
 
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function normalizeScoringCategories(value: unknown): CvScoringCategories {
+  if (!isJsonObject(value)) {
+    throw invalidStructuredOutput('scoringCategories');
+  }
+
+  return {
+    atsReadiness: normalizeScore(value.atsReadiness, 'atsReadiness'),
+    readability: normalizeScore(value.readability, 'readability'),
+    impact: normalizeScore(value.impact, 'impact'),
+    keywordOptimization: normalizeScore(
+      value.keywordOptimization,
+      'keywordOptimization',
+    ),
+    structure: normalizeScore(value.structure, 'structure'),
+    experienceQuality: normalizeScore(
+      value.experienceQuality,
+      'experienceQuality',
+    ),
+  };
+}
+
+function normalizeActionableInsights(value: unknown): CvActionableInsights {
+  if (!isJsonObject(value)) {
+    throw invalidStructuredOutput('actionableInsights');
+  }
+
+  return {
+    missingQuantifiedAchievements: normalizeStringArray(
+      value.missingQuantifiedAchievements,
+      'missingQuantifiedAchievements',
+    ),
+    weakActionVerbs: normalizeStringArray(
+      value.weakActionVerbs,
+      'weakActionVerbs',
+    ),
+    missingSections: normalizeStringArray(
+      value.missingSections,
+      'missingSections',
+    ),
+    overlyGenericWording: normalizeStringArray(
+      value.overlyGenericWording,
+      'overlyGenericWording',
+    ),
+    formattingConcerns: normalizeStringArray(
+      value.formattingConcerns,
+      'formattingConcerns',
+    ),
+    keywordGaps: normalizeStringArray(value.keywordGaps, 'keywordGaps'),
+  };
 }
 
 function normalizeStringArray(value: unknown, fieldName: string): string[] {

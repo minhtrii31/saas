@@ -33,8 +33,24 @@ describe('OpenAiAnalysisProvider', () => {
             message: {
               content: JSON.stringify({
                 score: 88.6,
+                scoringCategories: {
+                  atsReadiness: 80,
+                  readability: 91,
+                  impact: 76,
+                  keywordOptimization: 72,
+                  structure: 84,
+                  experienceQuality: 87,
+                },
                 strengths: [' Clear impact '],
                 weaknesses: ['Needs metrics'],
+                actionableInsights: {
+                  missingQuantifiedAchievements: ['Add scale to API work'],
+                  weakActionVerbs: ['Replace helped with owned'],
+                  missingSections: ['Add a focused summary'],
+                  overlyGenericWording: ['Remove proven team player'],
+                  formattingConcerns: ['Split dense paragraphs'],
+                  keywordGaps: ['Add role-specific backend keywords'],
+                },
                 suggestions: ['Add quantified achievements'],
               }),
             },
@@ -48,8 +64,24 @@ describe('OpenAiAnalysisProvider', () => {
 
     await expect(provider.analyzeCv('TypeScript CV text')).resolves.toEqual({
       score: 89,
+      scoringCategories: {
+        atsReadiness: 80,
+        readability: 91,
+        impact: 76,
+        keywordOptimization: 72,
+        structure: 84,
+        experienceQuality: 87,
+      },
       strengths: ['Clear impact'],
       weaknesses: ['Needs metrics'],
+      actionableInsights: {
+        missingQuantifiedAchievements: ['Add scale to API work'],
+        weakActionVerbs: ['Replace helped with owned'],
+        missingSections: ['Add a focused summary'],
+        overlyGenericWording: ['Remove proven team player'],
+        formattingConcerns: ['Split dense paragraphs'],
+        keywordGaps: ['Add role-specific backend keywords'],
+      },
       suggestions: ['Add quantified achievements'],
     });
 

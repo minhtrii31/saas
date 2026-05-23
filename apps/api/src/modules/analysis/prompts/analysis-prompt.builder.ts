@@ -26,9 +26,11 @@ export function buildCvAnalysisPrompt(extractedText: string): StructuredPrompt {
       baseSystemInstructions,
       'Analyze overall CV quality for recruiter readability, clarity, credibility, impact, role focus, and scanability.',
       'Score realistically: 90+ only for polished CVs with clear scope, achievements, metrics, and strong targeting; 70-89 for solid CVs with fixable gaps; below 70 for thin, vague, or poorly organized CVs.',
+      'Return categorized scores for ATS readiness, readability, impact, keyword optimization, structure, and experience quality; each score must reflect observable CV evidence.',
+      'Return recruiter-style actionable insights for missing quantified achievements, weak action verbs, missing sections, overly generic wording, formatting concerns, and keyword gaps.',
       'Strengths must cite observable qualities from the CV.',
       'Weaknesses must name concrete missing evidence or presentation problems.',
-      'Suggestions must explain what to change and why it improves recruiter evaluation.',
+      'Suggestions must be concrete edits a candidate can make, using a direct recruiter-style tone and avoiding generic AI wording.',
     ].join(' '),
     userPrompt: [`CV text:`, extractedText.trim()].join('\n'),
   };
@@ -85,12 +87,21 @@ function cvAnalysisSchema(): JsonObject {
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['score', 'strengths', 'weaknesses', 'suggestions'],
+    required: [
+      'score',
+      'scoringCategories',
+      'strengths',
+      'weaknesses',
+      'actionableInsights',
+      'suggestions',
+    ],
     properties: {
       score: scoreSchema(),
+      scoringCategories: scoringCategoriesSchema(),
       strengths: stringArraySchema(2, 5),
       weaknesses: stringArraySchema(2, 5),
-      suggestions: stringArraySchema(3, 6),
+      actionableInsights: actionableInsightsSchema(),
+      suggestions: stringArraySchema(4, 7),
     },
   };
 }
@@ -129,6 +140,52 @@ function coverLetterSchema(): JsonObject {
 
 function scoreSchema(): JsonObject {
   return { type: 'number', minimum: 0, maximum: 100 };
+}
+
+function scoringCategoriesSchema(): JsonObject {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'atsReadiness',
+      'readability',
+      'impact',
+      'keywordOptimization',
+      'structure',
+      'experienceQuality',
+    ],
+    properties: {
+      atsReadiness: scoreSchema(),
+      readability: scoreSchema(),
+      impact: scoreSchema(),
+      keywordOptimization: scoreSchema(),
+      structure: scoreSchema(),
+      experienceQuality: scoreSchema(),
+    },
+  };
+}
+
+function actionableInsightsSchema(): JsonObject {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'missingQuantifiedAchievements',
+      'weakActionVerbs',
+      'missingSections',
+      'overlyGenericWording',
+      'formattingConcerns',
+      'keywordGaps',
+    ],
+    properties: {
+      missingQuantifiedAchievements: stringArraySchema(1, 4),
+      weakActionVerbs: stringArraySchema(1, 4),
+      missingSections: stringArraySchema(1, 4),
+      overlyGenericWording: stringArraySchema(1, 4),
+      formattingConcerns: stringArraySchema(1, 4),
+      keywordGaps: stringArraySchema(1, 4),
+    },
+  };
 }
 
 function stringArraySchema(minItems: number, maxItems: number): JsonObject {
