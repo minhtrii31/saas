@@ -8,7 +8,7 @@ Users can register, log in, log out through client-side token removal, and acces
 
 ### CV Management
 
-Users can upload CV files, store metadata and extracted text, view uploaded CVs, open CV detail, soft-delete CVs, and select a CV for analysis or matching.
+Users can upload CV files, store metadata and extracted text, view uploaded CVs, open CV detail, soft-delete CVs, and select a CV for analysis, matching, cover letters, or resume rewrite.
 
 ### CV Analysis
 
@@ -18,6 +18,17 @@ Users can analyze a CV and receive:
 - Strengths
 - Weaknesses
 - Improvement suggestions
+
+### Resume Rewrite
+
+Users can improve resume bullets from an uploaded CV at `/dashboard/rewrite`.
+
+The result includes:
+
+- Original wording
+- Rewritten alternatives
+- Rewrite rationale
+- Selected rewrite goal
 
 ### Job Description Matching
 
@@ -36,7 +47,7 @@ Users can generate a basic tailored cover letter from a selected CV and job desc
 
 ### History
 
-Users can view previous CV analyses, JD comparisons, and generated cover letters in dashboard history.
+Users can view previous CV analyses, JD comparisons, resume rewrites, and generated cover letters in dashboard history. Resume rewrite records are stored as `RESUME_REWRITE`.
 
 ## Future Features
 
