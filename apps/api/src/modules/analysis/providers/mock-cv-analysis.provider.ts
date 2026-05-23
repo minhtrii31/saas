@@ -7,6 +7,8 @@ import type {
   CvAnalysisResult,
   CvScoringCategories,
   JdMatchResult,
+  RewriteRefinementInput,
+  RewriteRefinementResult,
   ResumeRewriteInput,
   ResumeRewriteResult,
 } from '../types/cv-analysis-provider';
@@ -138,6 +140,22 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
       rewrittenText,
       explanation: this.buildRewriteExplanation(input.rewriteGoal),
       rewriteGoal: input.rewriteGoal,
+    });
+  }
+
+  refineRewrite(
+    extractedText: string,
+    input: RewriteRefinementInput,
+  ): Promise<RewriteRefinementResult> {
+    const primarySkill =
+      this.findKnownSkills(
+        `${extractedText} ${input.original} ${input.currentRewrite}`,
+      )[0] ?? 'core work';
+    const improved = this.buildRefinedRewrite(input, primarySkill);
+
+    return Promise.resolve({
+      improved,
+      reason: this.buildRefinementReason(input.instruction),
     });
   }
 
@@ -636,6 +654,60 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
     };
 
     return explanations[rewriteGoal];
+  }
+
+  private buildRefinedRewrite(
+    input: RewriteRefinementInput,
+    primarySkill: string,
+  ): string {
+    const currentRewrite = input.currentRewrite
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/[.。]\s*$/, '');
+    const impactObject = this.pickImpactObject(input.original, primarySkill);
+
+    if (input.instruction === 'shorter') {
+      return `Delivered ${impactObject} with ${primarySkill} and clearer outcome focus.`;
+    }
+
+    if (input.instruction === 'more-technical') {
+      return `${currentRewrite}, emphasizing ${primarySkill}, implementation ownership, and maintainable technical delivery.`;
+    }
+
+    if (input.instruction === 'more-leadership') {
+      return `Led ${impactObject} across priorities and stakeholders, using ${primarySkill} to drive clearer delivery outcomes.`;
+    }
+
+    if (input.instruction === 'more-ats-friendly') {
+      return `${currentRewrite}, with searchable ${primarySkill} keywords, ownership language, and recruiter-readable impact.`;
+    }
+
+    if (input.instruction === 'more-results-focused') {
+      return `${currentRewrite}; connect this bullet to a real result such as time saved, quality improved, users supported, or revenue protected.`;
+    }
+
+    return `Owned and delivered ${impactObject} with ${primarySkill}, making scope, action, and impact stronger for recruiter review.`;
+  }
+
+  private buildRefinementReason(
+    instruction: RewriteRefinementInput['instruction'],
+  ): string {
+    const reasons: Record<RewriteRefinementInput['instruction'], string> = {
+      stronger:
+        'Strengthens the verb and makes the achievement easier for a recruiter to evaluate.',
+      shorter:
+        'Compresses the rewrite while preserving the action, scope, and outcome structure.',
+      'more-technical':
+        'Adds technical depth without inventing unsupported tools or metrics.',
+      'more-leadership':
+        'Shifts the wording toward ownership, coordination, and delivery leadership.',
+      'more-ats-friendly':
+        'Adds searchable resume language while keeping the claim grounded.',
+      'more-results-focused':
+        'Pushes the bullet toward measurable outcomes without fabricating numbers.',
+    };
+
+    return reasons[instruction];
   }
 
   private pickImpactObject(originalText: string, primarySkill: string): string {

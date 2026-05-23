@@ -7,6 +7,7 @@ import type {
   JdMatchResult,
   ResumeRewriteGoal,
   ResumeRewriteResult,
+  RewriteRefinementResult,
 } from '../types/cv-analysis-provider';
 import type { JsonObject } from '../prompts/analysis-prompt.builder';
 
@@ -62,6 +63,15 @@ export function validateResumeRewriteResult(
     rewrittenText: normalizeString(value.rewrittenText, 'rewrittenText'),
     explanation: normalizeString(value.explanation, 'explanation'),
     rewriteGoal: normalizeRewriteGoal(value.rewriteGoal),
+  };
+}
+
+export function validateRewriteRefinementResult(
+  value: JsonObject,
+): RewriteRefinementResult {
+  return {
+    improved: normalizeString(value.improved, 'improved'),
+    reason: normalizeString(value.reason, 'reason'),
   };
 }
 

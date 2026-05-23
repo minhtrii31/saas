@@ -64,6 +64,25 @@ export type ResumeRewriteResult = {
   rewriteGoal: ResumeRewriteGoal;
 };
 
+export type RewriteRefinementInstruction =
+  | 'stronger'
+  | 'shorter'
+  | 'more-technical'
+  | 'more-leadership'
+  | 'more-ats-friendly'
+  | 'more-results-focused';
+
+export type RewriteRefinementInput = {
+  original: string;
+  currentRewrite: string;
+  instruction: RewriteRefinementInstruction;
+};
+
+export type RewriteRefinementResult = {
+  improved: string;
+  reason: string;
+};
+
 export type AnalysisProviderResponse<TResult> = {
   aiProvider: string;
   aiModel: string;
@@ -75,6 +94,8 @@ export type JdMatchResponse = AnalysisProviderResponse<JdMatchResult>;
 export type CoverLetterResponse = AnalysisProviderResponse<CoverLetterResult>;
 export type ResumeRewriteResponse =
   AnalysisProviderResponse<ResumeRewriteResult>;
+export type RewriteRefinementResponse =
+  AnalysisProviderResponse<RewriteRefinementResult>;
 
 export interface CvAnalysisProvider {
   readonly providerName: string;
@@ -95,4 +116,8 @@ export interface CvAnalysisProvider {
     extractedText: string,
     input: ResumeRewriteInput,
   ): Promise<ResumeRewriteResult>;
+  refineRewrite(
+    extractedText: string,
+    input: RewriteRefinementInput,
+  ): Promise<RewriteRefinementResult>;
 }

@@ -1,5 +1,6 @@
 import type {
   CoverLetterGenerationInput,
+  RewriteRefinementInput,
   ResumeRewriteInput,
 } from '../types/cv-analysis-provider';
 
@@ -109,6 +110,30 @@ export function buildResumeRewritePrompt(
   };
 }
 
+export function buildRewriteRefinementPrompt(
+  extractedText: string,
+  input: RewriteRefinementInput,
+): StructuredPrompt {
+  return {
+    schemaName: 'rewrite_refinement',
+    jsonSchema: rewriteRefinementSchema(),
+    systemPrompt: [
+      baseSystemInstructions,
+      'Refine one existing resume rewrite as an iterative editor, preserving only facts supported by the original text or CV context.',
+      'Use the requested instruction to adjust tone, length, technical depth, leadership framing, ATS wording, or results focus.',
+      'Do not invent metrics, employers, titles, tools, credentials, scope, dates, or outcomes.',
+      'The improved field must be ready to paste into a resume.',
+      'The reason must briefly explain what changed and why it improves the current rewrite.',
+    ].join(' '),
+    userPrompt: [
+      `CV context:\n${extractedText.trim()}`,
+      `Original resume text:\n${input.original.trim()}`,
+      `Current rewrite:\n${input.currentRewrite.trim()}`,
+      `Refinement instruction: ${input.instruction}`,
+    ].join('\n\n'),
+  };
+}
+
 function cvAnalysisSchema(): JsonObject {
   return {
     type: 'object',
@@ -183,6 +208,18 @@ function resumeRewriteSchema(): JsonObject {
           'leadership-tone',
         ],
       },
+    },
+  };
+}
+
+function rewriteRefinementSchema(): JsonObject {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['improved', 'reason'],
+    properties: {
+      improved: { type: 'string', minLength: 1 },
+      reason: { type: 'string', minLength: 1 },
     },
   };
 }

@@ -3,6 +3,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { AnalysisService } from '../../analysis/analysis.service';
 import { GenerateCoverLetterDto } from '../dto/generate-cover-letter.dto';
 import { MatchCvDto } from '../dto/match-cv.dto';
+import { RefineRewriteDto } from '../dto/refine-rewrite.dto';
 import { RewriteResumeDto } from '../dto/rewrite-resume.dto';
 import { cvNotFound, cvTextNotExtracted } from '../cvs.errors';
 import {
@@ -11,6 +12,7 @@ import {
   type CreatedCoverLetterAnalysis,
   type CreatedCvAnalysis,
   type CreatedJdMatchAnalysis,
+  type CreatedRewriteRefinementAnalysis,
   type CreatedResumeRewriteAnalysis,
 } from '../cvs.types';
 import { CvRecordsService } from './cv-records.service';
@@ -116,6 +118,31 @@ export class CvAnalysisWorkflowService {
     });
 
     return analysis as unknown as CreatedResumeRewriteAnalysis;
+  }
+
+  async refineRewrite(
+    userId: string,
+    id: string,
+    dto: RefineRewriteDto,
+  ): Promise<CreatedRewriteRefinementAnalysis> {
+    const cv = await this.findOwnedCvWithExtractedText(userId, id);
+
+    const cvAnalysis = await this.analysisService.refineRewrite(
+      cv.extractedText,
+      dto,
+    );
+    const analysis = await this.prisma.cvAnalysis.create({
+      data: {
+        cvId: cv.id,
+        type: 'REWRITE_REFINEMENT',
+        aiProvider: cvAnalysis.aiProvider,
+        aiModel: cvAnalysis.aiModel,
+        result: cvAnalysis.result,
+      },
+      select: cvAnalysisSelect,
+    });
+
+    return analysis as unknown as CreatedRewriteRefinementAnalysis;
   }
 
   private async findOwnedCvWithExtractedText(userId: string, id: string) {

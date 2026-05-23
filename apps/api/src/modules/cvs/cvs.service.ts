@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateCvDto } from './dto/create-cv.dto';
 import { GenerateCoverLetterDto } from './dto/generate-cover-letter.dto';
 import { MatchCvDto } from './dto/match-cv.dto';
+import { RefineRewriteDto } from './dto/refine-rewrite.dto';
 import { RewriteResumeDto } from './dto/rewrite-resume.dto';
 import { cvNotFound } from './cvs.errors';
 import {
@@ -9,6 +10,7 @@ import {
   type CreatedCv,
   type CreatedCvAnalysis,
   type CreatedJdMatchAnalysis,
+  type CreatedRewriteRefinementAnalysis,
   type CreatedResumeRewriteAnalysis,
   type CvAnalysisHistoryItem,
   type CvDetail,
@@ -180,6 +182,26 @@ export class CvsService {
     meta: Record<string, never>;
   }> {
     const analysis = await this.cvAnalysisWorkflowService.rewriteResume(
+      userId,
+      id,
+      dto,
+    );
+
+    return {
+      data: analysis,
+      meta: {},
+    };
+  }
+
+  async refineRewrite(
+    userId: string,
+    id: string,
+    dto: RefineRewriteDto,
+  ): Promise<{
+    data: CreatedRewriteRefinementAnalysis;
+    meta: Record<string, never>;
+  }> {
+    const analysis = await this.cvAnalysisWorkflowService.refineRewrite(
       userId,
       id,
       dto,

@@ -1,7 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createIntegrationTestApp } from './integration-test-app';
-import { resetTestDatabase } from './prisma-test-utils';
+import {
+  resetTestDatabase,
+  resetTestThrottlerStorage,
+} from './prisma-test-utils';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('API PostgreSQL integration', () => {
@@ -31,10 +34,12 @@ describe('API PostgreSQL integration', () => {
   });
 
   beforeEach(async () => {
+    resetTestThrottlerStorage(app);
     await resetTestDatabase(prisma);
   });
 
   afterAll(async () => {
+    resetTestThrottlerStorage(app);
     await resetTestDatabase(prisma);
     await app.close();
   });
@@ -260,6 +265,66 @@ describe('API PostgreSQL integration', () => {
           id: response.body.data.id as string,
           cvId: cv.id,
           type: 'RESUME_REWRITE',
+        },
+      }),
+    ).resolves.toMatchObject({
+      aiProvider: 'mock',
+      aiModel: 'mock-resume-rewrite-v1',
+    });
+  });
+
+  it('persists rewrite refinement through PostgreSQL and the mock AI provider', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'rewrite-refinement.integration@example.com',
+    );
+    const cv = await prisma.cv.create({
+      data: {
+        userId,
+        title: 'Backend CV',
+        originalName: 'backend-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        storageProvider: 'local',
+        storageKey: `cvs/${userId}/backend-cv.pdf`,
+        storageUrl: null,
+        extractedText:
+          'Backend engineer with TypeScript, NestJS, PostgreSQL, and API testing experience.',
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cv.id}/rewrite/refine`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        original: 'Responsible for APIs and helped with database work.',
+        currentRewrite: 'Delivered API improvements.',
+        instruction: 'more-technical',
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      data: {
+        id: expect.any(String),
+        cvId: cv.id,
+        type: 'REWRITE_REFINEMENT',
+        aiProvider: 'mock',
+        aiModel: 'mock-resume-rewrite-v1',
+        result: {
+          improved: expect.any(String),
+          reason: expect.any(String),
+        },
+        createdAt: expect.any(String),
+      },
+      meta: {},
+    });
+    expect(response.body.data.result.improved).toContain('TypeScript');
+
+    await expect(
+      prisma.cvAnalysis.findFirstOrThrow({
+        where: {
+          id: response.body.data.id as string,
+          cvId: cv.id,
+          type: 'REWRITE_REFINEMENT',
         },
       }),
     ).resolves.toMatchObject({

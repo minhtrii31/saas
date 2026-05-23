@@ -6,6 +6,8 @@ import type {
   CvAnalysisProvider,
   CvAnalysisResult,
   JdMatchResult,
+  RewriteRefinementInput,
+  RewriteRefinementResult,
   ResumeRewriteInput,
   ResumeRewriteResult,
 } from '../types/cv-analysis-provider';
@@ -13,6 +15,7 @@ import {
   buildCoverLetterPrompt,
   buildCvAnalysisPrompt,
   buildJdMatchPrompt,
+  buildRewriteRefinementPrompt,
   buildResumeRewritePrompt,
   type JsonObject,
   type StructuredPrompt,
@@ -22,6 +25,7 @@ import {
   validateCoverLetterResult,
   validateCvAnalysisResult,
   validateJdMatchResult,
+  validateRewriteRefinementResult,
   validateResumeRewriteResult,
 } from '../utils/structured-output.validator';
 
@@ -94,6 +98,17 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
     );
 
     return validateResumeRewriteResult(content);
+  }
+
+  async refineRewrite(
+    extractedText: string,
+    input: RewriteRefinementInput,
+  ): Promise<RewriteRefinementResult> {
+    const content = await this.requestStructuredJson(
+      buildRewriteRefinementPrompt(extractedText, input),
+    );
+
+    return validateRewriteRefinementResult(content);
   }
 
   private async requestStructuredJson(

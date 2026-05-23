@@ -1,7 +1,15 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { INestApplication } from '@nestjs/common';
+import { getStorageToken } from '@nestjs/throttler';
 import { PrismaService } from '../prisma/prisma.service';
 import { requireTestDatabaseUrl } from './integration-test-app';
+
+type ResettableThrottlerStorage = {
+  onApplicationShutdown(): void;
+  storage: Map<string, unknown>;
+  timeoutIds?: Map<string, ReturnType<typeof setTimeout>[]>;
+};
 
 export async function resetTestDatabase(prisma: PrismaService): Promise<void> {
   requireTestDatabaseUrl();
@@ -10,6 +18,15 @@ export async function resetTestDatabase(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
     'TRUNCATE TABLE "cv_analyses", "cvs", "users" RESTART IDENTITY CASCADE',
   );
+}
+
+export function resetTestThrottlerStorage(app: INestApplication): void {
+  requireTestDatabaseUrl();
+
+  const storage = app.get<ResettableThrottlerStorage>(getStorageToken());
+  storage.onApplicationShutdown();
+  storage.timeoutIds?.clear();
+  storage.storage.clear();
 }
 
 async function removeLocalUploadFiles(prisma: PrismaService): Promise<void> {

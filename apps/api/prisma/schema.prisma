@@ -11,6 +11,7 @@ enum AnalysisType {
   JD_MATCH
   COVER_LETTER
   RESUME_REWRITE
+  REWRITE_REFINEMENT
 
   @@map("analysis_type")
 }

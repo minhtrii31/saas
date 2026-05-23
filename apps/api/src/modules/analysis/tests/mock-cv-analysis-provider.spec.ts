@@ -147,4 +147,25 @@ describe('MockCvAnalysisProvider', () => {
     expect(result.rewrittenText).toContain('add the exact metric');
     expect(result.rewriteGoal).toBe('quantified-achievements');
   });
+
+  it('returns deterministic rewrite refinements for the requested instruction', async () => {
+    const provider = new MockCvAnalysisProvider();
+
+    const result = await provider.refineRewrite(
+      'Backend engineer with TypeScript, NestJS, PostgreSQL, and API testing experience.',
+      {
+        original: 'Responsible for APIs and helped with database work.',
+        currentRewrite: 'Delivered API improvements.',
+        instruction: 'more-technical',
+      },
+    );
+
+    expect(result).toEqual({
+      improved: expect.any(String),
+      reason: expect.any(String),
+    });
+    expect(result.improved).toContain('TypeScript');
+    expect(result.improved).toContain('technical delivery');
+    expect(result.reason).toContain('technical depth');
+  });
 });

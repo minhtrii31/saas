@@ -4,6 +4,7 @@ import {
   validateCoverLetterResult,
   validateCvAnalysisResult,
   validateJdMatchResult,
+  validateRewriteRefinementResult,
   validateResumeRewriteResult,
 } from '../utils/structured-output.validator';
 
@@ -169,6 +170,27 @@ describe('structured output validator', () => {
         rewrittenText: 'Delivered API improvements',
         explanation: 'Stronger action verb',
         rewriteGoal: 'unsupported-goal',
+      }),
+    ).toThrow(ServiceUnavailableException);
+  });
+
+  it('normalizes rewrite refinement output', () => {
+    expect(
+      validateRewriteRefinementResult({
+        improved: ' Owned API delivery ',
+        reason: ' Stronger ownership ',
+      }),
+    ).toEqual({
+      improved: 'Owned API delivery',
+      reason: 'Stronger ownership',
+    });
+  });
+
+  it('rejects rewrite refinement output with an empty improved field', () => {
+    expect(() =>
+      validateRewriteRefinementResult({
+        improved: ' ',
+        reason: 'Stronger ownership',
       }),
     ).toThrow(ServiceUnavailableException);
   });

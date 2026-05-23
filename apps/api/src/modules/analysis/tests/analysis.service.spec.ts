@@ -14,6 +14,7 @@ describe('AnalysisService', () => {
     const matchJobDescription = jest.fn();
     const generateCoverLetter = jest.fn();
     const rewriteResume = jest.fn();
+    const refineRewrite = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
@@ -24,6 +25,7 @@ describe('AnalysisService', () => {
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
+      refineRewrite,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -59,6 +61,7 @@ describe('AnalysisService', () => {
     });
     const generateCoverLetter = jest.fn();
     const rewriteResume = jest.fn();
+    const refineRewrite = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
@@ -69,6 +72,7 @@ describe('AnalysisService', () => {
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
+      refineRewrite,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -108,6 +112,7 @@ describe('AnalysisService', () => {
       highlights: ['TypeScript experience'],
     });
     const rewriteResume = jest.fn();
+    const refineRewrite = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
@@ -118,6 +123,7 @@ describe('AnalysisService', () => {
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
+      refineRewrite,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -156,6 +162,7 @@ describe('AnalysisService', () => {
     const analyzeCv = jest.fn();
     const matchJobDescription = jest.fn();
     const generateCoverLetter = jest.fn();
+    const refineRewrite = jest.fn();
     const rewriteResume = jest.fn().mockResolvedValue({
       originalText: 'Helped with APIs',
       rewrittenText: 'Delivered API improvements',
@@ -172,6 +179,7 @@ describe('AnalysisService', () => {
       matchJobDescription,
       generateCoverLetter,
       rewriteResume,
+      refineRewrite,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -202,6 +210,59 @@ describe('AnalysisService', () => {
     expect(rewriteResume).toHaveBeenCalledWith('extracted cv text', {
       originalText: 'Helped with APIs',
       rewriteGoal: 'stronger-impact',
+    });
+  });
+
+  it('delegates rewrite refinement to the configured provider and returns rewrite model metadata', async () => {
+    const analyzeCv = jest.fn();
+    const matchJobDescription = jest.fn();
+    const generateCoverLetter = jest.fn();
+    const rewriteResume = jest.fn();
+    const refineRewrite = jest.fn().mockResolvedValue({
+      improved: 'Owned API delivery with clearer technical impact',
+      reason: 'Adds stronger ownership and technical detail',
+    });
+    const provider: CvAnalysisProvider = {
+      providerName: 'mock',
+      modelName: 'mock-cv-analyzer-v1',
+      jdMatcherModelName: 'mock-jd-matcher-v1',
+      coverLetterModelName: 'mock-cover-letter-v1',
+      resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      analyzeCv,
+      matchJobDescription,
+      generateCoverLetter,
+      rewriteResume,
+      refineRewrite,
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AnalysisService,
+        {
+          provide: CV_ANALYSIS_PROVIDER,
+          useValue: provider,
+        },
+      ],
+    }).compile();
+    const service = module.get(AnalysisService);
+
+    await expect(
+      service.refineRewrite('extracted cv text', {
+        original: 'Helped with APIs',
+        currentRewrite: 'Delivered API improvements',
+        instruction: 'more-technical',
+      }),
+    ).resolves.toEqual({
+      aiProvider: 'mock',
+      aiModel: 'mock-resume-rewrite-v1',
+      result: {
+        improved: 'Owned API delivery with clearer technical impact',
+        reason: 'Adds stronger ownership and technical detail',
+      },
+    });
+    expect(refineRewrite).toHaveBeenCalledWith('extracted cv text', {
+      original: 'Helped with APIs',
+      currentRewrite: 'Delivered API improvements',
+      instruction: 'more-technical',
     });
   });
 });

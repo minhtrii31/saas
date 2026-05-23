@@ -22,6 +22,7 @@ import { CvsService } from './cvs.service';
 import { CreateCvDto } from './dto/create-cv.dto';
 import { GenerateCoverLetterDto } from './dto/generate-cover-letter.dto';
 import { MatchCvDto } from './dto/match-cv.dto';
+import { RefineRewriteDto } from './dto/refine-rewrite.dto';
 import { RewriteResumeDto } from './dto/rewrite-resume.dto';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
 
@@ -136,6 +137,17 @@ export class CvsController {
     @Body() dto: RewriteResumeDto,
   ) {
     return this.cvsService.rewriteResume(user.id, id, dto);
+  }
+
+  @Post(':id/rewrite/refine')
+  @UseGuards(JwtAuthGuard)
+  @RateLimit('cvRewrite')
+  refineRewrite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+    @Body() dto: RefineRewriteDto,
+  ) {
+    return this.cvsService.refineRewrite(user.id, id, dto);
   }
 
   @Post('upload')

@@ -2,6 +2,7 @@ import {
   buildCoverLetterPrompt,
   buildCvAnalysisPrompt,
   buildJdMatchPrompt,
+  buildRewriteRefinementPrompt,
   buildResumeRewritePrompt,
 } from '../prompts/analysis-prompt.builder';
 
@@ -98,6 +99,30 @@ describe('analysis prompt builders', () => {
           'explanation',
           'rewriteGoal',
         ],
+      }),
+    );
+  });
+
+  it('builds rewrite refinement prompts with the instruction and strict schema', () => {
+    const prompt = buildRewriteRefinementPrompt(
+      'Backend engineer with TypeScript API delivery.',
+      {
+        original: 'Helped with APIs.',
+        currentRewrite: 'Delivered API improvements.',
+        instruction: 'more-technical',
+      },
+    );
+
+    expect(prompt.schemaName).toBe('rewrite_refinement');
+    expect(prompt.systemPrompt).toContain('iterative editor');
+    expect(prompt.systemPrompt).toContain('Do not invent metrics');
+    expect(prompt.userPrompt).toContain('Current rewrite:');
+    expect(prompt.userPrompt).toContain(
+      'Refinement instruction: more-technical',
+    );
+    expect(prompt.jsonSchema).toEqual(
+      expect.objectContaining({
+        required: ['improved', 'reason'],
       }),
     );
   });

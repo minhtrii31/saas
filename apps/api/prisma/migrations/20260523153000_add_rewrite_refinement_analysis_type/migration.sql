@@ -1,0 +1,1 @@
+ALTER TYPE "analysis_type" ADD VALUE 'REWRITE_REFINEMENT';

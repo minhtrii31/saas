@@ -233,4 +233,41 @@ describe('OpenAiAnalysisProvider', () => {
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(requestBody.response_format.json_schema.name).toBe('resume_rewrite');
   });
+
+  it('normalizes rewrite refinement output before returning it', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                improved: ' Owned API delivery ',
+                reason: ' Stronger ownership ',
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const provider = new OpenAiAnalysisProvider(new EnvironmentService());
+
+    await expect(
+      provider.refineRewrite('CV text', {
+        original: 'Helped with APIs',
+        currentRewrite: 'Delivered API improvements',
+        instruction: 'stronger',
+      }),
+    ).resolves.toEqual({
+      improved: 'Owned API delivery',
+      reason: 'Stronger ownership',
+    });
+
+    const fetchMock = global.fetch as jest.Mock;
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(requestBody.response_format.json_schema.name).toBe(
+      'rewrite_refinement',
+    );
+  });
 });
