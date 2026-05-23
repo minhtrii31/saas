@@ -10,7 +10,7 @@ Tests should verify important behavior, not implementation details.
 
 Current source counts:
 
-- API: 22 Jest/Supertest spec files, 98 `it(...)` test cases.
+- API: 23 Jest/Supertest spec files, 106 `it(...)` test cases.
 - Web: 3 Playwright spec files, 30 `test(...)` test cases.
 
 Main verification commands:

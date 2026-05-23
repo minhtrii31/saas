@@ -6,8 +6,8 @@ Nyx is an AI-assisted CV workspace for job seekers. It helps users upload CVs, e
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS, Playwright
 - Backend: NestJS, TypeScript, Prisma, PostgreSQL, Jest, Supertest
-- AI: provider abstraction with mock and OpenAI providers
-- CI: GitHub Actions with PostgreSQL 17 and mock AI
+- AI: provider abstraction with deterministic mock and OpenAI providers, reusable prompt builders, JSON schemas, and structured output validation
+- CI: GitHub Actions on push/PR with PostgreSQL 17 and mock AI
 
 Redis, BullMQ, and S3/Cloudinary-compatible storage remain planned architecture items; they are not wired into the current runtime.
 
@@ -50,7 +50,7 @@ docker compose up -d postgres
 
 ## Testing Snapshot
 
-- API: 22 Jest/Supertest spec files, 98 test cases.
+- API: 23 Jest/Supertest spec files, 106 test cases.
 - Web: 3 Playwright spec files, 30 test cases.
 - CI runs API tests/lint/build and web Playwright/lint/build with `AI_PROVIDER=mock`.
 - PostgreSQL integration tests require `DATABASE_URL_TEST` and refuse to run against a non-test database.
