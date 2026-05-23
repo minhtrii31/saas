@@ -8,12 +8,16 @@ describe('environment validation', () => {
   const originalAiProvider = process.env.AI_PROVIDER;
   const originalOpenAiApiKey = process.env.OPENAI_API_KEY;
   const originalOpenAiModel = process.env.OPENAI_MODEL;
+  const originalFreeStarterCredits = process.env.FREE_STARTER_CREDITS;
+  const originalCvAnalysisCost = process.env.USAGE_COST_CV_ANALYSIS;
 
   afterEach(() => {
-    process.env.JWT_SECRET = originalJwtSecret;
-    process.env.AI_PROVIDER = originalAiProvider;
-    process.env.OPENAI_API_KEY = originalOpenAiApiKey;
-    process.env.OPENAI_MODEL = originalOpenAiModel;
+    restoreEnv('JWT_SECRET', originalJwtSecret);
+    restoreEnv('AI_PROVIDER', originalAiProvider);
+    restoreEnv('OPENAI_API_KEY', originalOpenAiApiKey);
+    restoreEnv('OPENAI_MODEL', originalOpenAiModel);
+    restoreEnv('FREE_STARTER_CREDITS', originalFreeStarterCredits);
+    restoreEnv('USAGE_COST_CV_ANALYSIS', originalCvAnalysisCost);
   });
 
   it('fails application startup when JWT_SECRET is missing', async () => {
@@ -80,4 +84,34 @@ describe('environment validation', () => {
 
     expect(environmentService.openAiModel).toBe('gpt-4.1-mini');
   });
+
+  it('reads starter credits and per-action usage costs from env', async () => {
+    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.AI_PROVIDER = 'mock';
+    process.env.FREE_STARTER_CREDITS = '25';
+    process.env.USAGE_COST_CV_ANALYSIS = '3';
+
+    const module = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue({})
+      .compile();
+
+    const environmentService = module.get(EnvironmentService, {
+      strict: false,
+    });
+
+    expect(environmentService.freeStarterCredits).toBe(25);
+    expect(environmentService.usageCosts.CV_ANALYSIS).toBe(3);
+  });
 });
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}

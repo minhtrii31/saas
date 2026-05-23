@@ -29,6 +29,8 @@ describe('POST /cvs/:id/analyze', () => {
   let prisma: {
     user: {
       findFirst: jest.Mock;
+      findUnique: jest.Mock;
+      updateMany: jest.Mock;
     };
     cv: {
       findFirst: jest.Mock;
@@ -36,6 +38,10 @@ describe('POST /cvs/:id/analyze', () => {
     cvAnalysis: {
       create: jest.Mock;
     };
+    usageRecord: {
+      create: jest.Mock;
+    };
+    $transaction: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -43,6 +49,8 @@ describe('POST /cvs/:id/analyze', () => {
     prisma = {
       user: {
         findFirst: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({ creditBalance: 100 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       cv: {
         findFirst: jest.fn(),
@@ -50,6 +58,12 @@ describe('POST /cvs/:id/analyze', () => {
       cvAnalysis: {
         create: jest.fn(),
       },
+      usageRecord: {
+        create: jest.fn(),
+      },
+      $transaction: jest.fn((callback: (tx: typeof prisma) => unknown) =>
+        Promise.resolve(callback(prisma)),
+      ),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({

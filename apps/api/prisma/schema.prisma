@@ -16,12 +16,24 @@ enum AnalysisType {
   @@map("analysis_type")
 }
 
+enum UsageAction {
+  CV_ANALYSIS
+  JD_MATCH
+  COVER_LETTER
+  RESUME_REWRITE
+  REWRITE_REFINEMENT
+
+  @@map("usage_action")
+}
+
 model User {
-  id           String  @id @default(uuid()) @db.Uuid
-  email        String  @unique
-  passwordHash String  @map("password_hash")
-  name         String?
-  cvs          Cv[]
+  id            String        @id @default(uuid()) @db.Uuid
+  email         String        @unique
+  passwordHash  String        @map("password_hash")
+  name          String?
+  cvs           Cv[]
+  usageRecords  UsageRecord[]
+  creditBalance Int           @default(0) @map("credit_balance")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -57,9 +69,10 @@ model Cv {
 }
 
 model CvAnalysis {
-  id   String @id @default(uuid()) @db.Uuid
-  cvId String @map("cv_id") @db.Uuid
-  cv   Cv     @relation(fields: [cvId], references: [id], onDelete: Restrict)
+  id          String       @id @default(uuid()) @db.Uuid
+  cvId        String       @map("cv_id") @db.Uuid
+  cv          Cv           @relation(fields: [cvId], references: [id], onDelete: Restrict)
+  usageRecord UsageRecord?
 
   type               AnalysisType
   jobDescriptionText String?      @map("job_description_text")
@@ -76,4 +89,23 @@ model CvAnalysis {
   @@index([type])
   @@index([deletedAt])
   @@map("cv_analyses")
+}
+
+model UsageRecord {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  action      UsageAction
+  creditsUsed Int         @map("credits_used")
+
+  cvAnalysisId String?     @unique @map("cv_analysis_id") @db.Uuid
+  cvAnalysis   CvAnalysis? @relation(fields: [cvAnalysisId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("usage_records")
 }

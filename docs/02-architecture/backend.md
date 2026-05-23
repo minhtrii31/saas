@@ -21,6 +21,7 @@ Implemented modules:
 - auth
 - cvs
 - analysis
+- usage
 - config
 - prisma
 
@@ -114,8 +115,20 @@ Prisma models currently cover:
 - `User`
 - `Cv`
 - `CvAnalysis`
+- `UsageRecord`
 
-`CvAnalysis.type` stores `CV_ANALYSIS`, `JD_MATCH`, and `COVER_LETTER` records. Soft deletion is represented with `deletedAt`.
+`CvAnalysis.type` stores `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, and `REWRITE_REFINEMENT` records. Soft deletion is represented with `deletedAt`.
+`User.creditBalance` stores the current credit balance. `UsageRecord` stores AI action usage with `userId`, action type, credits used, creation timestamp, and an optional `CvAnalysis` link.
+
+## Usage limits
+
+The `usage` module prepares Nyx for SaaS quotas without billing integration.
+
+- New users receive starter credits from `FREE_STARTER_CREDITS`.
+- AI actions are charged with `USAGE_COST_CV_ANALYSIS`, `USAGE_COST_JD_MATCH`, `USAGE_COST_COVER_LETTER`, `USAGE_COST_RESUME_REWRITE`, and `USAGE_COST_REWRITE_REFINEMENT`.
+- CV AI workflows check credits before provider calls.
+- Credits are deducted only after a successful provider response, inside the same transaction that creates `CvAnalysis` history and the corresponding `UsageRecord`.
+- Insufficient credits return the standard API error envelope with `INSUFFICIENT_CREDITS`.
 
 ## AI boundary
 

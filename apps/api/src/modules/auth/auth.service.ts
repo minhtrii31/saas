@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EnvironmentService } from '../../config/environment.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -29,6 +30,7 @@ type LoginUser = PublicUser & {
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly environmentService: EnvironmentService,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
   ) {}
@@ -57,6 +59,7 @@ export class AuthService {
           email,
           passwordHash,
           name,
+          creditBalance: this.environmentService.freeStarterCredits,
         },
         select: {
           id: true,

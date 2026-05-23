@@ -7,6 +7,8 @@ export class EnvironmentService {
   readonly aiProvider: AiProviderName;
   readonly openAiApiKey: string;
   readonly openAiModel: string;
+  readonly freeStarterCredits: number;
+  readonly usageCosts: Record<string, number>;
 
   constructor() {
     this.require('JWT_SECRET');
@@ -16,6 +18,17 @@ export class EnvironmentService {
         ? this.requireOpenAiApiKey()
         : this.optional('OPENAI_API_KEY');
     this.openAiModel = this.optional('OPENAI_MODEL', 'gpt-4.1-mini');
+    this.freeStarterCredits = this.nonNegativeInt('FREE_STARTER_CREDITS', 10);
+    this.usageCosts = {
+      CV_ANALYSIS: this.nonNegativeInt('USAGE_COST_CV_ANALYSIS', 1),
+      JD_MATCH: this.nonNegativeInt('USAGE_COST_JD_MATCH', 1),
+      COVER_LETTER: this.nonNegativeInt('USAGE_COST_COVER_LETTER', 1),
+      RESUME_REWRITE: this.nonNegativeInt('USAGE_COST_RESUME_REWRITE', 1),
+      REWRITE_REFINEMENT: this.nonNegativeInt(
+        'USAGE_COST_REWRITE_REFINEMENT',
+        1,
+      ),
+    };
   }
 
   private require(name: string): string {
@@ -46,6 +59,20 @@ export class EnvironmentService {
     }
     const parsed = parseInt(value, 10);
     return isNaN(parsed) ? defaultValue : parsed;
+  }
+
+  private nonNegativeInt(name: string, defaultValue: number): number {
+    const value = this.optional(name);
+    if (!value) {
+      return defaultValue;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      throw new Error(`${name} must be a non-negative integer`);
+    }
+
+    return parsed;
   }
 
   private readAiProvider(): AiProviderName {

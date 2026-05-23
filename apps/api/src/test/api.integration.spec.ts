@@ -6,6 +6,7 @@ import {
   resetTestThrottlerStorage,
 } from './prisma-test-utils';
 import { PrismaService } from '../prisma/prisma.service';
+import { UsageService } from '../modules/usage/usage.service';
 
 describe('API PostgreSQL integration', () => {
   const password = 'correct-horse-battery-staple';
@@ -27,10 +28,12 @@ describe('API PostgreSQL integration', () => {
   };
   let app: INestApplication;
   let prisma: PrismaService;
+  let usageService: UsageService;
 
   beforeAll(async () => {
     app = await createIntegrationTestApp();
     prisma = app.get(PrismaService);
+    usageService = app.get(UsageService);
   });
 
   beforeEach(async () => {
@@ -210,6 +213,136 @@ describe('API PostgreSQL integration', () => {
       aiProvider: 'mock',
       aiModel: 'mock-cv-analyzer-v1',
     });
+  });
+
+  it('deducts credits and persists usage when CV analysis succeeds', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'usage-success.integration@example.com',
+    );
+    const cv = await prisma.cv.create({
+      data: {
+        userId,
+        title: 'Backend CV',
+        originalName: 'backend-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        storageProvider: 'local',
+        storageKey: `cvs/${userId}/backend-cv.pdf`,
+        storageUrl: null,
+        extractedText:
+          'Backend engineer with TypeScript, NestJS, PostgreSQL, Prisma, and API testing experience.',
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cv.id}/analyze`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(201);
+
+    await expect(
+      prisma.user.findUniqueOrThrow({
+        where: {
+          id: userId,
+        },
+      }),
+    ).resolves.toMatchObject({
+      creditBalance: 9,
+    });
+
+    await expect(
+      prisma.usageRecord.findFirstOrThrow({
+        where: {
+          userId,
+          action: 'CV_ANALYSIS',
+          cvAnalysisId: response.body.data.id as string,
+        },
+      }),
+    ).resolves.toMatchObject({
+      creditsUsed: 1,
+    });
+  });
+
+  it('returns INSUFFICIENT_CREDITS before AI history is created', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'usage-insufficient.integration@example.com',
+    );
+    await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        creditBalance: 0,
+      },
+    });
+    const cv = await prisma.cv.create({
+      data: {
+        userId,
+        title: 'Backend CV',
+        originalName: 'backend-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        storageProvider: 'local',
+        storageKey: `cvs/${userId}/backend-cv.pdf`,
+        storageUrl: null,
+        extractedText:
+          'Backend engineer with TypeScript, NestJS, PostgreSQL, Prisma, and API testing experience.',
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cv.id}/analyze`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(402);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'INSUFFICIENT_CREDITS',
+        message: 'Insufficient credits',
+      },
+      meta: {},
+    });
+    await expect(
+      prisma.cvAnalysis.count({
+        where: {
+          cvId: cv.id,
+        },
+      }),
+    ).resolves.toBe(0);
+    await expect(
+      prisma.usageRecord.count({
+        where: {
+          userId,
+        },
+      }),
+    ).resolves.toBe(0);
+  });
+
+  it('rolls back credit consumption when the surrounding transaction fails', async () => {
+    const userId = await registerUser('usage-rollback.integration@example.com');
+
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await usageService.consumeCredits(userId, 'CV_ANALYSIS', { tx });
+        throw new Error('simulate history persistence failure');
+      }),
+    ).rejects.toThrow('simulate history persistence failure');
+
+    await expect(
+      prisma.user.findUniqueOrThrow({
+        where: {
+          id: userId,
+        },
+      }),
+    ).resolves.toMatchObject({
+      creditBalance: 10,
+    });
+    await expect(
+      prisma.usageRecord.count({
+        where: {
+          userId,
+        },
+      }),
+    ).resolves.toBe(0);
   });
 
   it('rewrites resume text through PostgreSQL and the mock AI provider', async () => {

@@ -79,6 +79,7 @@ describe('POST /auth/register', () => {
         email: 'user@example.com',
         passwordHash: expect.any(String),
         name: 'Ada Lovelace',
+        creditBalance: 10,
       },
       select: {
         id: true,
@@ -124,6 +125,7 @@ describe('POST /auth/register', () => {
         email: 'user@example.com',
         passwordHash: expect.any(String),
         name: null,
+        creditBalance: 10,
       },
       select: {
         id: true,

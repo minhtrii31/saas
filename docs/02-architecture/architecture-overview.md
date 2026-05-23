@@ -51,6 +51,7 @@ Implemented modules:
 - `auth`: registration, login, JWT guard, current-user endpoint.
 - `cvs`: CV metadata, upload, extraction, soft delete, analysis workflows, matching, cover letter persistence.
 - `analysis`: provider selection and provider-facing service methods.
+- `usage`: credit balance checks, per-action credit consumption, and usage ledger records.
 - `config`: environment validation and provider configuration.
 - `prisma`: database client integration.
 
@@ -72,8 +73,10 @@ Current Prisma models:
 - `User`
 - `Cv`
 - `CvAnalysis`
+- `UsageRecord`
 
-`CvAnalysis.type` distinguishes `CV_ANALYSIS`, `JD_MATCH`, and `COVER_LETTER`, allowing one history table for the current AI outputs.
+`CvAnalysis.type` distinguishes `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, and `REWRITE_REFINEMENT`, allowing one history table for the current AI outputs.
+`User.creditBalance` stores remaining credits. `UsageRecord` stores the user, action, credits used, timestamp, and optional linked `CvAnalysis` so successful AI actions can be audited.
 
 ## System principles
 
