@@ -14,6 +14,7 @@ import {
 import { CoverLetterResultPanel } from "@/components/dashboard/cover-letter/cover-letter-result";
 import { CvSelector } from "@/components/dashboard/cv-selector";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
@@ -203,9 +204,7 @@ function CoverLetterContent({ token }: { token: string }) {
           </h3>
 
         {cvsState.type === "loading" ? (
-          <p role="status" className="mt-5 text-sm text-[#5f5f58]">
-            Loading CVs...
-          </p>
+          <LoadingSkeleton label="Loading documents" className="mt-5" />
         ) : null}
 
         {cvsState.type === "error" ? (
@@ -266,10 +265,12 @@ function CoverLetterContent({ token }: { token: string }) {
         ) : null}
 
         {coverLetterState.type === "loading" ? (
-          <p role="status" className="mt-4 border border-[#e5e5df] bg-[#f7f7f4] px-3 py-2 text-sm text-[#5f5f58]">
-            Generating a cover letter for{" "}
-            {selectedCv?.title || selectedCv?.originalName || "CV"}...
-          </p>
+          <LoadingSkeleton
+            label={`Generating a cover letter for ${
+              selectedCv?.title || selectedCv?.originalName || "CV"
+            }`}
+            className="mt-4"
+          />
         ) : null}
 
         {coverLetterState.type === "error" ? (

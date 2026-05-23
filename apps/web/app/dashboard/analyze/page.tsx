@@ -21,6 +21,7 @@ import { AnalysisResult } from "@/components/dashboard/analysis/analysis-result"
 import { CvSelector } from "@/components/dashboard/cv-selector";
 import { formatBytes, formatDateTime } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { Button } from "@/components/ui/button";
@@ -167,7 +168,7 @@ function AnalyzeContent({ token }: { token: string }) {
           </div>
 
         {cvsState.type === "loading" ? (
-          <StatusMessage className="mt-5">Loading CVs...</StatusMessage>
+          <LoadingSkeleton label="Loading documents" className="mt-5" />
         ) : null}
 
         {cvsState.type === "error" ? (
@@ -203,9 +204,10 @@ function AnalyzeContent({ token }: { token: string }) {
         ) : null}
 
         {analysisState.type === "loading" ? (
-          <StatusMessage className="mt-4">
-            Analyzing {selectedCv?.title || selectedCv?.originalName || "CV"}...
-          </StatusMessage>
+          <LoadingSkeleton
+            label={`Analyzing ${selectedCv?.title || selectedCv?.originalName || "CV"}`}
+            className="mt-4"
+          />
         ) : null}
 
         {analysisState.type === "error" ? (
@@ -245,7 +247,7 @@ function SelectedCvPanel({
               <FileText className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#171717]">
+              <p className="text-sm font-semibold text-[#171717] [overflow-wrap:anywhere]">
                 {selectedCv.title || selectedCv.originalName}
               </p>
               <p className="mt-1 break-all text-xs leading-5 text-[#6f6f68]">

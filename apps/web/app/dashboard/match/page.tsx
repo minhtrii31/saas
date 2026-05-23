@@ -14,6 +14,7 @@ import {
 import { CvSelector } from "@/components/dashboard/cv-selector";
 import { MatchResult } from "@/components/dashboard/match/match-result";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkflowLens } from "@/components/dashboard/workflow-lens";
 import { WorkflowBrief } from "@/components/dashboard/workflow-brief";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
@@ -165,9 +166,7 @@ function MatchContent({ token }: { token: string }) {
           </h3>
 
         {cvsState.type === "loading" ? (
-          <p role="status" className="mt-5 text-sm text-[#5f5f58]">
-            Loading CVs...
-          </p>
+          <LoadingSkeleton label="Loading documents" className="mt-5" />
         ) : null}
 
         {cvsState.type === "error" ? (
@@ -216,9 +215,10 @@ function MatchContent({ token }: { token: string }) {
         ) : null}
 
         {matchState.type === "loading" ? (
-          <p role="status" className="mt-4 border border-[#e5e5df] bg-[#f7f7f4] px-3 py-2 text-sm text-[#5f5f58]">
-            Matching {selectedCv?.title || selectedCv?.originalName || "CV"}...
-          </p>
+          <LoadingSkeleton
+            label={`Matching ${selectedCv?.title || selectedCv?.originalName || "CV"}`}
+            className="mt-4"
+          />
         ) : null}
 
         {matchState.type === "error" ? (

@@ -27,7 +27,7 @@ export function WorkflowBrief({
           <Icon className="h-4 w-4" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="break-words text-sm font-semibold text-[#171717]">
+          <p className="text-sm font-semibold text-[#171717] [overflow-wrap:anywhere]">
             {title}
           </p>
           <p className="mt-2 text-sm leading-6 text-[#5f5f58]">

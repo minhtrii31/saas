@@ -13,6 +13,7 @@ import {
 } from "@/components/dashboard/api";
 import { HistoryList } from "@/components/dashboard/history/history-list";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
+import { LoadingSkeleton } from "@/components/dashboard/result-ui";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { formatAnalysisType, formatDateTime } from "@/components/dashboard/format";
 import type { CvAnalysis, CvItem } from "@/lib/api";
@@ -89,9 +90,7 @@ function HistoryContent({ token }: { token: string }) {
 
   if (state.type === "loading") {
     return (
-      <p role="status" className="border border-[#e5e5df] bg-[#ffffff] p-6 text-sm text-[#5f5f58]">
-        Loading analysis history...
-      </p>
+      <LoadingSkeleton label="Loading analysis history" className="p-6" />
     );
   }
 
