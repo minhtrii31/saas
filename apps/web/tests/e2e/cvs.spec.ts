@@ -769,7 +769,7 @@ test("/dashboard/applications tracks status and generates follow-up draft", asyn
   await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
 });
 
-test("/dashboard/cvs/[id] shows CV metadata and extracted text", async ({
+test("/dashboard/cvs/[id] shows source document workspace", async ({
   page,
 }) => {
   await mockAuthenticatedPage(page);
@@ -787,11 +787,40 @@ test("/dashboard/cvs/[id] shows CV metadata and extracted text", async ({
   await page.goto(`/dashboard/cvs/${cvList[0].id}`);
 
   await expect(page.getByRole("heading", { name: "CV detail" })).toBeVisible();
-  await expect(page.getByText("Backend CV")).toBeVisible();
+  await expect(page.getByText("Source document", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Backend CV" })).toBeVisible();
+  await expect(page.getByText("Readiness")).toBeVisible();
+  await expect(page.getByText("File stored")).toBeVisible();
+  await expect(page.getByText("Text extraction")).toBeVisible();
+  await expect(page.getByText("AI workflows", { exact: true })).toBeVisible();
+  await expect(page.getByText("Available").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Analyze this CV/ })).toHaveAttribute(
+    "href",
+    "/dashboard/analyze",
+  );
+  await expect(page.getByRole("link", { name: /Match target role/ })).toHaveAttribute(
+    "href",
+    "/dashboard/match",
+  );
+  await expect(
+    page.getByRole("link", { name: /Generate cover letter/ }),
+  ).toHaveAttribute("href", "/dashboard/cover-letter");
+  await expect(page.getByRole("link", { name: /Prepare interview/ })).toHaveAttribute(
+    "href",
+    "/dashboard/interview-prep",
+  );
+  await expect(page.getByRole("link", { name: /Rewrite resume/ })).toHaveAttribute(
+    "href",
+    "/dashboard/rewrite",
+  );
+  await expect(page.getByText("Nyx uses this text for AI workflows.")).toBeVisible();
+  await expect(page.getByText("TypeScript and NestJS")).toBeVisible();
+  await expect(page.getByText("Document metadata")).toBeVisible();
+  await expect(page.getByText("File size")).toBeVisible();
+  await expect(page.getByText("Technical details")).toBeVisible();
   await expect(
     page.getByText("users/ada/ada-cv.pdf", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText("TypeScript and NestJS")).toBeVisible();
+  ).not.toBeVisible();
 });
 
 test("/dashboard/analyze can select CV and displays result", async ({
