@@ -1,12 +1,14 @@
 "use client";
 
 import {
-  ArrowUpRight,
+  CheckCircle2,
   FileText,
   Gauge,
+  ListChecks,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -19,14 +21,20 @@ import {
 } from "@/components/dashboard/api";
 import { AnalysisResult } from "@/components/dashboard/analysis/analysis-result";
 import { CvSelector } from "@/components/dashboard/cv-selector";
-import { formatBytes, formatDateTime } from "@/components/dashboard/format";
+import { formatDateTime } from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
-import { ErrorState, LoadingSkeleton } from "@/components/dashboard/result-ui";
-import { WorkflowLens } from "@/components/dashboard/workflow-lens";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingSkeleton,
+} from "@/components/dashboard/result-ui";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import { Button } from "@/components/ui/button";
-import { MetricGrid, MetricTile } from "@/components/ui/metric";
-import { Eyebrow, SectionTitle } from "@/components/ui/section-heading";
+import {
+  Eyebrow,
+  SectionDescription,
+  SectionTitle,
+} from "@/components/ui/section-heading";
 import { Surface } from "@/components/ui/surface";
 import type { CvAnalysisResult, CvItem } from "@/lib/api";
 
@@ -44,8 +52,8 @@ type AnalysisState =
 export default function AnalyzePage() {
   return (
     <ProtectedPage
-      title="Analyze CV"
-      description="Select one uploaded CV and run a quality analysis."
+      title="Resume Analysis"
+      description="Understand how recruiters and ATS systems see your resume."
     >
       {({ token }) => <AnalyzeContent token={token} />}
     </ProtectedPage>
@@ -134,91 +142,105 @@ function AnalyzeContent({ token }: { token: string }) {
 
   return (
     <div className="space-y-5">
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <WorkspaceHero
-          eyebrow="AI audit workspace"
-          title="Find the signal before a recruiter does."
-          description="Select a source CV and generate a structured quality report: strengths, weak spots, and practical improvements."
-        />
-        <WorkflowLens
-          title="Audit lens"
-          items={[
-            { icon: ShieldCheck, label: "Recruiter clarity" },
-            { icon: Gauge, label: "Quality signal" },
-            { icon: Sparkles, label: "Improvement guidance" },
-          ]}
-        />
-      </section>
+      <WorkspaceHero
+        eyebrow="Resume review"
+        title="See your resume through the first screening pass."
+        description="Choose a CV, run a focused review, and get clear feedback on what reads well, what may get missed, and what to improve next."
+        aside={<AiExpectations />}
+      >
+        <div className="mt-6 flex flex-wrap gap-2">
+          <ReviewChip icon={ShieldCheck} label="ATS readiness" />
+          <ReviewChip icon={Gauge} label="Recruiter clarity" />
+          <ReviewChip icon={Sparkles} label="Improvement guidance" />
+        </div>
+      </WorkspaceHero>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Surface padding="lg" shadow>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <Eyebrow>Setup</Eyebrow>
-              <SectionTitle className="mt-1">Run CV analysis</SectionTitle>
+              <Eyebrow>Review workflow</Eyebrow>
+              <SectionTitle className="mt-1">Select CV and run analysis</SectionTitle>
+              <SectionDescription className="mt-2 max-w-xl">
+                Nyx uses the extracted resume text to return a score, strengths,
+                weak spots, and concrete next edits.
+              </SectionDescription>
             </div>
             <Link
               href="/dashboard/cvs"
               className="hidden items-center gap-1 text-xs font-semibold text-[#5f5f58] transition hover:text-[#171717] sm:inline-flex"
             >
-              Repository
-              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              CV library
             </Link>
           </div>
 
-        {cvsState.type === "loading" ? (
-          <LoadingSkeleton label="Loading documents" className="mt-5" />
-        ) : null}
+          {cvsState.type === "loading" ? (
+            <LoadingSkeleton label="Loading resumes" className="mt-5" />
+          ) : null}
 
-        {cvsState.type === "error" ? (
-          <ErrorState
-            title="CV library did not load"
-            message={cvsState.message}
-            className="mt-5"
-          />
-        ) : null}
-
-        {cvsState.type === "ready" ? (
-          <div className="mt-5 space-y-4">
-            <CvSelector
-              cvs={cvsState.cvs}
-              selectedCvId={selectedCvId}
-              onChange={(cvId) => {
-                setSelectedCvId(cvId);
-                setAnalysisState({ type: "idle" });
-              }}
+          {cvsState.type === "error" ? (
+            <ErrorState
+              title="CV library did not load"
+              message={cvsState.message}
+              className="mt-5"
             />
-            <Button
-              onClick={() => {
-                void handleAnalyze();
-              }}
-              disabled={analysisState.type === "loading" || cvsState.cvs.length === 0}
-              className="w-full sm:w-auto"
-            >
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              {analysisState.type === "loading" ? "Analyzing..." : "Analyze CV"}
-            </Button>
-          </div>
-        ) : null}
+          ) : null}
 
-        {analysisState.type === "loading" ? (
-          <LoadingSkeleton
-            label={`Analyzing ${selectedCv?.title || selectedCv?.originalName || "CV"}`}
-            className="mt-4"
-          />
-        ) : null}
+          {cvsState.type === "ready" ? (
+            cvsState.cvs.length > 0 ? (
+              <div className="mt-5 space-y-4">
+                <CvSelector
+                  cvs={cvsState.cvs}
+                  selectedCvId={selectedCvId}
+                  onChange={(cvId) => {
+                    setSelectedCvId(cvId);
+                    setAnalysisState({ type: "idle" });
+                  }}
+                />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Button
+                    onClick={() => {
+                      void handleAnalyze();
+                    }}
+                    disabled={analysisState.type === "loading"}
+                    className="w-full sm:w-auto"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    {analysisState.type === "loading"
+                      ? "Reviewing resume..."
+                      : "Run analysis"}
+                  </Button>
+                  <p className="text-xs leading-5 text-[#6f6f68]">
+                    Results are saved to history so you can compare future edits.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <EmptyAnalyzeState />
+            )
+          ) : null}
 
-        {analysisState.type === "error" ? (
-          <ErrorState
-            title="Analysis stopped"
-            message={analysisState.message}
-            className="mt-4"
-            onRetry={selectedCvId ? () => void handleAnalyze() : undefined}
-          />
-        ) : null}
+          {analysisState.type === "loading" ? (
+            <LoadingSkeleton
+              label={`Reviewing ${selectedCv?.title || selectedCv?.originalName || "resume"}`}
+              className="mt-4"
+            />
+          ) : null}
+
+          {analysisState.type === "error" ? (
+            <ErrorState
+              title="Analysis stopped"
+              message={analysisState.message}
+              className="mt-4"
+              onRetry={selectedCvId ? () => void handleAnalyze() : undefined}
+            />
+          ) : null}
         </Surface>
 
-        <SelectedCvPanel selectedCv={selectedCv} cvCount={cvsState.type === "ready" ? cvsState.cvs.length : 0} />
+        <SelectedCvPanel
+          selectedCv={selectedCv}
+          cvCount={cvsState.type === "ready" ? cvsState.cvs.length : 0}
+        />
       </section>
 
       {analysisState.type === "success" ? (
@@ -228,6 +250,77 @@ function AnalyzeContent({ token }: { token: string }) {
         />
       ) : null}
     </div>
+  );
+}
+
+function ReviewChip({
+  icon: Icon,
+  label,
+}: {
+  icon: LucideIcon;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-2 border border-[#e5e5df] bg-[#f7f7f4] px-3 py-2 text-xs font-semibold text-[#343430]">
+      <Icon className="h-3.5 w-3.5 text-[#3b5f58]" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+function AiExpectations() {
+  const items = [
+    "ATS readiness",
+    "Readability",
+    "Impact statements",
+    "Keyword optimization",
+    "Recruiter clarity",
+  ];
+
+  return (
+    <aside className="border border-[#e5e5df] bg-[#f7f7f4] p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#e5e5df] bg-white text-[#171717]">
+          <ListChecks className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div>
+          <h3 className="text-sm font-semibold text-[#171717]">
+            What Nyx reviews
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#5f5f58]">
+            The review looks for the signals a recruiter or screening system can
+            understand quickly.
+          </p>
+        </div>
+      </div>
+      <ul className="mt-5 space-y-3">
+        {items.map((item) => (
+          <li key={item} className="flex items-center gap-3 text-sm text-[#343430]">
+            <CheckCircle2 className="h-4 w-4 text-[#3b5f58]" aria-hidden="true" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+function EmptyAnalyzeState() {
+  return (
+    <EmptyState
+      icon={FileText}
+      title="Upload a resume before running analysis"
+      description="Nyx reviews extracted resume text for ATS readiness, recruiter clarity, and concrete improvement opportunities."
+      action={
+        <Link
+          href="/dashboard/cvs"
+          className="inline-flex min-h-10 items-center justify-center bg-[#171717] px-4 text-sm font-semibold text-white transition hover:bg-[#2b2926]"
+        >
+          Upload CV
+        </Link>
+      }
+      className="mt-5"
+    />
   );
 }
 
@@ -244,34 +337,36 @@ function SelectedCvPanel({
       {selectedCv ? (
         <div className="mt-4">
           <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#f1f1ee] text-[#343430]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#e5e5df] bg-white text-[#343430]">
               <FileText className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[#171717] [overflow-wrap:anywhere]">
                 {selectedCv.title || selectedCv.originalName}
               </p>
-              <p className="mt-1 break-all text-xs leading-5 text-[#6f6f68]">
-                {selectedCv.originalName}
+              <p className="mt-1 text-xs leading-5 text-[#6f6f68]">
+                Uploaded {formatDateTime(selectedCv.createdAt)}
               </p>
             </div>
           </div>
-          <MetricGrid className="mt-5">
-            <SourceMetric label="Size" value={formatBytes(selectedCv.sizeBytes)} />
-            <SourceMetric label="Uploaded" value={formatDateTime(selectedCv.createdAt)} />
-          </MetricGrid>
+          <div className="mt-5 border border-[#e5e5df] bg-white px-4 py-3">
+            <p className="text-[0.65rem] font-bold uppercase text-[#6f6f68]">
+              Extraction readiness
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#171717]">
+              {selectedCv.extractedText
+                ? "Ready for resume review"
+                : "Text extraction needed before review"}
+            </p>
+          </div>
         </div>
       ) : (
         <p className="mt-4 text-sm leading-6 text-[#5f5f58]">
           {cvCount === 0
-            ? "No source documents are available yet."
-            : "Choose a CV to preview the source details."}
+            ? "Upload a CV to start a focused resume review."
+            : "Choose a CV to confirm what Nyx will review."}
         </p>
       )}
     </aside>
   );
-}
-
-function SourceMetric({ label, value }: { label: string; value: string }) {
-  return <MetricTile label={label} value={value} className="p-3" />;
 }

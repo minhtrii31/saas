@@ -29,6 +29,7 @@ import {
   ErrorState,
   LoadingSkeleton,
 } from "@/components/dashboard/result-ui";
+import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
 import type { CvAnalysis, CvItem, CvProgress, CvProgressPoint } from "@/lib/api";
 
 type ProgressState =
@@ -155,39 +156,25 @@ function ProgressContent({ token }: { token: string }) {
 
   return (
     <div className="space-y-5">
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="border border-[#d8d8d1] bg-white p-6 md:p-7">
-          <h2 className="max-w-3xl font-serif text-4xl text-[#171717] md:text-5xl">
-            Every edit becomes evidence.
-          </h2>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-[#5f5f58]">
-            Track how your resume improves over time through audits, rewrites,
-            and role targeting.
-          </p>
-          <div className="mt-6 grid gap-3 text-sm text-[#343430] md:grid-cols-3">
-            <HeroCue icon={Sparkles} text="See what improved" />
-            <HeroCue icon={ListChecks} text="Spot what still needs work" />
-            <HeroCue icon={Target} text="Choose the next best action" />
-          </div>
-        </div>
-        <aside className="border border-[#e5e5df] bg-[#f7f7f4] p-5">
-          <CvSelector
+      <WorkspaceHero
+        eyebrow="Resume progress"
+        title="Every edit becomes evidence."
+        description="Track how your resume improves over time through audits, rewrites, and role targeting."
+        aside={
+          <ProgressCvSelector
             cvs={state.cvs}
+            selectedCv={selectedCv}
             selectedCvId={state.selectedCvId}
             onChange={handleCvChange}
           />
-          {selectedCv ? (
-            <div className="mt-5 border-t border-[#e5e5df] pt-5 text-sm text-[#5f5f58]">
-              <p className="font-semibold text-[#171717]">
-                {selectedCv.title || selectedCv.originalName}
-              </p>
-              <p className="mt-1 text-xs">
-                Added {formatDateTime(selectedCv.createdAt)}
-              </p>
-            </div>
-          ) : null}
-        </aside>
-      </section>
+        }
+      >
+        <div className="mt-6 grid gap-3 text-sm text-[#343430] md:grid-cols-3">
+          <HeroCue icon={Sparkles} text="See what improved" />
+          <HeroCue icon={ListChecks} text="Spot what still needs work" />
+          <HeroCue icon={Target} text="Choose the next best action" />
+        </div>
+      </WorkspaceHero>
 
       {state.cvs.length === 0 ? (
         <EmptyProgressState />
@@ -197,6 +184,32 @@ function ProgressContent({ token }: { token: string }) {
         <LoadingSkeleton label="Loading selected CV progress" className="p-6" />
       )}
     </div>
+  );
+}
+
+function ProgressCvSelector({
+  cvs,
+  selectedCv,
+  selectedCvId,
+  onChange,
+}: {
+  cvs: CvItem[];
+  selectedCv?: CvItem;
+  selectedCvId: string;
+  onChange: (cvId: string) => void;
+}) {
+  return (
+    <aside className="border border-[#e5e5df] bg-[#f7f7f4] p-5">
+      <CvSelector cvs={cvs} selectedCvId={selectedCvId} onChange={onChange} />
+      {selectedCv ? (
+        <div className="mt-5 border-t border-[#e5e5df] pt-5 text-sm text-[#5f5f58]">
+          <p className="font-semibold text-[#171717]">
+            {selectedCv.title || selectedCv.originalName}
+          </p>
+          <p className="mt-1 text-xs">Added {formatDateTime(selectedCv.createdAt)}</p>
+        </div>
+      ) : null}
+    </aside>
   );
 }
 

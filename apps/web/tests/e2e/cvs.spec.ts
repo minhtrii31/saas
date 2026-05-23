@@ -845,25 +845,32 @@ test("/dashboard/analyze can select CV and displays result", async ({
 
   await page.goto("/dashboard/analyze");
   await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Analyze CV" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Resume Analysis", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("What Nyx reviews")).toBeVisible();
+  await expect(page.getByText("Impact statements")).toBeVisible();
+  await expect(page.getByText("Ready for resume review")).toBeVisible();
+  await page.getByRole("button", { name: "Run analysis" }).click();
 
   await expect(
-    page.getByRole("button", { name: "Analyzing..." }),
+    page.getByRole("button", { name: "Reviewing resume..." }),
   ).toBeDisabled();
-  await expect(
-    page.getByRole("region", { name: "Analysis result for Backend CV" }),
-  ).toBeVisible();
-  await expect(page.getByText("Score: 82")).toBeVisible();
-  await expect(page.getByText("Recruiter and ATS scorecard")).toBeVisible();
-  await expect(page.getByText("ATS readiness")).toBeVisible();
-  await expect(page.getByText("88")).toBeVisible();
-  await expect(page.getByText("Actionable insight queue")).toBeVisible();
-  await expect(page.getByText("Missing quantified achievements")).toBeVisible();
-  await expect(page.getByText("Add delivery metrics to backend work")).toBeVisible();
-  await expect(page.getByText("Add Redis and queue processing keywords")).toBeVisible();
-  await expect(page.getByText("Clear technical experience")).toBeVisible();
-  await expect(page.getByText("Impact metrics are limited")).toBeVisible();
-  await expect(page.getByText("Add quantified achievements")).toBeVisible();
+  const result = page.getByRole("region", {
+    name: "Analysis result for Backend CV",
+  });
+  await expect(result).toBeVisible();
+  await expect(result.getByText("Score: 82")).toBeVisible();
+  await expect(result.getByText("Recruiter and ATS scorecard")).toBeVisible();
+  await expect(result.getByText("ATS readiness")).toBeVisible();
+  await expect(result.getByText("88")).toBeVisible();
+  await expect(result.getByText("Actionable insight queue")).toBeVisible();
+  await expect(result.getByText("Missing quantified achievements")).toBeVisible();
+  await expect(result.getByText("Add delivery metrics to backend work")).toBeVisible();
+  await expect(result.getByText("Add Redis and queue processing keywords")).toBeVisible();
+  await expect(result.getByText("Clear technical experience")).toBeVisible();
+  await expect(result.getByText("Impact metrics are limited")).toBeVisible();
+  await expect(result.getByText("Add quantified achievements")).toBeVisible();
 });
 
 test("/dashboard/analyze API error displays error", async ({ page }) => {
@@ -888,7 +895,7 @@ test("/dashboard/analyze API error displays error", async ({ page }) => {
   });
 
   await page.goto("/dashboard/analyze");
-  await page.getByRole("button", { name: "Analyze CV" }).click();
+  await page.getByRole("button", { name: "Run analysis" }).click();
 
   await expect(
     page
@@ -911,7 +918,7 @@ test("/dashboard/analyze insufficient credits displays clear message", async ({
   });
 
   await page.goto("/dashboard/analyze");
-  await page.getByRole("button", { name: "Analyze CV" }).click();
+  await page.getByRole("button", { name: "Run analysis" }).click();
 
   await expect(
     page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
