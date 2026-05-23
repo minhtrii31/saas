@@ -37,12 +37,13 @@ export function JobTargetSelector({
           ))}
         </SelectInput>
         <BookmarkCheck
-          className="pointer-events-none absolute right-8 top-5 h-4 w-4 text-[#6f6f68]"
+          className="pointer-events-none absolute right-8 top-3.5 h-4 w-4 text-[#6f6f68]"
           aria-hidden="true"
         />
       </div>
       <p id="job-target-help" className="mt-2 text-xs leading-5 text-[#6f6f68]">
-        Select a saved target to reuse its job description, or keep manual paste.
+        Select a saved target to reuse its job description, or keep manual
+        paste.
       </p>
     </div>
   );

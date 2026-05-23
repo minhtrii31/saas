@@ -30,7 +30,12 @@ import {
   LoadingSkeleton,
 } from "@/components/dashboard/result-ui";
 import { WorkspaceHero } from "@/components/dashboard/workspace-hero";
-import type { CvAnalysis, CvItem, CvProgress, CvProgressPoint } from "@/lib/api";
+import type {
+  CvAnalysis,
+  CvItem,
+  CvProgress,
+  CvProgressPoint,
+} from "@/lib/api";
 
 type ProgressState =
   | { type: "loading" }
@@ -179,7 +184,10 @@ function ProgressContent({ token }: { token: string }) {
       {state.cvs.length === 0 ? (
         <EmptyProgressState />
       ) : state.progress ? (
-        <ProgressDashboard progress={state.progress} analyses={state.analyses} />
+        <ProgressDashboard
+          progress={state.progress}
+          analyses={state.analyses}
+        />
       ) : (
         <LoadingSkeleton label="Loading selected CV progress" className="p-6" />
       )}
@@ -206,7 +214,9 @@ function ProgressCvSelector({
           <p className="font-semibold text-[#171717]">
             {selectedCv.title || selectedCv.originalName}
           </p>
-          <p className="mt-1 text-xs">Added {formatDateTime(selectedCv.createdAt)}</p>
+          <p className="mt-1 text-xs">
+            Added {formatDateTime(selectedCv.createdAt)}
+          </p>
         </div>
       ) : null}
     </aside>
@@ -562,12 +572,17 @@ function LineBars({
 }
 
 function RewriteBars({ progress }: { progress: CvProgress }) {
-  const max = Math.max(...progress.rewriteActivityTrend.map((point) => point.total));
+  const max = Math.max(
+    ...progress.rewriteActivityTrend.map((point) => point.total),
+  );
 
   return (
     <div className="space-y-3">
       {progress.rewriteActivityTrend.map((point) => (
-        <div key={point.date} className="grid grid-cols-[6rem_1fr_2rem] items-center gap-3">
+        <div
+          key={point.date}
+          className="grid grid-cols-[6rem_1fr_2rem] items-center gap-3"
+        >
           <p className="text-xs font-medium text-[#6f6f68]">
             {formatShortDate(point.date)}
           </p>
@@ -656,7 +671,9 @@ function buildProgressInsights(progress: CvProgress) {
 
   if (insights.length === 0) {
     insights.push("No measurable score changes yet.");
-    insights.push("Run another analysis after improving your CV to build a timeline.");
+    insights.push(
+      "Run another analysis after improving your CV to build a timeline.",
+    );
   }
 
   return insights;

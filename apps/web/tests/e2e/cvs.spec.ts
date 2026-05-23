@@ -950,13 +950,21 @@ test("/dashboard/match can select CV and submit JD", async ({ page }) => {
   });
 
   await page.goto("/dashboard/match");
+  await expect(
+    page.getByRole("heading", { name: "Role Match", exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("What Nyx compares")).toBeVisible();
+  await expect(page.getByText("Missing evidence").first()).toBeVisible();
+  await expect(page.getByText("No saved targets yet")).toBeVisible();
   await page.getByLabel("CV").selectOption(cvList[0].id);
   await page
-    .getByLabel("Job description")
+    .getByLabel("Manual job description")
     .fill("We need TypeScript, NestJS, Redis, and PostgreSQL experience.");
-  await page.getByRole("button", { name: "Run match" }).click();
+  await page.getByRole("button", { name: "Check role fit" }).click();
 
-  await expect(page.getByRole("button", { name: "Matching..." })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Checking fit..." }),
+  ).toBeDisabled();
   await expect(
     page.getByRole("region", { name: "JD match result for Backend CV" }),
   ).toBeVisible();
@@ -985,11 +993,16 @@ test("/dashboard/match can reuse a saved job target", async ({ page }) => {
   });
 
   await page.goto("/dashboard/match");
-  await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
-  await expect(page.getByLabel("Job description")).toHaveValue(
+  await expect(page.getByText("Target focus")).toBeVisible();
+  await expect(page.getByText("Backend Engineer at Acme").last()).toBeVisible();
+  await expect(page.getByLabel("Manual job description")).toHaveValue(
     jobTargets[0].jobDescriptionText,
   );
-  await page.getByRole("button", { name: "Run match" }).click();
+  await page.getByLabel("Saved target").selectOption(jobTargets[0].id);
+  await expect(page.getByLabel("Manual job description")).toHaveValue(
+    jobTargets[0].jobDescriptionText,
+  );
+  await page.getByRole("button", { name: "Check role fit" }).click();
 
   await expect(
     page.getByRole("region", { name: "JD match result for Backend CV" }),
@@ -1002,12 +1015,15 @@ test("/dashboard/match empty JD validation works", async ({ page }) => {
   await mockJobTargets(page, []);
 
   await page.goto("/dashboard/match");
-  await page.getByRole("button", { name: "Run match" }).click();
+  await page.getByRole("button", { name: "Check role fit" }).click();
 
   await expect(
     page
       .getByRole("alert")
-      .filter({ hasText: "Enter a job description before matching." }),
+      .filter({
+        hasText:
+          "Choose a saved target or paste a job description before checking role fit.",
+      }),
   ).toBeVisible();
 });
 
@@ -1030,8 +1046,8 @@ test("/dashboard/match API error displays error", async ({ page }) => {
   });
 
   await page.goto("/dashboard/match");
-  await page.getByLabel("Job description").fill("We need TypeScript.");
-  await page.getByRole("button", { name: "Run match" }).click();
+  await page.getByLabel("Manual job description").fill("We need TypeScript.");
+  await page.getByRole("button", { name: "Check role fit" }).click();
 
   await expect(
     page
@@ -1055,8 +1071,8 @@ test("/dashboard/match insufficient credits displays clear message", async ({
   });
 
   await page.goto("/dashboard/match");
-  await page.getByLabel("Job description").fill("We need TypeScript.");
-  await page.getByRole("button", { name: "Run match" }).click();
+  await page.getByLabel("Manual job description").fill("We need TypeScript.");
+  await page.getByRole("button", { name: "Check role fit" }).click();
 
   await expect(
     page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
