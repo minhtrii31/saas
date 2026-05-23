@@ -1409,14 +1409,14 @@ test("/dashboard/rewrite can select CV and displays rewrite suggestions", async 
   });
 
   await page.goto("/dashboard/rewrite");
-  await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByLabel("Resume to improve").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Improve resume" }).click();
 
   await expect(
-    page.getByRole("button", { name: "Rewriting..." }),
+    page.getByRole("button", { name: "Improving..." }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("region", { name: "Resume rewrite result for Backend CV" }),
+    page.getByRole("region", { name: "Resume improvement result for Backend CV" }),
   ).toBeVisible();
   await expect(
     page.getByText("Worked on backend APIs for customer workflows."),
@@ -1467,8 +1467,8 @@ test("/dashboard/rewrite can refine one suggestion", async ({ page }) => {
   });
 
   await page.goto("/dashboard/rewrite");
-  await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByLabel("Resume to improve").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Improve resume" }).click();
   await page.getByRole("button", { name: "More technical" }).click();
 
   await expect(
@@ -1513,12 +1513,14 @@ test("/dashboard/rewrite shows per-card loading during refinement", async ({
   });
 
   await page.goto("/dashboard/rewrite");
-  await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
-  await page.getByRole("button", { name: "Stronger" }).click();
+  await page.getByLabel("Resume to improve").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Improve resume" }).click();
+  await page.getByRole("button", { name: "Stronger", exact: true }).click();
 
   await expect(page.getByText("Updating this suggestion")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Stronger" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Stronger", exact: true }),
+  ).toBeDisabled();
 });
 
 test("/dashboard/rewrite refinement API error displays per-card error", async ({
@@ -1553,8 +1555,8 @@ test("/dashboard/rewrite refinement API error displays per-card error", async ({
   });
 
   await page.goto("/dashboard/rewrite");
-  await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByLabel("Resume to improve").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Improve resume" }).click();
   await page.getByRole("button", { name: "ATS-friendly" }).click();
 
   await expect(
@@ -1590,8 +1592,8 @@ test("/dashboard/rewrite refinement insufficient credits displays clear message"
   });
 
   await page.goto("/dashboard/rewrite");
-  await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByLabel("Resume to improve").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Improve resume" }).click();
   await page.getByRole("button", { name: "ATS-friendly" }).click();
 
   await expect(
@@ -1604,12 +1606,15 @@ test("/dashboard/rewrite missing CV selection shows error", async ({ page }) => 
   await mockCvs(page, cvList);
 
   await page.goto("/dashboard/rewrite");
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByRole("button", { name: "Improve resume" }).click();
 
   await expect(
     page
       .getByRole("alert")
-      .filter({ hasText: "Select a CV before rewriting." }),
+      .filter({
+        hasText:
+          "Select a resume to begin improving weak bullets and unclear experience descriptions.",
+      }),
   ).toBeVisible();
 });
 
@@ -1631,8 +1636,8 @@ test("/dashboard/rewrite API error displays error", async ({ page }) => {
   });
 
   await page.goto("/dashboard/rewrite");
-  await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByLabel("Resume to improve").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Improve resume" }).click();
 
   await expect(
     page
@@ -1655,8 +1660,8 @@ test("/dashboard/rewrite insufficient credits displays clear message", async ({
   });
 
   await page.goto("/dashboard/rewrite");
-  await page.getByLabel("CV").selectOption(cvList[0].id);
-  await page.getByRole("button", { name: "Rewrite resume" }).click();
+  await page.getByLabel("Resume to improve").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Improve resume" }).click();
 
   await expect(
     page.getByRole("alert").filter({ hasText: "You’re out of credits." }),
