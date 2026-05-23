@@ -83,14 +83,32 @@ export type CoverLetterResult = {
   highlights?: string[];
 };
 
+export type ResumeRewriteSuggestion = {
+  original: string;
+  improved: string;
+  reason: string;
+};
+
+export type ResumeRewriteGoal =
+  | "stronger-impact"
+  | "ats-optimization"
+  | "concise"
+  | "quantified-achievements"
+  | "leadership-tone";
+
+export type ResumeRewriteResult = {
+  goal: ResumeRewriteGoal;
+  suggestions: ResumeRewriteSuggestion[];
+};
+
 export type CvAnalysis = {
   id: string;
   cvId: string;
-  type: "CV_ANALYSIS" | "JD_MATCH" | "COVER_LETTER";
+  type: "CV_ANALYSIS" | "JD_MATCH" | "COVER_LETTER" | "RESUME_REWRITE";
   jobDescriptionText?: string;
   aiProvider: string;
   aiModel: string;
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult;
+  result: CvAnalysisResult | JdMatchResult | CoverLetterResult | ResumeRewriteResult;
   createdAt: string;
 };
 

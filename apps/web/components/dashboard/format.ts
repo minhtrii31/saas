@@ -42,5 +42,9 @@ export function formatAnalysisType(type: CvAnalysis["type"]) {
     return "JD match";
   }
 
+  if (type === "RESUME_REWRITE") {
+    return "Resume rewrite";
+  }
+
   return "CV analysis";
 }

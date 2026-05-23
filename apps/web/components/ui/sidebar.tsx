@@ -47,6 +47,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard/analyze", label: "AI Analysis", icon: Sparkles },
       { href: "/dashboard/match", label: "Job Match", icon: GitCompare },
+      { href: "/dashboard/rewrite", label: "Rewrite", icon: FilePenLine },
       {
         href: "/dashboard/cover-letter",
         label: "Cover Letter",

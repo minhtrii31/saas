@@ -8,6 +8,8 @@ import type {
   CvAnalysisResult,
   CvItem,
   JdMatchResult,
+  ResumeRewriteGoal,
+  ResumeRewriteResult,
 } from "@/lib/api";
 
 export async function validateSession(token: string) {
@@ -106,6 +108,22 @@ export async function generateCoverLetter(
   return toCoverLetterResult(response.data.result);
 }
 
+export async function rewriteResume(
+  token: string,
+  cvId: string,
+  goal: ResumeRewriteGoal,
+) {
+  const response = await apiClient.request<CvAnalysis>(`/cvs/${cvId}/rewrite`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: {
+      goal,
+    },
+  });
+
+  return toResumeRewriteResult(response.data.result, goal);
+}
+
 export function getApiErrorMessage(error: unknown, fallback: string) {
   return error instanceof ApiClientError ? error.error.message : fallback;
 }
@@ -122,27 +140,66 @@ export function sortAnalysesNewestFirst(analyses: CvAnalysis[]) {
 }
 
 export function isJdMatchResult(
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
 ): result is JdMatchResult {
   return "matchingScore" in result;
 }
 
 export function isCoverLetterResult(
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
 ): result is CoverLetterResult {
   return "coverLetter" in result;
 }
 
+export function isResumeRewriteResult(
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
+): result is ResumeRewriteResult {
+  return "suggestions" in result && Array.isArray(result.suggestions)
+    ? result.suggestions.every(
+        (suggestion) =>
+          typeof suggestion === "object" &&
+          suggestion !== null &&
+          "original" in suggestion &&
+          "improved" in suggestion &&
+          "reason" in suggestion,
+      )
+    : false;
+}
+
 export function hasSuggestions(
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
 ): result is CvAnalysisResult | JdMatchResult {
-  return "suggestions" in result;
+  return "suggestions" in result && !isResumeRewriteResult(result);
 }
 
 function toCvAnalysisResult(
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
 ) {
-  if (!isJdMatchResult(result) && !isCoverLetterResult(result)) {
+  if (
+    !isJdMatchResult(result) &&
+    !isCoverLetterResult(result) &&
+    !isResumeRewriteResult(result)
+  ) {
     return result;
   }
 
@@ -153,20 +210,31 @@ function toCvAnalysisResult(
 }
 
 function toJdMatchResult(
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
 ) {
   if (isJdMatchResult(result)) {
     return result;
   }
 
   return {
-    matchingScore: isCoverLetterResult(result) ? 0 : result.score,
+    matchingScore:
+      isCoverLetterResult(result) || isResumeRewriteResult(result)
+        ? 0
+        : result.score,
     suggestions: hasSuggestions(result) ? result.suggestions : undefined,
   };
 }
 
 function toCoverLetterResult(
-  result: CvAnalysisResult | JdMatchResult | CoverLetterResult,
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
 ) {
   if (isCoverLetterResult(result)) {
     return result;
@@ -176,6 +244,24 @@ function toCoverLetterResult(
     coverLetter: "",
     tone: "Not provided",
     highlights: [],
+  };
+}
+
+function toResumeRewriteResult(
+  result:
+    | CvAnalysisResult
+    | JdMatchResult
+    | CoverLetterResult
+    | ResumeRewriteResult,
+  goal: ResumeRewriteGoal,
+) {
+  if (isResumeRewriteResult(result)) {
+    return result;
+  }
+
+  return {
+    goal,
+    suggestions: [],
   };
 }
 

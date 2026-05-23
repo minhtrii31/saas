@@ -93,6 +93,27 @@ const coverLetterAnalysis = {
   createdAt: "2026-05-22T12:30:00.000Z",
 };
 
+const rewriteAnalysis = {
+  id: "resume-rewrite-1",
+  cvId: cvList[0].id,
+  type: "RESUME_REWRITE",
+  aiProvider: "mock",
+  aiModel: "mock-resume-rewriter-v1",
+  result: {
+    goal: "stronger-impact",
+    suggestions: [
+      {
+        original: "Worked on backend APIs for customer workflows.",
+        improved:
+          "Delivered customer workflow APIs that reduced manual review time by 35%.",
+        reason:
+          "The revised bullet uses an action verb and adds measurable business impact.",
+      },
+    ],
+  },
+  createdAt: "2026-05-22T13:30:00.000Z",
+};
+
 test("/dashboard/cvs redirects to login when token is missing", async ({
   page,
 }) => {
@@ -492,6 +513,95 @@ test("/dashboard/cover-letter API error displays error", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("/dashboard/rewrite can select CV and displays rewrite suggestions", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/rewrite", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+    expect(request.url()).toContain(`/cvs/${cvList[0].id}/rewrite`);
+    expect(request.postDataJSON()).toEqual({
+      goal: "stronger-impact",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: rewriteAnalysis, meta: {} }),
+    });
+  });
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Rewriting..." }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("region", { name: "Resume rewrite result for Backend CV" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Worked on backend APIs for customer workflows."),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Delivered customer workflow APIs that reduced manual review time by 35%.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "The revised bullet uses an action verb and adds measurable business impact.",
+    ),
+  ).toBeVisible();
+});
+
+test("/dashboard/rewrite missing CV selection shows error", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Select a CV before rewriting." }),
+  ).toBeVisible();
+});
+
+test("/dashboard/rewrite API error displays error", async ({ page }) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await page.route("**://*/cvs/*/rewrite", async (route) => {
+    await route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "CV_TEXT_NOT_EXTRACTED",
+          message: "CV text has not been extracted",
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.goto("/dashboard/rewrite");
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByRole("button", { name: "Rewrite resume" }).click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "CV text has not been extracted" }),
+  ).toBeVisible();
+});
+
 test("/dashboard/history shows saved analysis history", async ({ page }) => {
   await mockAuthenticatedPage(page);
   await mockCvs(page, cvList);
@@ -504,7 +614,13 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        data: [cvAnalysis, legacyCvAnalysis, matchAnalysis, coverLetterAnalysis],
+        data: [
+          cvAnalysis,
+          legacyCvAnalysis,
+          matchAnalysis,
+          coverLetterAnalysis,
+          rewriteAnalysis,
+        ],
         meta: {},
       }),
     });
@@ -524,6 +640,20 @@ test("/dashboard/history shows saved analysis history", async ({ page }) => {
   await expect(history.getByText("Matching score: 75")).toBeVisible();
   await expect(
     history.getByText("I am excited to apply for the Backend Engineer role."),
+  ).toBeVisible();
+  await expect(history.getByText("Rewrite goal: Stronger Impact")).toBeVisible();
+  await expect(
+    history.getByText("Worked on backend APIs for customer workflows."),
+  ).toBeVisible();
+  await expect(
+    history.getByText(
+      "Delivered customer workflow APIs that reduced manual review time by 35%.",
+    ),
+  ).toBeVisible();
+  await expect(
+    history.getByText(
+      "The revised bullet uses an action verb and adds measurable business impact.",
+    ),
   ).toBeVisible();
 });
 

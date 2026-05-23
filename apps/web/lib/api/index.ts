@@ -13,4 +13,7 @@ export type {
   CvAnalysisResult,
   CvItem,
   JdMatchResult,
+  ResumeRewriteGoal,
+  ResumeRewriteResult,
+  ResumeRewriteSuggestion,
 } from "./types";

@@ -8,6 +8,7 @@ import {
   hasSuggestions,
   isCoverLetterResult,
   isJdMatchResult,
+  isResumeRewriteResult,
 } from "../api";
 import { AnalysisList } from "../analysis/analysis-list";
 import { formatAnalysisType, formatDateTime } from "../format";
@@ -63,7 +64,42 @@ export function HistoryList({
                 <p className="text-sm font-semibold text-[#171717] [overflow-wrap:anywhere]">
                   {cv?.title || cv?.originalName || analysis.cvId}
                 </p>
-              {isCoverLetterResult(analysis.result) ? (
+              {isResumeRewriteResult(analysis.result) ? (
+                <>
+                  <p className="mt-3 inline-flex border border-[#e5e5df] bg-[#f7f7f4] px-2 py-1 text-sm text-[#5f5f58]">
+                    Rewrite goal:{" "}
+                    <span className="font-semibold text-[#171717]">
+                      {formatRewriteGoal(analysis.result.goal)}
+                    </span>
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {analysis.result.suggestions.map((suggestion, index) => (
+                      <div
+                        key={`${analysis.id}-${index}`}
+                        className="border border-[#e5e5df] bg-[#fafaf8] p-3"
+                      >
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <HistoryRewriteText
+                            label="Original"
+                            text={suggestion.original}
+                          />
+                          <HistoryRewriteText
+                            label="Improved"
+                            text={suggestion.improved}
+                            strong
+                          />
+                        </div>
+                        <p className="mt-3 border-t border-[#e5e5df] pt-3 text-sm leading-6 text-[#343430]">
+                          <span className="font-semibold text-[#171717]">
+                            Reason:{" "}
+                          </span>
+                          {suggestion.reason}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : isCoverLetterResult(analysis.result) ? (
                 <>
                   <p className="mt-3 line-clamp-4 border-l border-[#d8d8d1] pl-4 whitespace-pre-wrap text-sm leading-6 text-[#343430]">
                     {analysis.result.coverLetter}
@@ -233,11 +269,47 @@ function ActionableInsightSummary({ result }: { result: CvAnalysisResult }) {
 
 function AnalysisTypeIcon({ type }: { type: CvAnalysis["type"] }) {
   const Icon =
-    type === "JD_MATCH" ? GitCompare : type === "COVER_LETTER" ? FilePenLine : FileText;
+    type === "JD_MATCH" || type === "RESUME_REWRITE"
+      ? GitCompare
+      : type === "COVER_LETTER"
+        ? FilePenLine
+        : FileText;
 
   return (
     <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center border border-[#d8d8d1] bg-[#f1f1ee] text-[#343430]">
       <Icon className="h-4 w-4" aria-hidden="true" />
     </span>
   );
+}
+
+function HistoryRewriteText({
+  label,
+  text,
+  strong = false,
+}: {
+  label: string;
+  text: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[0.65rem] font-bold uppercase text-[#6f6f68]">
+        {label}
+      </p>
+      <p
+        className={`mt-1 text-sm leading-6 [overflow-wrap:anywhere] ${
+          strong ? "font-medium text-[#171717]" : "text-[#5f5f58]"
+        }`}
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function formatRewriteGoal(goal: string) {
+  return goal
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
