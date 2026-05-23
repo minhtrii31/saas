@@ -15,6 +15,58 @@ const cvList = [
   },
 ];
 
+const cvLibraryList = [
+  {
+    ...cvList[0],
+    id: "cv-latest",
+    title: "Backend CV latest",
+    originalName: "ada-backend.pdf",
+    sizeBytes: 150000,
+    createdAt: "2026-05-23T10:30:00.000Z",
+  },
+  {
+    ...cvList[0],
+    id: "cv-version-2",
+    title: null,
+    originalName: "ada-backend.pdf",
+    sizeBytes: 140000,
+    createdAt: "2026-05-22T10:30:00.000Z",
+  },
+  {
+    ...cvList[0],
+    id: "cv-product",
+    title: "Product CV",
+    originalName: "ada-product.pdf",
+    extractedText: null,
+    sizeBytes: 130000,
+    createdAt: "2026-05-21T10:30:00.000Z",
+  },
+  {
+    ...cvList[0],
+    id: "cv-version-1",
+    title: null,
+    originalName: "ada-backend.pdf",
+    sizeBytes: 120000,
+    createdAt: "2026-05-20T10:30:00.000Z",
+  },
+  {
+    ...cvList[0],
+    id: "cv-data",
+    title: "Data CV",
+    originalName: "ada-data.pdf",
+    sizeBytes: 110000,
+    createdAt: "2026-05-19T10:30:00.000Z",
+  },
+  {
+    ...cvList[0],
+    id: "cv-old",
+    title: "Old CV",
+    originalName: "ada-old.pdf",
+    sizeBytes: 100000,
+    createdAt: "2026-05-18T10:30:00.000Z",
+  },
+];
+
 const jobTargets = [
   {
     id: "a9df94a5-b938-4932-ac3c-7c99d6380b12",
@@ -309,11 +361,13 @@ test("/dashboard/cvs shows CV list for an authenticated user", async ({
   await page.goto("/dashboard/cvs");
 
   await expect(
-    page.getByRole("heading", { name: "CVs", exact: true }),
+    page.getByRole("heading", { name: "CV Library", exact: true }).first(),
   ).toBeVisible();
-  await expect(page.getByText("Backend CV")).toBeVisible();
-  await expect(page.getByText("ada-cv.pdf", { exact: true })).toBeVisible();
+  await expect(page.getByText("Current source")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Backend CV" })).toBeVisible();
+  await expect(page.getByText("Ready").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "View detail" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Match role" })).toBeVisible();
 });
 
 test("/dashboard/cvs shows empty state", async ({ page }) => {
@@ -323,8 +377,32 @@ test("/dashboard/cvs shows empty state", async ({ page }) => {
   await page.goto("/dashboard/cvs");
 
   await expect(
-    page.getByText("No CVs yet. Upload your first CV to start your library."),
+    page.getByRole("heading", { name: "Add your first CV" }),
   ).toBeVisible();
+  await expect(
+    page.getByText("No CVs yet. Use the Add new CV form above"),
+  ).toBeVisible();
+});
+
+test("/dashboard/cvs shows latest documents first and collapses older versions", async ({
+  page,
+}) => {
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvLibraryList);
+
+  await page.goto("/dashboard/cvs");
+
+  await expect(page.getByRole("heading", { name: "CV Library" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Backend CV latest" })).toBeVisible();
+  await expect(page.getByText("3 versions").first()).toBeVisible();
+  await expect(page.getByText("Latest version")).toBeVisible();
+  await expect(page.getByText("Pending / Not extracted")).toBeVisible();
+  await expect(page.getByText("Old CV")).toBeHidden();
+
+  await page.getByRole("button", { name: "Show all documents (6)" }).click();
+
+  await expect(page.getByText("Old CV")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Show latest 5" })).toBeVisible();
 });
 
 test("/dashboard/cvs upload success refreshes list", async ({ page }) => {
@@ -369,7 +447,7 @@ test("/dashboard/cvs upload success refreshes list", async ({ page }) => {
 
   await expect(page.getByRole("button", { name: "Uploading..." })).toBeDisabled();
   await expect(page.getByText("CV uploaded successfully.")).toBeVisible();
-  await expect(page.getByText("Backend CV")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Backend CV" })).toBeVisible();
   expect(getCount).toBeGreaterThanOrEqual(2);
 });
 
