@@ -4,6 +4,7 @@ import {
   validateCoverLetterResult,
   validateCvAnalysisResult,
   validateJdMatchResult,
+  validateResumeRewriteResult,
 } from '../utils/structured-output.validator';
 
 describe('structured output validator', () => {
@@ -143,5 +144,32 @@ describe('structured output validator', () => {
       tone: 'professional',
       highlights: ['NestJS APIs'],
     });
+  });
+
+  it('normalizes resume rewrite output', () => {
+    expect(
+      validateResumeRewriteResult({
+        originalText: ' Helped with APIs ',
+        rewrittenText: ' Delivered API improvements ',
+        explanation: ' Stronger action verb ',
+        rewriteGoal: 'stronger-impact',
+      }),
+    ).toEqual({
+      originalText: 'Helped with APIs',
+      rewrittenText: 'Delivered API improvements',
+      explanation: 'Stronger action verb',
+      rewriteGoal: 'stronger-impact',
+    });
+  });
+
+  it('rejects resume rewrite output with an unsupported goal', () => {
+    expect(() =>
+      validateResumeRewriteResult({
+        originalText: 'Helped with APIs',
+        rewrittenText: 'Delivered API improvements',
+        explanation: 'Stronger action verb',
+        rewriteGoal: 'unsupported-goal',
+      }),
+    ).toThrow(ServiceUnavailableException);
   });
 });

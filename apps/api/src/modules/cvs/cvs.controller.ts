@@ -22,6 +22,7 @@ import { CvsService } from './cvs.service';
 import { CreateCvDto } from './dto/create-cv.dto';
 import { GenerateCoverLetterDto } from './dto/generate-cover-letter.dto';
 import { MatchCvDto } from './dto/match-cv.dto';
+import { RewriteResumeDto } from './dto/rewrite-resume.dto';
 import type { UploadedCvFile } from './types/uploaded-cv-file';
 
 const cvIdParamPipe = new ParseUUIDPipe({
@@ -124,6 +125,17 @@ export class CvsController {
     @Body() dto: GenerateCoverLetterDto,
   ) {
     return this.cvsService.generateCoverLetter(user.id, id, dto);
+  }
+
+  @Post(':id/rewrite')
+  @UseGuards(JwtAuthGuard)
+  @RateLimit('cvRewrite')
+  rewriteResume(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', cvIdParamPipe) id: string,
+    @Body() dto: RewriteResumeDto,
+  ) {
+    return this.cvsService.rewriteResume(user.id, id, dto);
   }
 
   @Post('upload')

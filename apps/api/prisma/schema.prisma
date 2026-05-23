@@ -10,6 +10,7 @@ enum AnalysisType {
   CV_ANALYSIS
   JD_MATCH
   COVER_LETTER
+  RESUME_REWRITE
 
   @@map("analysis_type")
 }

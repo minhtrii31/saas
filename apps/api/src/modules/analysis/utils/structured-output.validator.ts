@@ -5,6 +5,8 @@ import type {
   CvAnalysisResult,
   CvScoringCategories,
   JdMatchResult,
+  ResumeRewriteGoal,
+  ResumeRewriteResult,
 } from '../types/cv-analysis-provider';
 import type { JsonObject } from '../prompts/analysis-prompt.builder';
 
@@ -49,6 +51,17 @@ export function validateCoverLetterResult(
     coverLetter: normalizeString(value.coverLetter, 'coverLetter'),
     tone: normalizeString(value.tone, 'tone'),
     highlights: normalizeStringArray(value.highlights, 'highlights'),
+  };
+}
+
+export function validateResumeRewriteResult(
+  value: JsonObject,
+): ResumeRewriteResult {
+  return {
+    originalText: normalizeString(value.originalText, 'originalText'),
+    rewrittenText: normalizeString(value.rewrittenText, 'rewrittenText'),
+    explanation: normalizeString(value.explanation, 'explanation'),
+    rewriteGoal: normalizeRewriteGoal(value.rewriteGoal),
   };
 }
 
@@ -134,6 +147,26 @@ function normalizeString(value: unknown, fieldName: string): string {
   }
 
   return value.trim();
+}
+
+function normalizeRewriteGoal(value: unknown): ResumeRewriteGoal {
+  const normalized = normalizeString(value, 'rewriteGoal');
+
+  if (isResumeRewriteGoal(normalized)) {
+    return normalized;
+  }
+
+  throw invalidStructuredOutput('rewriteGoal');
+}
+
+function isResumeRewriteGoal(value: string): value is ResumeRewriteGoal {
+  return [
+    'stronger-impact',
+    'ats-optimization',
+    'concise',
+    'quantified-achievements',
+    'leadership-tone',
+  ].includes(value);
 }
 
 function invalidStructuredOutput(

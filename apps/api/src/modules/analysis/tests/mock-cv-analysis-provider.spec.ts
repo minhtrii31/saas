@@ -110,4 +110,41 @@ describe('MockCvAnalysisProvider', () => {
     expect(result.coverLetter).toContain('TypeScript');
     expect(result.coverLetter).not.toContain('your job description');
   });
+
+  it('returns deterministic resume rewrite suggestions for the requested goal', async () => {
+    const provider = new MockCvAnalysisProvider();
+
+    const result = await provider.rewriteResume(
+      'Backend engineer with TypeScript, NestJS, PostgreSQL, and API testing experience.',
+      {
+        originalText: 'Responsible for APIs and helped with database work.',
+        rewriteGoal: 'stronger-impact',
+      },
+    );
+
+    expect(result).toEqual({
+      originalText: 'Responsible for APIs and helped with database work.',
+      rewrittenText: expect.any(String),
+      explanation: expect.any(String),
+      rewriteGoal: 'stronger-impact',
+    });
+    expect(result.rewrittenText).toContain('Owned');
+    expect(result.rewrittenText).toContain('API delivery');
+    expect(result.explanation).toContain('action verb');
+  });
+
+  it('keeps quantified achievement rewrites honest by asking for real metrics', async () => {
+    const provider = new MockCvAnalysisProvider();
+
+    const result = await provider.rewriteResume(
+      'Frontend engineer with React and TypeScript experience.',
+      {
+        originalText: 'Worked on React performance improvements.',
+        rewriteGoal: 'quantified-achievements',
+      },
+    );
+
+    expect(result.rewrittenText).toContain('add the exact metric');
+    expect(result.rewriteGoal).toBe('quantified-achievements');
+  });
 });

@@ -2,6 +2,7 @@ import {
   buildCoverLetterPrompt,
   buildCvAnalysisPrompt,
   buildJdMatchPrompt,
+  buildResumeRewritePrompt,
 } from '../prompts/analysis-prompt.builder';
 
 describe('analysis prompt builders', () => {
@@ -73,5 +74,31 @@ describe('analysis prompt builders', () => {
     expect(prompt.userPrompt).toContain('Company name: Example Corp');
     expect(prompt.userPrompt).toContain('Role title: Backend Engineer');
     expect(prompt.userPrompt).toContain('Requested tone: confident');
+  });
+
+  it('builds resume rewrite prompts with the rewrite goal and strict schema', () => {
+    const prompt = buildResumeRewritePrompt(
+      'Backend engineer with TypeScript API delivery.',
+      {
+        originalText: 'Helped with APIs.',
+        rewriteGoal: 'ats-optimization',
+      },
+    );
+
+    expect(prompt.schemaName).toBe('resume_rewrite');
+    expect(prompt.systemPrompt).toContain('weak bullet rewrites');
+    expect(prompt.systemPrompt).toContain('Do not invent metrics');
+    expect(prompt.userPrompt).toContain('Original resume text to rewrite:');
+    expect(prompt.userPrompt).toContain('Rewrite goal: ats-optimization');
+    expect(prompt.jsonSchema).toEqual(
+      expect.objectContaining({
+        required: [
+          'originalText',
+          'rewrittenText',
+          'explanation',
+          'rewriteGoal',
+        ],
+      }),
+    );
   });
 });

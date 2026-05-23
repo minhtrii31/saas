@@ -2,6 +2,7 @@ import type {
   CoverLetterResult,
   CvAnalysisResult,
   JdMatchResult,
+  ResumeRewriteResult,
 } from '../analysis/types/cv-analysis-provider';
 
 export type CreatedCv = {
@@ -59,6 +60,16 @@ export type CreatedCoverLetterAnalysis = {
   aiProvider: string | null;
   aiModel: string | null;
   result: CoverLetterResult;
+  createdAt: Date;
+};
+
+export type CreatedResumeRewriteAnalysis = {
+  id: string;
+  cvId: string;
+  type: string;
+  aiProvider: string | null;
+  aiModel: string | null;
+  result: ResumeRewriteResult;
   createdAt: Date;
 };
 

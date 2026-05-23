@@ -13,14 +13,17 @@ describe('AnalysisService', () => {
     });
     const matchJobDescription = jest.fn();
     const generateCoverLetter = jest.fn();
+    const rewriteResume = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
+      resumeRewriteModelName: 'mock-resume-rewrite-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
+      rewriteResume,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -55,14 +58,17 @@ describe('AnalysisService', () => {
       suggestions: ['Add Redis experience'],
     });
     const generateCoverLetter = jest.fn();
+    const rewriteResume = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
+      resumeRewriteModelName: 'mock-resume-rewrite-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
+      rewriteResume,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -101,14 +107,17 @@ describe('AnalysisService', () => {
       tone: 'professional',
       highlights: ['TypeScript experience'],
     });
+    const rewriteResume = jest.fn();
     const provider: CvAnalysisProvider = {
       providerName: 'mock',
       modelName: 'mock-cv-analyzer-v1',
       jdMatcherModelName: 'mock-jd-matcher-v1',
       coverLetterModelName: 'mock-cover-letter-v1',
+      resumeRewriteModelName: 'mock-resume-rewrite-v1',
       analyzeCv,
       matchJobDescription,
       generateCoverLetter,
+      rewriteResume,
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -140,6 +149,59 @@ describe('AnalysisService', () => {
       jobDescriptionText: 'job description',
       companyName: 'Example Corp',
       roleTitle: 'Backend Engineer',
+    });
+  });
+
+  it('delegates resume rewriting to the configured provider and returns rewrite model metadata', async () => {
+    const analyzeCv = jest.fn();
+    const matchJobDescription = jest.fn();
+    const generateCoverLetter = jest.fn();
+    const rewriteResume = jest.fn().mockResolvedValue({
+      originalText: 'Helped with APIs',
+      rewrittenText: 'Delivered API improvements',
+      explanation: 'Stronger action verb',
+      rewriteGoal: 'stronger-impact',
+    });
+    const provider: CvAnalysisProvider = {
+      providerName: 'mock',
+      modelName: 'mock-cv-analyzer-v1',
+      jdMatcherModelName: 'mock-jd-matcher-v1',
+      coverLetterModelName: 'mock-cover-letter-v1',
+      resumeRewriteModelName: 'mock-resume-rewrite-v1',
+      analyzeCv,
+      matchJobDescription,
+      generateCoverLetter,
+      rewriteResume,
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AnalysisService,
+        {
+          provide: CV_ANALYSIS_PROVIDER,
+          useValue: provider,
+        },
+      ],
+    }).compile();
+    const service = module.get(AnalysisService);
+
+    await expect(
+      service.rewriteResume('extracted cv text', {
+        originalText: 'Helped with APIs',
+        rewriteGoal: 'stronger-impact',
+      }),
+    ).resolves.toEqual({
+      aiProvider: 'mock',
+      aiModel: 'mock-resume-rewrite-v1',
+      result: {
+        originalText: 'Helped with APIs',
+        rewrittenText: 'Delivered API improvements',
+        explanation: 'Stronger action verb',
+        rewriteGoal: 'stronger-impact',
+      },
+    });
+    expect(rewriteResume).toHaveBeenCalledWith('extracted cv text', {
+      originalText: 'Helped with APIs',
+      rewriteGoal: 'stronger-impact',
     });
   });
 });

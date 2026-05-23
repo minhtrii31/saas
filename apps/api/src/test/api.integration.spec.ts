@@ -207,6 +207,67 @@ describe('API PostgreSQL integration', () => {
     });
   });
 
+  it('rewrites resume text through PostgreSQL and the mock AI provider', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'rewrite.integration@example.com',
+    );
+    const cv = await prisma.cv.create({
+      data: {
+        userId,
+        title: 'Backend CV',
+        originalName: 'backend-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        storageProvider: 'local',
+        storageKey: `cvs/${userId}/backend-cv.pdf`,
+        storageUrl: null,
+        extractedText:
+          'Backend engineer with TypeScript, NestJS, PostgreSQL, and API testing experience.',
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/cvs/${cv.id}/rewrite`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        originalText: 'Responsible for APIs and helped with database work.',
+        rewriteGoal: 'stronger-impact',
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      data: {
+        id: expect.any(String),
+        cvId: cv.id,
+        type: 'RESUME_REWRITE',
+        aiProvider: 'mock',
+        aiModel: 'mock-resume-rewrite-v1',
+        result: {
+          originalText: 'Responsible for APIs and helped with database work.',
+          rewrittenText: expect.any(String),
+          explanation: expect.any(String),
+          rewriteGoal: 'stronger-impact',
+        },
+        createdAt: expect.any(String),
+      },
+      meta: {},
+    });
+    expect(response.body.data.result.rewrittenText).toContain('Owned');
+
+    await expect(
+      prisma.cvAnalysis.findFirstOrThrow({
+        where: {
+          id: response.body.data.id as string,
+          cvId: cv.id,
+          type: 'RESUME_REWRITE',
+        },
+      }),
+    ).resolves.toMatchObject({
+      aiProvider: 'mock',
+      aiModel: 'mock-resume-rewrite-v1',
+    });
+  });
+
   async function registerUser(email: string): Promise<string> {
     const response = await request(app.getHttpServer())
       .post('/auth/register')

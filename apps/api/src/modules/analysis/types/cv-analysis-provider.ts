@@ -45,6 +45,25 @@ export type CoverLetterResult = {
   highlights: string[];
 };
 
+export type ResumeRewriteGoal =
+  | 'stronger-impact'
+  | 'ats-optimization'
+  | 'concise'
+  | 'quantified-achievements'
+  | 'leadership-tone';
+
+export type ResumeRewriteInput = {
+  originalText: string;
+  rewriteGoal: ResumeRewriteGoal;
+};
+
+export type ResumeRewriteResult = {
+  originalText: string;
+  rewrittenText: string;
+  explanation: string;
+  rewriteGoal: ResumeRewriteGoal;
+};
+
 export type AnalysisProviderResponse<TResult> = {
   aiProvider: string;
   aiModel: string;
@@ -54,12 +73,15 @@ export type AnalysisProviderResponse<TResult> = {
 export type CvAnalysisResponse = AnalysisProviderResponse<CvAnalysisResult>;
 export type JdMatchResponse = AnalysisProviderResponse<JdMatchResult>;
 export type CoverLetterResponse = AnalysisProviderResponse<CoverLetterResult>;
+export type ResumeRewriteResponse =
+  AnalysisProviderResponse<ResumeRewriteResult>;
 
 export interface CvAnalysisProvider {
   readonly providerName: string;
   readonly modelName: string;
   readonly jdMatcherModelName: string;
   readonly coverLetterModelName: string;
+  readonly resumeRewriteModelName: string;
   analyzeCv(extractedText: string): Promise<CvAnalysisResult>;
   matchJobDescription(
     extractedText: string,
@@ -69,4 +91,8 @@ export interface CvAnalysisProvider {
     extractedText: string,
     input: CoverLetterGenerationInput,
   ): Promise<CoverLetterResult>;
+  rewriteResume(
+    extractedText: string,
+    input: ResumeRewriteInput,
+  ): Promise<ResumeRewriteResult>;
 }

@@ -6,11 +6,14 @@ import type {
   CvAnalysisProvider,
   CvAnalysisResult,
   JdMatchResult,
+  ResumeRewriteInput,
+  ResumeRewriteResult,
 } from '../types/cv-analysis-provider';
 import {
   buildCoverLetterPrompt,
   buildCvAnalysisPrompt,
   buildJdMatchPrompt,
+  buildResumeRewritePrompt,
   type JsonObject,
   type StructuredPrompt,
 } from '../prompts/analysis-prompt.builder';
@@ -19,6 +22,7 @@ import {
   validateCoverLetterResult,
   validateCvAnalysisResult,
   validateJdMatchResult,
+  validateResumeRewriteResult,
 } from '../utils/structured-output.validator';
 
 type OpenAiChatCompletionResponse = {
@@ -44,6 +48,10 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
   }
 
   get coverLetterModelName(): string {
+    return this.environmentService.openAiModel;
+  }
+
+  get resumeRewriteModelName(): string {
     return this.environmentService.openAiModel;
   }
 
@@ -75,6 +83,17 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
     );
 
     return validateCoverLetterResult(content);
+  }
+
+  async rewriteResume(
+    extractedText: string,
+    input: ResumeRewriteInput,
+  ): Promise<ResumeRewriteResult> {
+    const content = await this.requestStructuredJson(
+      buildResumeRewritePrompt(extractedText, input),
+    );
+
+    return validateResumeRewriteResult(content);
   }
 
   private async requestStructuredJson(

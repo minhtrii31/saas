@@ -7,6 +7,8 @@ import type {
   CvAnalysisResult,
   CvScoringCategories,
   JdMatchResult,
+  ResumeRewriteInput,
+  ResumeRewriteResult,
 } from '../types/cv-analysis-provider';
 
 type SkillDefinition = {
@@ -19,6 +21,7 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
   readonly providerName = 'mock';
   readonly jdMatcherModelName = 'mock-jd-matcher-v1';
   readonly coverLetterModelName = 'mock-cover-letter-v1';
+  readonly resumeRewriteModelName = 'mock-resume-rewrite-v1';
   private readonly cvAnalyzerModelName = 'mock-cv-analyzer-v1';
 
   get modelName(): string {
@@ -112,6 +115,29 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
       ].join('\n'),
       tone,
       highlights,
+    });
+  }
+
+  rewriteResume(
+    extractedText: string,
+    input: ResumeRewriteInput,
+  ): Promise<ResumeRewriteResult> {
+    const originalText = input.originalText.trim();
+    const cvSkills = this.findKnownSkills(`${extractedText} ${originalText}`);
+    const primarySkill = cvSkills[0] ?? 'core work';
+    const impactObject = this.pickImpactObject(originalText, primarySkill);
+    const rewrittenText = this.buildRewriteText({
+      originalText,
+      rewriteGoal: input.rewriteGoal,
+      primarySkill,
+      impactObject,
+    });
+
+    return Promise.resolve({
+      originalText,
+      rewrittenText,
+      explanation: this.buildRewriteExplanation(input.rewriteGoal),
+      rewriteGoal: input.rewriteGoal,
     });
   }
 
@@ -553,6 +579,91 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
     }
 
     return ['relevant CV experience', 'interest in the role requirements'];
+  }
+
+  private buildRewriteText(input: {
+    originalText: string;
+    rewriteGoal: ResumeRewriteInput['rewriteGoal'];
+    primarySkill: string;
+    impactObject: string;
+  }): string {
+    const { originalText, rewriteGoal, primarySkill, impactObject } = input;
+    const cleanedText = originalText
+      .replace(/\s+/g, ' ')
+      .replace(/^[-*]\s*/, '');
+
+    if (rewriteGoal === 'concise') {
+      return `Delivered ${impactObject} using ${primarySkill}, keeping the focus on scope, action, and outcome.`;
+    }
+
+    if (rewriteGoal === 'ats-optimization') {
+      return `Delivered ${primarySkill}-focused ${impactObject} with clear resume keywords, role-relevant ownership, and recruiter-readable impact.`;
+    }
+
+    if (rewriteGoal === 'quantified-achievements') {
+      return `Improved ${impactObject} using ${primarySkill}; add the exact metric for scale, time saved, revenue, quality, or performance gain.`;
+    }
+
+    if (rewriteGoal === 'leadership-tone') {
+      return `Led ${impactObject} across stakeholders using ${primarySkill}, clarifying priorities and driving delivery toward measurable outcomes.`;
+    }
+
+    if (
+      /responsible for|helped|worked on|assisted|participated in|involved in/i.test(
+        cleanedText,
+      )
+    ) {
+      return `Owned ${impactObject} using ${primarySkill}, turning responsibility-focused work into a clearer achievement with visible impact.`;
+    }
+
+    return `Delivered ${impactObject} with ${primarySkill}, making the action, scope, and outcome easier for recruiters to evaluate.`;
+  }
+
+  private buildRewriteExplanation(
+    rewriteGoal: ResumeRewriteInput['rewriteGoal'],
+  ): string {
+    const explanations: Record<ResumeRewriteInput['rewriteGoal'], string> = {
+      'stronger-impact':
+        'Replaces weak duty wording with a stronger action verb and an outcome-focused achievement frame.',
+      'ats-optimization':
+        'Adds recruiter-searchable wording while keeping the rewrite grounded in the supplied resume text.',
+      concise:
+        'Compresses the bullet into a shorter action-scope-outcome structure.',
+      'quantified-achievements':
+        'Creates a measurable achievement frame and prompts for a real metric instead of inventing one.',
+      'leadership-tone':
+        'Raises the wording toward ownership, stakeholder alignment, and delivery leadership.',
+    };
+
+    return explanations[rewriteGoal];
+  }
+
+  private pickImpactObject(originalText: string, primarySkill: string): string {
+    const normalizedText = originalText.toLowerCase();
+
+    if (normalizedText.includes('api')) {
+      return 'API delivery';
+    }
+
+    if (
+      normalizedText.includes('database') ||
+      normalizedText.includes('query')
+    ) {
+      return 'database performance';
+    }
+
+    if (
+      normalizedText.includes('team') ||
+      normalizedText.includes('stakeholder')
+    ) {
+      return 'cross-functional delivery';
+    }
+
+    if (primarySkill !== 'core work') {
+      return `${primarySkill} delivery`;
+    }
+
+    return 'resume achievement';
   }
 
   private findKnownSkills(text: string): string[] {

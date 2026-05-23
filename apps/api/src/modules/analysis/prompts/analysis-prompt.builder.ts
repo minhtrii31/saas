@@ -1,4 +1,7 @@
-import type { CoverLetterGenerationInput } from '../types/cv-analysis-provider';
+import type {
+  CoverLetterGenerationInput,
+  ResumeRewriteInput,
+} from '../types/cv-analysis-provider';
 
 export type JsonObject = Record<string, unknown>;
 
@@ -83,6 +86,29 @@ export function buildCoverLetterPrompt(
   };
 }
 
+export function buildResumeRewritePrompt(
+  extractedText: string,
+  input: ResumeRewriteInput,
+): StructuredPrompt {
+  return {
+    schemaName: 'resume_rewrite',
+    jsonSchema: resumeRewriteSchema(),
+    systemPrompt: [
+      baseSystemInstructions,
+      'Rewrite the supplied resume text to improve the candidate wording while preserving only facts supported by the original text or broader CV context.',
+      'Support weak bullet rewrites, stronger action verbs, quantified achievement framing, ATS wording, and summary improvements.',
+      'Do not invent metrics, employers, titles, tools, credentials, scope, dates, or outcomes. If a metric is missing, frame the rewrite with measurable placeholders only when the original text clearly invites user completion.',
+      'The rewrittenText must be ready to paste into a resume and should match the requested rewriteGoal.',
+      'The explanation must briefly name what changed and why it helps recruiter readability, ATS scanability, impact, quantification, concision, or leadership tone.',
+    ].join(' '),
+    userPrompt: [
+      `CV context:\n${extractedText.trim()}`,
+      `Original resume text to rewrite:\n${input.originalText.trim()}`,
+      `Rewrite goal: ${input.rewriteGoal}`,
+    ].join('\n\n'),
+  };
+}
+
 function cvAnalysisSchema(): JsonObject {
   return {
     type: 'object',
@@ -134,6 +160,29 @@ function coverLetterSchema(): JsonObject {
       coverLetter: { type: 'string', minLength: 1 },
       tone: { type: 'string', minLength: 1 },
       highlights: stringArraySchema(2, 5),
+    },
+  };
+}
+
+function resumeRewriteSchema(): JsonObject {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['originalText', 'rewrittenText', 'explanation', 'rewriteGoal'],
+    properties: {
+      originalText: { type: 'string', minLength: 1 },
+      rewrittenText: { type: 'string', minLength: 1 },
+      explanation: { type: 'string', minLength: 1 },
+      rewriteGoal: {
+        type: 'string',
+        enum: [
+          'stronger-impact',
+          'ats-optimization',
+          'concise',
+          'quantified-achievements',
+          'leadership-tone',
+        ],
+      },
     },
   };
 }

@@ -6,6 +6,8 @@ import type {
   CoverLetterGenerationInput,
   CoverLetterResponse,
   JdMatchResponse,
+  ResumeRewriteInput,
+  ResumeRewriteResponse,
 } from './types/cv-analysis-provider';
 
 @Injectable()
@@ -53,6 +55,22 @@ export class AnalysisService {
     return {
       aiProvider: this.cvAnalysisProvider.providerName,
       aiModel: this.cvAnalysisProvider.coverLetterModelName,
+      result,
+    };
+  }
+
+  async rewriteResume(
+    extractedText: string,
+    input: ResumeRewriteInput,
+  ): Promise<ResumeRewriteResponse> {
+    const result = await this.cvAnalysisProvider.rewriteResume(
+      extractedText,
+      input,
+    );
+
+    return {
+      aiProvider: this.cvAnalysisProvider.providerName,
+      aiModel: this.cvAnalysisProvider.resumeRewriteModelName,
       result,
     };
   }

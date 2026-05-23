@@ -195,4 +195,42 @@ describe('OpenAiAnalysisProvider', () => {
       highlights: ['NestJS'],
     });
   });
+
+  it('normalizes resume rewrite output before returning it', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                originalText: ' Helped with APIs ',
+                rewrittenText: ' Delivered API improvements ',
+                explanation: ' Stronger verb and clearer impact ',
+                rewriteGoal: 'stronger-impact',
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const provider = new OpenAiAnalysisProvider(new EnvironmentService());
+
+    await expect(
+      provider.rewriteResume('CV text', {
+        originalText: 'Helped with APIs',
+        rewriteGoal: 'stronger-impact',
+      }),
+    ).resolves.toEqual({
+      originalText: 'Helped with APIs',
+      rewrittenText: 'Delivered API improvements',
+      explanation: 'Stronger verb and clearer impact',
+      rewriteGoal: 'stronger-impact',
+    });
+
+    const fetchMock = global.fetch as jest.Mock;
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(requestBody.response_format.json_schema.name).toBe('resume_rewrite');
+  });
 });
