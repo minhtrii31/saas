@@ -21,7 +21,7 @@ Users can analyze a CV and receive:
 
 ### Resume Rewrite
 
-Users can improve resume bullets from an uploaded CV at `/dashboard/rewrite`.
+Users can improve resume bullets from an uploaded CV at `/dashboard/rewrite`, then refine individual suggestions without rerunning the whole workflow.
 
 The result includes:
 
@@ -29,6 +29,15 @@ The result includes:
 - Rewritten alternatives
 - Rewrite rationale
 - Selected rewrite goal
+
+Users can refine each suggestion with one of these instructions:
+
+- stronger
+- shorter
+- more-technical
+- more-leadership
+- more-ats-friendly
+- more-results-focused
 
 ### Job Description Matching
 
@@ -47,7 +56,7 @@ Users can generate a basic tailored cover letter from a selected CV and job desc
 
 ### History
 
-Users can view previous CV analyses, JD comparisons, resume rewrites, and generated cover letters in dashboard history. Resume rewrite records are stored as `RESUME_REWRITE`.
+Users can view previous CV analyses, JD comparisons, resume rewrites, rewrite refinements, and generated cover letters in dashboard history. Resume rewrite records are stored as `RESUME_REWRITE`; per-suggestion refinements are stored as `REWRITE_REFINEMENT`.
 
 ## Future Features
 

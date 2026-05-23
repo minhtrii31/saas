@@ -10,8 +10,8 @@ Tests should verify important behavior, not implementation details.
 
 Current source counts:
 
-- API: 125 Jest/Supertest test cases.
-- Web: 33 Playwright test cases.
+- API: 146 Jest/Supertest test cases.
+- Web: 36 Playwright test cases.
 
 Main verification commands:
 
@@ -58,6 +58,7 @@ Integration tests:
 - Do not mock everything if integration behavior matters.
 - Use `AI_PROVIDER=mock` for automated tests.
 - Never run persistence tests against a development or production database.
+- Keep throttling tests isolated from shared request tracker state when adding or changing rate-limited endpoints.
 
 ### PostgreSQL integration tests
 
@@ -107,6 +108,7 @@ Examples:
 - User can upload CV
 - User can start CV analysis
 - User can compare CV with JD
+- User can generate and refine resume rewrite suggestions
 
 ### Tools
 
