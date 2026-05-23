@@ -3,6 +3,14 @@
 The backend selects its CV analysis provider through environment variables.
 Local development should use the mock provider by default so the product can be developed without network calls, API keys, provider outages, or usage charges.
 
+The current provider boundary is `CvAnalysisProvider`. It supports:
+
+- CV quality analysis.
+- Job description matching.
+- Cover letter generation.
+
+Provider responses include `aiProvider`, `aiModel`, and structured result data before they are persisted as `CvAnalysis` records.
+
 ## Environment Variables
 
 ### `AI_PROVIDER=mock`
@@ -32,6 +40,8 @@ Behavior:
 - Requires `OPENAI_API_KEY`.
 - Uses `OPENAI_MODEL` when set.
 - Falls back to the backend default model when `OPENAI_MODEL` is not set.
+- Requests strict structured JSON and normalizes the returned fields before service code sees the result.
+- Returns a clean `AI_PROVIDER_ERROR` response when the provider fails or returns invalid structured output.
 
 Example:
 
@@ -66,6 +76,21 @@ AI_PROVIDER=mock
 ```
 
 Do not set `AI_PROVIDER=openai` in unit, integration, smoke, or E2E test environments. Tests should be deterministic, fast, and safe to run repeatedly without external API access, billing risk, or provider rate-limit failures.
+
+## Architecture Rules
+
+- Do not call OpenAI directly from controllers.
+- Do not call OpenAI directly from CV workflow services.
+- Add future providers by implementing `CvAnalysisProvider` and wiring provider selection in the analysis module.
+- Keep provider output structured and normalized before persistence.
+- Persist provider/model metadata with analysis records for auditability.
+
+Current providers:
+
+- `MockCvAnalysisProvider`
+- `OpenAiAnalysisProvider`
+
+Future provider candidates remain Gemini, OpenRouter, or other compatible structured-output providers.
 
 ## Cost and Safety Notes
 

@@ -1,122 +1,136 @@
 # Current Project Status
 
-Last verified: 2026-05-22
+Last verified: 2026-05-23
 
-## 1. Product summary
+## Product summary
 
-CV AI SaaS is an AI-assisted CV improvement product for job seekers. The MVP helps users create an account, upload CV files, extract CV text, analyze CV quality, compare a CV against a job description, generate a basic tailored cover letter, and review saved analysis history.
+Nyx is an AI-assisted CV workspace for job seekers. The MVP helps users keep CVs organized, analyze CV quality, compare a CV with a target job description, generate a tailored cover letter, and revisit saved analysis history.
 
-## 2. Current implemented features
+## Current implementation
 
-- Authentication: register, login, authenticated `GET /auth/me`, JWT guard, password hashing, duplicate-email handling, and basic dashboard session handling.
-- CV management: create metadata records, upload PDF/DOC/DOCX files, list CVs, fetch one CV, and soft-delete CVs.
-- CV analysis: analyze extracted CV text through the analysis provider abstraction and persist `CV_ANALYSIS` records.
-- Job description matching: compare a CV with pasted job description text and persist `JD_MATCH` records.
-- Cover letter generation: generate a cover letter from CV text and job description text, with optional company and role inputs, and persist `COVER_LETTER` records.
-- History: list non-deleted analysis records for a CV, newest first.
-- Web UI: login, registration, protected dashboard, CV upload/list page, inline analysis, JD match, cover letter, and history panels.
+- Branding: the product is now presented as **Nyx**, with a calm, task-oriented CV workspace direction.
+- Frontend: Next.js app under `apps/web` with productized home, auth screens, protected dashboard shell, task navigation, and task routes.
+- Backend: NestJS API under `apps/api` with modular `auth`, `cvs`, `analysis`, `config`, and `prisma` modules.
+- Database: Prisma models and migrations exist for `User`, `Cv`, and `CvAnalysis`; `CvAnalysis.type` supports `CV_ANALYSIS`, `JD_MATCH`, and `COVER_LETTER`.
+- AI: provider abstraction supports deterministic mock output and an OpenAI provider that requests structured JSON and normalizes responses.
+- CI: GitHub Actions runs API and web checks against PostgreSQL 17 with `AI_PROVIDER=mock`.
 
-## 3. Backend status
+## Frontend capabilities
 
-- NestJS API exists under `apps/api`.
-- Prisma schema and migrations exist for `User`, `Cv`, and `CvAnalysis`.
-- Implemented modules include `auth`, `cvs`, `analysis`, `config`, and `prisma`.
-- API response wrapping and exception formatting are centralized.
-- AI provider abstraction is present with mock and OpenAI providers; local/test default should be `AI_PROVIDER=mock`.
-- File storage is currently local/in-memory-style service behavior for the app slice; production S3/Cloudinary integration is not complete.
-- Redis/BullMQ are documented as planned architecture, but queue processing is not implemented yet.
+Implemented routes:
 
-## 4. Frontend status
+- `/`: Nyx product entry page.
+- `/register`: account creation.
+- `/login`: login and token storage.
+- `/dashboard`: protected task overview with workspace metrics and recommended next action.
+- `/dashboard/cvs`: CV repository with upload/list behavior.
+- `/dashboard/cvs/[id]`: CV metadata and extracted text detail.
+- `/dashboard/analyze`: select a CV and run AI CV analysis.
+- `/dashboard/match`: compare a selected CV against pasted job description text.
+- `/dashboard/cover-letter`: generate cover letter content from CV and job description text.
+- `/dashboard/history`: aggregate saved analysis history across CVs.
+- `/dashboard/settings`: placeholder/settings route.
 
-- Next.js app exists under `apps/web`.
-- Implemented routes: `/`, `/register`, `/login`, `/dashboard`, and `/dashboard/cvs`.
-- `/register`, `/login`, `/dashboard`, and `/dashboard/cvs` call the backend API through `lib/api`.
-- JWT access token is stored in `localStorage`.
-- The home page is still the default create-next-app starter page and is not productized.
-- UI is functional but minimal; no shared design system or shadcn/ui setup is currently present.
+Frontend API access is centralized under `apps/web/lib/api` and dashboard-specific helpers live under `apps/web/components/dashboard`. Protected routes currently rely on a JWT access token in `localStorage`.
 
-## 5. Testing status
+## Backend capabilities
 
-- Backend uses Jest and Supertest.
-- Frontend uses Playwright E2E tests.
-- Current verification:
-  - `npm run check:api` passes.
-  - `npm run check:web` passes.
-  - Backend: 20 test suites, 93 tests passing.
-  - Frontend E2E: 31 Playwright tests passing.
-- In this sandbox, both checks required elevated permission because Supertest/Playwright need to bind local servers.
+Implemented API surface:
 
-## 6. Environment variables
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
+- `GET /cvs`
+- `POST /cvs`
+- `POST /cvs/upload`
+- `GET /cvs/:id`
+- `DELETE /cvs/:id`
+- `GET /cvs/:id/analyses`
+- `POST /cvs/:id/analyze`
+- `POST /cvs/:id/match`
+- `POST /cvs/:id/cover-letter`
 
-Root `.env.example` is currently empty.
+The API uses centralized response wrapping and exception formatting. Controllers stay HTTP-focused; service classes handle business behavior and Prisma persistence.
 
-API variables from `apps/api/.env.example`:
+## Testing status
 
-```env
-PORT=4000
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cv_ai_dev?schema=public"
-JWT_SECRET="replace-with-a-long-random-secret"
-WEB_ORIGIN=http://localhost:3000
-AI_PROVIDER=mock
-OPENAI_API_KEY=
-OPENAI_MODEL=
-```
+Current test files and counts from source:
 
-Web variables from `apps/web/.env.example`:
+- API: 22 Jest/Supertest spec files, 98 `it(...)` test cases.
+- Web: 3 Playwright spec files, 30 `test(...)` test cases.
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:4000
-```
+Verification commands:
 
-Additional supported API variable:
+- `npm run check:api`: Jest, ESLint, Nest build.
+- `npm run check:web`: Playwright, ESLint, Next build.
+- `npm run check`: runs both checks.
 
-- `CV_MAX_FILE_SIZE_BYTES`: optional upload size limit; defaults to 5 MB.
+PostgreSQL integration tests use `DATABASE_URL_TEST`, run Prisma migrations in Jest global setup, and refuse to run unless the active database URL is explicitly a test database.
 
-Note: `docker-compose.yml` exposes Postgres on host port `5433` with user/password `cvai`/`cvai`, which does not match the API `.env.example` `DATABASE_URL`.
-
-## 7. Local development commands
+## Local development commands
 
 - Install dependencies: `npm install`
-- Start web: `npm run dev:web`
 - Start API: `npm run dev:api`
+- Start web: `npm run dev:web`
+- Start local Postgres: `docker compose up -d postgres`
 - Check all: `npm run check`
 - Check API only: `npm run check:api`
 - Check web only: `npm run check:web`
 - API tests only: `npm run test -w apps/api`
 - Web E2E only: `npm run test:e2e -w apps/web`
-- Start local Postgres: `docker compose up -d postgres`
 
-## 8. Known limitations
+## Environment notes
 
-- Home page is still the default Next.js starter page.
-- No logout endpoint or refresh-token/session persistence beyond `localStorage` access token.
-- No production-ready file storage integration yet.
-- DOC/DOCX upload is accepted, but reliable text extraction appears focused on PDF support.
-- AI work runs synchronously; Redis/BullMQ queues are not wired in.
-- No global history page; history is shown per CV in the CV management page.
-- No job description file upload on the frontend; matching uses pasted text.
-- Root `.env.example` is empty, and API database example does not match Docker Compose.
-- Generated app READMEs for `apps/api` and `apps/web` still contain framework starter content.
+API variables:
 
-## 9. Next recommended tasks
+```env
+PORT=4000
+DATABASE_URL="postgresql://cvai:cvai@localhost:5433/cv_ai_dev?schema=public"
+JWT_SECRET="replace-with-a-long-random-secret"
+WEB_ORIGIN=http://localhost:3000
+AI_PROVIDER=mock
+OPENAI_API_KEY=
+OPENAI_MODEL=
+CV_MAX_FILE_SIZE_BYTES=5242880
+```
 
-1. Replace the starter home page with a product entry page linked to login/register/dashboard.
-2. Align environment examples with Docker Compose and document Prisma migration/setup commands.
-3. Add production-ready file storage configuration for S3-compatible storage or Cloudinary.
-4. Add background jobs for file extraction and AI analysis once synchronous MVP behavior is stable.
-5. Improve auth lifecycle with logout semantics, token expiry handling, and refresh/session strategy.
-6. Add a dedicated analysis history view and detail pages for saved results.
-7. Expand frontend UX around CV deletion, selected CV detail, and job description upload.
-8. Replace starter READMEs with project-specific setup docs.
+Web variables:
 
-## 10. Important architectural decisions
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
 
-- Use a modular monolith: one NestJS backend deployable, split by domain modules.
-- Keep controllers thin; business logic belongs in services.
-- Use Prisma for database access and keep persistence concerns out of controllers.
-- Use consistent API envelopes: `{ data, meta }` for success and `{ error, meta }` for errors.
-- Keep AI access behind a provider abstraction so OpenAI can be swapped for Gemini, OpenRouter, or another provider later.
-- Prefer the mock AI provider for local development and automated tests.
-- Follow backend TDD for business logic, validation, auth, and persistence behavior.
-- Protect frontend critical flows with Playwright smoke/E2E tests.
-- Build small vertical slices instead of multiple unfinished systems at once.
+CI uses `DATABASE_URL_TEST=postgresql://cvai:cvai@localhost:5432/cv_ai_test?schema=public`.
+
+## Architecture boundaries
+
+- Keep the backend as a modular monolith.
+- Keep controllers thin and business logic in services.
+- Keep persistence behind Prisma services and test persistence behavior with PostgreSQL integration tests.
+- Keep AI calls behind `CvAnalysisProvider`; do not call OpenAI directly from controllers or CV services.
+- Keep frontend route pages focused on page composition; shared UI belongs in `components/ui`, dashboard workflows in `components/dashboard`, and typed API calls in `lib/api`.
+- Keep automated tests on the mock AI provider.
+
+## UX direction
+
+Nyx should feel like a focused CV workbench, not a generic SaaS landing page. Prioritize task clarity, dense but readable dashboard surfaces, direct next actions, and structured feedback over decorative UI.
+
+## Known limitations
+
+- No refresh-token flow or server-side session persistence; logout is client-side token removal.
+- Local file storage is implemented; S3/Cloudinary storage is still future work.
+- AI work is synchronous; Redis/BullMQ queues are not wired in.
+- Job description upload is not implemented; matching and cover letters use pasted text.
+- Settings route is present but minimal.
+- OpenAI integration uses `fetch` directly and is covered with unit tests, but live provider behavior needs manual validation with real credentials.
+- Web E2E tests mock API responses; they do not currently exercise a full browser-to-Nest-to-Postgres flow.
+
+## Recommended next priorities
+
+1. Align `.env.example` files with Docker Compose and CI database settings.
+2. Add a production file-storage provider behind the existing storage boundary.
+3. Add refresh/session strategy and explicit auth lifecycle decisions.
+4. Add background jobs for file extraction and AI calls after synchronous MVP behavior is stable.
+5. Expand history/detail UX for saved analyses, matches, and cover letters.
+6. Add a small end-to-end integration path that runs web, API, and PostgreSQL together.
+7. Fill out settings only when there is a real user-facing setting to manage.

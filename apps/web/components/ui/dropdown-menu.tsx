@@ -84,17 +84,20 @@ export function DropdownMenu({
         aria-haspopup="menu"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}
-        className="flex items-center gap-2 border border-transparent bg-transparent px-0 text-[#171717] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#cfcfc8]"
+        className="flex items-center gap-2 border border-transparent bg-transparent px-0 text-[#171717] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#cfcfc8]"
       >
         {trigger}
-        <ChevronDown className="h-3.5 w-3.5 text-[#6f6f68]" aria-hidden="true" />
+        <ChevronDown
+          className="h-3.5 w-3.5 text-[#6f6f68]"
+          aria-hidden="true"
+        />
       </button>
 
       {isOpen ? (
         <div
           role="menu"
           aria-label={label}
-          className={`absolute ${panelPosition} top-full z-50 mt-2.5 w-[min(18rem,calc(100vw-2rem))] border border-[#d9d9d2] bg-[#ffffff] p-2 text-left shadow-xl shadow-zinc-950/10`}
+          className={`absolute ${panelPosition} top-full z-50 mt-2.5 w-[min(18rem,calc(100vw-2rem))] border border-[#d9d9d2] bg-white p-2 text-left shadow-xl shadow-zinc-950/10`}
         >
           {header ? (
             <div className="mb-2 border-b border-[#e5e5df] p-3">{header}</div>

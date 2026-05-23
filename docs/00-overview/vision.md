@@ -1,6 +1,6 @@
 # Vision
 
-Build an AI-assisted SaaS platform that helps users understand, improve, and track the quality of their CVs for job applications.
+Build Nyx, an AI-assisted CV workspace that helps users understand, improve, and track the quality of their CVs for job applications.
 
 The product helps users:
 
@@ -10,5 +10,5 @@ The product helps users:
 - Generate a tailored cover letter.
 - Track the evolution of their CV over time.
 
-The product is not intended to replace the user.
+Nyx is not intended to replace the user.
 It acts as an AI career assistant that gives structured feedback and helps users make better application decisions.

@@ -1,98 +1,99 @@
 # Architecture Overview
 
-## Architecture Style
+## Current shape
 
-The system uses a modular monolith architecture.
+Nyx is a TypeScript monorepo with a Next.js frontend and a NestJS modular monolith backend.
 
-The backend is a single deployable application but internally separated into clear modules.
+The current implementation favors small vertical slices:
 
-This allows:
+- Authenticated user account access.
+- CV upload, storage metadata, text extraction, listing, detail, and soft deletion.
+- CV analysis, job description matching, and cover letter generation.
+- Saved analysis history through `CvAnalysis` records.
 
-- simpler development
-- easier testing
-- lower infrastructure complexity
-- future migration into microservices if necessary
-
----
-
-## High-Level Architecture
+## Applications
 
 Frontend:
 
-- Next.js
-- TypeScript
+- `apps/web`
+- Next.js App Router
+- React and TypeScript
 - Tailwind CSS
-- shadcn/ui
+- Playwright E2E/smoke tests
 
 Backend:
 
-- NestJS
-- TypeScript
-- Modular architecture
-
-Infrastructure:
-
-- PostgreSQL database
-- Redis
-- BullMQ queues
-- Cloudinary or S3-compatible file storage
-
-Testing:
-
-- Backend TDD with Jest and Supertest
-- Frontend smoke/E2E testing with Playwright
+- `apps/api`
+- NestJS and TypeScript
+- Prisma and PostgreSQL
+- Jest and Supertest
+- Central response/error envelopes
 
 AI:
 
-- Provider abstraction layer
-- Support future switching between OpenAI, Gemini, or OpenRouter
+- `CvAnalysisProvider` abstraction
+- Mock provider for local development and automated tests
+- OpenAI provider for structured JSON CV analysis, JD matching, and cover letter generation
 
----
+## Planned but not implemented
 
-## Backend Modules
+- Redis
+- BullMQ queue workers
+- S3-compatible or Cloudinary production file storage
+- Multi-provider AI orchestration beyond the current mock/OpenAI selection
 
-The backend is organized by domain modules.
+These remain architectural targets, but current runtime behavior is synchronous and uses local file storage.
 
-Examples:
+## Backend module boundaries
 
-- auth
-- users
-- cvs
-- files
-- analysis
-- matching
-- cover-letter
-- history
+Implemented modules:
 
-Each module should contain:
+- `auth`: registration, login, JWT guard, current-user endpoint.
+- `cvs`: CV metadata, upload, extraction, soft delete, analysis workflows, matching, cover letter persistence.
+- `analysis`: provider selection and provider-facing service methods.
+- `config`: environment validation and provider configuration.
+- `prisma`: database client integration.
 
-- controller
-- service
-- DTOs
-- entities/models
-- tests
+Keep future modules domain-oriented. Do not split `matching`, `cover-letter`, or `history` out of `cvs` until their behavior grows enough to justify the boundary.
 
----
+## Frontend boundaries
 
-## System Principles
+- Route pages under `apps/web/app` compose screens and handle route-level concerns.
+- Shared interface primitives live under `apps/web/components/ui`.
+- Dashboard workflow components and formatting/API helpers live under `apps/web/components/dashboard`.
+- Typed API access lives under `apps/web/lib/api`.
 
-- Prefer simple and testable code.
-- Keep business logic outside controllers.
-- Use queues for heavy AI/file-processing tasks.
+See `docs/02-architecture/frontend.md` and `docs/02-architecture/routes.md`.
+
+## Data model
+
+Current Prisma models:
+
+- `User`
+- `Cv`
+- `CvAnalysis`
+
+`CvAnalysis.type` distinguishes `CV_ANALYSIS`, `JD_MATCH`, and `COVER_LETTER`, allowing one history table for the current AI outputs.
+
+## System principles
+
+- Keep the modular monolith simple until the MVP proves value.
+- Keep controllers focused on HTTP.
+- Put business behavior in services.
+- Put persistence behind Prisma.
+- Keep AI provider calls behind the provider abstraction.
 - Validate all external input.
-- Keep modules loosely coupled.
-- Avoid premature optimization.
+- Use queues later for heavy file and AI work.
+- Prefer integration tests when database behavior matters.
 
----
+## Long-term direction
 
-## Long-Term Direction
+Nyx may later evolve toward:
 
-The system may later evolve into:
-
-- AI memory/profile learning
-- CV builder
-- Recruiter dashboard
-- Advanced analytics
-- Multi-provider AI orchestration
-
-The MVP should remain focused and lightweight.
+- Background extraction and AI jobs.
+- Production file storage.
+- AI memory/profile learning.
+- CV builder features.
+- Advanced analytics.
+- Recruiter or team workflows.
+- Additional providers such as Gemini or OpenRouter.

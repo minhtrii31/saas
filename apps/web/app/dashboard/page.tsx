@@ -20,7 +20,10 @@ import {
   isUnauthorizedError,
   sortAnalysesNewestFirst,
 } from "@/components/dashboard/api";
-import { formatAnalysisType, formatDateTime } from "@/components/dashboard/format";
+import {
+  formatAnalysisType,
+  formatDateTime,
+} from "@/components/dashboard/format";
 import { ProtectedPage } from "@/components/dashboard/protected-page";
 import type { AuthUser, CvAnalysis, CvItem } from "@/lib/api";
 
@@ -140,7 +143,9 @@ function DashboardContent({ token, user }: { token: string; user: AuthUser }) {
     );
   }
 
-  return <DashboardOverview user={user} cvs={state.cvs} analyses={state.analyses} />;
+  return (
+    <DashboardOverview user={user} cvs={state.cvs} analyses={state.analyses} />
+  );
 }
 
 function DashboardOverview({
@@ -159,7 +164,9 @@ function DashboardOverview({
   const coverLetters = analyses.filter(
     (analysis) => analysis.type === "COVER_LETTER",
   ).length;
-  const matches = analyses.filter((analysis) => analysis.type === "JD_MATCH").length;
+  const matches = analyses.filter(
+    (analysis) => analysis.type === "JD_MATCH",
+  ).length;
   const recommendedAction = getRecommendedAction(cvs, analyses);
 
   return (
@@ -169,12 +176,14 @@ function DashboardOverview({
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f6f68]">
             Career workspace
           </p>
-          <h2 className="mt-4 max-w-3xl font-serif text-4xl leading-[1] tracking-[-0.045em] text-[#171717] md:text-5xl">
+          <h2 className="mt-4 max-w-3xl font-serif text-4xl text-[#171717] md:text-5xl">
             Build a sharper application system.
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-7 text-[#5f5f58]">
-            Welcome back, {displayName}. Upload a CV, run an audit, compare it
-            with a target role, and create a cover letter from the results.
+            Welcome back, {displayName}.
+            <br />
+            Upload a CV, run an audit, compare it with a target role, and create
+            a cover letter from the results.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -201,7 +210,10 @@ function DashboardOverview({
           <div className="mt-5 grid grid-cols-3 gap-px overflow-hidden border border-[#e5e5df] bg-[#e5e5df]">
             <StateMetric label="CVs" value={String(cvs.length)} />
             <StateMetric label="Runs" value={String(analyses.length)} />
-            <StateMetric label="Avg" value={avgScore === null ? "--" : `${avgScore}%`} />
+            <StateMetric
+              label="Avg"
+              value={avgScore === null ? "--" : `${avgScore}%`}
+            />
           </div>
           <div className="mt-5 border-t border-[#e5e5df] pt-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6f6f68]">
@@ -360,7 +372,10 @@ function DashboardOverview({
             What the workspace has produced
           </h3>
           <div className="mt-5 space-y-3">
-            <SignalRow label="CV analyses" value={analysisCount(analyses, "CV_ANALYSIS")} />
+            <SignalRow
+              label="CV analyses"
+              value={analysisCount(analyses, "CV_ANALYSIS")}
+            />
             <SignalRow label="Job matches" value={matches} />
             <SignalRow label="Cover letters" value={coverLetters} />
           </div>
@@ -434,7 +449,11 @@ function SignalRow({ label, value }: { label: string; value: number }) {
 
 function AnalysisIcon({ type }: { type: CvAnalysis["type"] }) {
   const Icon =
-    type === "JD_MATCH" ? GitCompare : type === "COVER_LETTER" ? FilePenLine : FileText;
+    type === "JD_MATCH"
+      ? GitCompare
+      : type === "COVER_LETTER"
+        ? FilePenLine
+        : FileText;
 
   return (
     <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#f1f1ee] text-[#343430]">
@@ -452,7 +471,8 @@ function getRecommendedAction(cvs: CvItem[], analyses: CvAnalysis[]) {
     return {
       href: "/dashboard/cvs",
       title: "Upload your first CV",
-      description: "Start with the source document so every workflow has real input.",
+      description:
+        "Start with the source document so every workflow has real input.",
     };
   }
 
@@ -468,7 +488,8 @@ function getRecommendedAction(cvs: CvItem[], analyses: CvAnalysis[]) {
     return {
       href: "/dashboard/match",
       title: "Compare against a role",
-      description: "Use a job description to expose matched and missing signals.",
+      description:
+        "Use a job description to expose matched and missing signals.",
     };
   }
 
@@ -476,14 +497,16 @@ function getRecommendedAction(cvs: CvItem[], analyses: CvAnalysis[]) {
     return {
       href: "/dashboard/cover-letter",
       title: "Generate a draft",
-      description: "Turn the CV and role context into an editable application note.",
+      description:
+        "Turn the CV and role context into an editable application note.",
     };
   }
 
   return {
     href: "/dashboard/history",
     title: "Review saved results",
-    description: "Check previous outputs before changing your next application.",
+    description:
+      "Check previous outputs before changing your next application.",
   };
 }
 

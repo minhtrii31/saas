@@ -122,7 +122,7 @@ export function Sidebar({ isOpen, onOpenChange, onLogout }: SidebarProps) {
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     onClick={closeSidebar}
-                    className={`group relative flex min-h-10 w-full items-center justify-between overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium leading-5 outline-none transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#cfcfc8] ${
+                    className={`group relative flex min-h-10 w-full items-center justify-between overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium leading-5 outline-none transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2px focus-visible:outline-[#cfcfc8] ${
                       isActive
                         ? "bg-[#171717] text-white shadow-sm shadow-zinc-950/10"
                         : "text-[#6f6f68] hover:bg-white hover:text-[#171717]"
@@ -177,7 +177,7 @@ export function Sidebar({ isOpen, onOpenChange, onLogout }: SidebarProps) {
       <aside
         id="dashboard-mobile-sidebar"
         aria-label="Dashboard sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex w-[min(18rem,100vw)] select-none flex-col justify-between border-r border-[#e5e5df] bg-[#f7f7f4] py-5 shadow-2xl shadow-zinc-950/10 transition-transform duration-200 lg:w-[15.5rem] lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[min(18rem,100vw)] select-none flex-col justify-between border-r border-[#e5e5df] bg-[#f7f7f4] py-5 shadow-2xl shadow-zinc-950/10 transition-transform duration-200 lg:w-62 lg:translate-x-0 lg:shadow-none ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -186,13 +186,13 @@ export function Sidebar({ isOpen, onOpenChange, onLogout }: SidebarProps) {
             <Link
               href="/dashboard"
               onClick={closeSidebar}
-              className="flex min-w-0 items-center gap-2 text-[#171717] transition hover:text-[#343430] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#cfcfc8]"
+              className="flex min-w-0 items-center gap-2 text-[#171717] transition hover:text-[#343430] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#cfcfc8]"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#171717] font-serif text-lg leading-none text-white">
                 N
               </span>
               <span className="min-w-0">
-                <span className="block truncate font-serif text-[1.35rem] leading-none tracking-[-0.04em]">
+                <span className="block truncate font-serif text-[1.35rem]">
                   Nyx
                 </span>
                 <span className="block truncate text-[10px] font-bold uppercase tracking-[0.16em] text-[#6f6f68]">
