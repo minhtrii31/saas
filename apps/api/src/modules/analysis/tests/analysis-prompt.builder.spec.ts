@@ -1,0 +1,53 @@
+import {
+  buildCoverLetterPrompt,
+  buildCvAnalysisPrompt,
+  buildJdMatchPrompt,
+} from '../prompts/analysis-prompt.builder';
+
+describe('analysis prompt builders', () => {
+  it('builds reusable CV analysis prompt instructions with schema metadata', () => {
+    const prompt = buildCvAnalysisPrompt(
+      'Senior backend engineer. Built APIs with TypeScript and PostgreSQL.',
+    );
+
+    expect(prompt.schemaName).toBe('cv_analysis');
+    expect(prompt.systemPrompt).toContain('evidence-backed');
+    expect(prompt.systemPrompt).toContain('Do not invent');
+    expect(prompt.userPrompt).toContain('CV text:');
+    expect(prompt.userPrompt).toContain('Senior backend engineer');
+    expect(prompt.jsonSchema).toEqual(
+      expect.objectContaining({
+        required: ['score', 'strengths', 'weaknesses', 'suggestions'],
+      }),
+    );
+  });
+
+  it('builds JD matching prompts that ask for useful overlap and gap feedback', () => {
+    const prompt = buildJdMatchPrompt(
+      'TypeScript NestJS PostgreSQL experience.',
+      'Role needs TypeScript, Redis, and API testing.',
+    );
+
+    expect(prompt.schemaName).toBe('job_description_match');
+    expect(prompt.systemPrompt).toContain('separate confirmed matches');
+    expect(prompt.systemPrompt).toContain('penalize critical missing');
+    expect(prompt.userPrompt).toContain('CV text:');
+    expect(prompt.userPrompt).toContain('Job description:');
+  });
+
+  it('builds cover letter prompts with optional targeting details', () => {
+    const prompt = buildCoverLetterPrompt('Built backend APIs.', {
+      jobDescriptionText: 'Hiring backend engineers.',
+      companyName: 'Example Corp',
+      roleTitle: 'Backend Engineer',
+      tone: 'confident',
+    });
+
+    expect(prompt.schemaName).toBe('cover_letter');
+    expect(prompt.systemPrompt).toContain('specific, editable cover letter');
+    expect(prompt.systemPrompt).toContain('Avoid generic enthusiasm');
+    expect(prompt.userPrompt).toContain('Company name: Example Corp');
+    expect(prompt.userPrompt).toContain('Role title: Backend Engineer');
+    expect(prompt.userPrompt).toContain('Requested tone: confident');
+  });
+});

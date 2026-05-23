@@ -5,7 +5,12 @@ describe('MockCvAnalysisProvider', () => {
     const provider = new MockCvAnalysisProvider();
 
     const result = await provider.analyzeCv(
-      'Backend engineer with TypeScript NestJS PostgreSQL testing and API experience.',
+      [
+        'Senior Backend Engineer',
+        'Built TypeScript and NestJS APIs for payment workflows.',
+        'Improved PostgreSQL query latency by 35% and added API testing.',
+        'Led migration planning and collaborated with product managers.',
+      ].join('\n'),
     );
 
     expect(result).toEqual({
@@ -16,6 +21,19 @@ describe('MockCvAnalysisProvider', () => {
     });
     expect(result.score).toBeGreaterThanOrEqual(0);
     expect(result.score).toBeLessThanOrEqual(100);
+    expect(result.score).toBeGreaterThanOrEqual(70);
+    expect(result.strengths.join(' ')).toContain('TypeScript');
+    expect(result.suggestions.join(' ')).toContain('recruiter');
+  });
+
+  it('scores thin CV text lower and gives concrete section guidance', async () => {
+    const provider = new MockCvAnalysisProvider();
+
+    const result = await provider.analyzeCv('Developer. JavaScript.');
+
+    expect(result.score).toBeLessThan(65);
+    expect(result.weaknesses.join(' ')).toContain('too thin');
+    expect(result.suggestions.join(' ')).toContain('summary');
   });
 
   it('returns structured mock JD match analysis from CV and job description text', async () => {
@@ -34,6 +52,7 @@ describe('MockCvAnalysisProvider', () => {
     });
     expect(result.matchingScore).toBeGreaterThanOrEqual(0);
     expect(result.matchingScore).toBeLessThanOrEqual(100);
+    expect(result.suggestions.join(' ')).toContain('Redis');
   });
 
   it('returns structured mock cover letter content from CV and job description text', async () => {
@@ -56,5 +75,7 @@ describe('MockCvAnalysisProvider', () => {
     });
     expect(result.coverLetter).toContain('Example Corp');
     expect(result.coverLetter).toContain('Backend Engineer');
+    expect(result.coverLetter).toContain('TypeScript');
+    expect(result.coverLetter).not.toContain('your job description');
   });
 });
