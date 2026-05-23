@@ -29,6 +29,10 @@ export class EnvironmentService {
         1,
       ),
       INTERVIEW_PREP: this.nonNegativeInt('USAGE_COST_INTERVIEW_PREP', 1),
+      APPLICATION_FOLLOW_UP: this.nonNegativeInt(
+        'USAGE_COST_APPLICATION_FOLLOW_UP',
+        1,
+      ),
     };
   }
 

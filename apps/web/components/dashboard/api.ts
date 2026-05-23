@@ -3,7 +3,11 @@
 import { ApiClientError, apiClient } from "@/lib/api";
 import type {
   AuthUser,
+  ApplicationFollowUpDraft,
+  ApplicationFollowUpResult,
+  ApplicationItem,
   CoverLetterResult,
+  CreateApplicationRequest,
   CvAnalysis,
   CvAnalysisResult,
   CvProgress,
@@ -18,6 +22,7 @@ import type {
   ResumeRewriteResult,
   CreateJobTargetRequest,
   UpdateJobTargetRequest,
+  UpdateApplicationRequest,
 } from "@/lib/api";
 
 type SingleResumeRewriteResult = {
@@ -26,6 +31,15 @@ type SingleResumeRewriteResult = {
   explanation?: unknown;
   rewriteGoal?: unknown;
 };
+
+type AnalysisResult =
+  | CvAnalysisResult
+  | JdMatchResult
+  | CoverLetterResult
+  | ResumeRewriteResult
+  | RewriteRefinementResult
+  | InterviewPrepResult
+  | ApplicationFollowUpResult;
 
 export async function validateSession(token: string) {
   const response = await apiClient.request<AuthUser>("/auth/me", {
@@ -116,6 +130,69 @@ export async function deleteJobTarget(token: string, id: string) {
     `/job-targets/${id}`,
     {
       method: "DELETE",
+      headers: authHeaders(token),
+    },
+  );
+
+  return response.data;
+}
+
+export async function fetchApplications(token: string) {
+  const response = await apiClient.request<ApplicationItem[]>("/applications", {
+    method: "GET",
+    headers: authHeaders(token),
+  });
+
+  return response.data;
+}
+
+export async function createApplication(
+  token: string,
+  input: CreateApplicationRequest,
+) {
+  const response = await apiClient.request<ApplicationItem>("/applications", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: input,
+  });
+
+  return response.data;
+}
+
+export async function updateApplication(
+  token: string,
+  id: string,
+  input: UpdateApplicationRequest,
+) {
+  const response = await apiClient.request<ApplicationItem>(
+    `/applications/${id}`,
+    {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: input,
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteApplication(token: string, id: string) {
+  const response = await apiClient.request<{ id: string; deletedAt: string }>(
+    `/applications/${id}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(token),
+    },
+  );
+
+  return response.data;
+}
+
+export async function generateApplicationFollowUp(token: string, id: string) {
+  const response = await apiClient.request<ApplicationFollowUpDraft>(
+    `/applications/${id}/follow-up`,
+    {
+      method: "POST",
       headers: authHeaders(token),
     },
   );
@@ -264,37 +341,20 @@ export function sortAnalysesNewestFirst(analyses: CvAnalysis[]) {
 }
 
 export function isJdMatchResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
+  result: AnalysisResult,
 ): result is JdMatchResult {
   return "matchingScore" in result;
 }
 
 export function isCoverLetterResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
+  result: AnalysisResult,
 ): result is CoverLetterResult {
   return "coverLetter" in result;
 }
 
 export function isResumeRewriteResult(
   result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult
+    | AnalysisResult
     | SingleResumeRewriteResult,
 ): result is ResumeRewriteResult {
   return "suggestions" in result && Array.isArray(result.suggestions)
@@ -310,61 +370,43 @@ export function isResumeRewriteResult(
 }
 
 export function isRewriteRefinementResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
+  result: AnalysisResult,
 ): result is RewriteRefinementResult {
   return "improved" in result && "reason" in result;
 }
 
 export function isInterviewPrepResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
+  result: AnalysisResult,
 ): result is InterviewPrepResult {
   return "questions" in result && "weakPointFocusAreas" in result;
 }
 
+export function isApplicationFollowUpResult(
+  result: AnalysisResult,
+): result is ApplicationFollowUpResult {
+  return "draft" in result && "applicationId" in result;
+}
+
 export function hasSuggestions(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
+  result: AnalysisResult,
 ): result is CvAnalysisResult | JdMatchResult {
   return (
     "suggestions" in result &&
     !isResumeRewriteResult(result) &&
     !isRewriteRefinementResult(result) &&
-    !isInterviewPrepResult(result)
+    !isInterviewPrepResult(result) &&
+    !isApplicationFollowUpResult(result)
   );
 }
 
-function toCvAnalysisResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
-) {
+function toCvAnalysisResult(result: AnalysisResult) {
   if (
     !isJdMatchResult(result) &&
     !isCoverLetterResult(result) &&
     !isResumeRewriteResult(result) &&
     !isRewriteRefinementResult(result) &&
-    !isInterviewPrepResult(result)
+    !isInterviewPrepResult(result) &&
+    !isApplicationFollowUpResult(result)
   ) {
     return result;
   }
@@ -375,15 +417,7 @@ function toCvAnalysisResult(
   };
 }
 
-function toJdMatchResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
-) {
+function toJdMatchResult(result: AnalysisResult) {
   if (isJdMatchResult(result)) {
     return result;
   }
@@ -393,22 +427,15 @@ function toJdMatchResult(
       isCoverLetterResult(result) ||
       isResumeRewriteResult(result) ||
       isRewriteRefinementResult(result) ||
-      isInterviewPrepResult(result)
+      isInterviewPrepResult(result) ||
+      isApplicationFollowUpResult(result)
         ? 0
         : result.score,
     suggestions: hasSuggestions(result) ? result.suggestions : undefined,
   };
 }
 
-function toCoverLetterResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
-) {
+function toCoverLetterResult(result: AnalysisResult) {
   if (isCoverLetterResult(result)) {
     return result;
   }
@@ -422,12 +449,7 @@ function toCoverLetterResult(
 
 function toResumeRewriteResult(
   result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult
+    | AnalysisResult
     | SingleResumeRewriteResult,
   goal: ResumeRewriteGoal,
 ) {
@@ -467,15 +489,7 @@ function toResumeRewriteResult(
   };
 }
 
-function toRewriteRefinementResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
-) {
+function toRewriteRefinementResult(result: AnalysisResult) {
   if (isRewriteRefinementResult(result)) {
     return result;
   }
@@ -486,15 +500,7 @@ function toRewriteRefinementResult(
   };
 }
 
-function toInterviewPrepResult(
-  result:
-    | CvAnalysisResult
-    | JdMatchResult
-    | CoverLetterResult
-    | ResumeRewriteResult
-    | RewriteRefinementResult
-    | InterviewPrepResult,
-) {
+function toInterviewPrepResult(result: AnalysisResult) {
   if (isInterviewPrepResult(result)) {
     return result;
   }

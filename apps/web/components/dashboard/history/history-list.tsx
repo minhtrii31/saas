@@ -11,6 +11,7 @@ import type { CvAnalysis, CvAnalysisResult, CvItem } from "@/lib/api";
 
 import {
   hasSuggestions,
+  isApplicationFollowUpResult,
   isCoverLetterResult,
   isInterviewPrepResult,
   isJdMatchResult,
@@ -180,6 +181,18 @@ export function HistoryList({
                     title="Missing skills"
                     items={analysis.result.missingSkills}
                   />
+                </>
+              ) : isApplicationFollowUpResult(analysis.result) ? (
+                <>
+                  <p className="mt-3 line-clamp-4 whitespace-pre-wrap border-l border-[#d8d8d1] pl-4 text-sm leading-6 text-[#343430]">
+                    {analysis.result.draft}
+                  </p>
+                  <p className="mt-3 text-sm text-[#5f5f58]">
+                    Tone:{" "}
+                    <span className="font-semibold text-[#171717]">
+                      {analysis.result.tone}
+                    </span>
+                  </p>
                 </>
               ) : (
                 <>

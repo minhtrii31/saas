@@ -27,6 +27,22 @@ const jobTargets = [
   },
 ];
 
+const applications = [
+  {
+    id: "87df9cdb-9386-4676-8cbe-07f85d110dd4",
+    userId: "user_1",
+    cvId: cvList[0].id,
+    jobTargetId: jobTargets[0].id,
+    companyName: "Acme",
+    roleTitle: "Backend Engineer",
+    status: "APPLIED",
+    appliedAt: "2026-05-23T08:00:00.000Z",
+    notes: "Follow up next week.",
+    createdAt: "2026-05-23T09:00:00.000Z",
+    updatedAt: "2026-05-23T10:00:00.000Z",
+  },
+];
+
 const cvAnalysis = {
   id: "2f8d69b3-9274-496d-a9a4-2df643f0fe9a",
   cvId: cvList[0].id,
@@ -488,7 +504,9 @@ test("/dashboard/job-targets creates, edits, and deletes saved targets", async (
   await expect(
     page.getByRole("heading", { name: "Job Targets", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Backend Engineer")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Backend Engineer" }),
+  ).toBeVisible();
 
   await page.getByLabel("Title").fill("Frontend Engineer");
   await page.getByLabel("Company name").fill("Northstar");
@@ -507,6 +525,149 @@ test("/dashboard/job-targets creates, edits, and deletes saved targets", async (
 
   await page.getByRole("button", { name: "Delete Backend Engineer" }).click();
   await expect(page.getByText("Backend Engineer")).toBeHidden();
+});
+
+test("/dashboard/applications tracks status and generates follow-up draft", async ({
+  page,
+}) => {
+  let currentApplications = [...applications];
+
+  await mockAuthenticatedPage(page);
+  await mockCvs(page, cvList);
+  await mockJobTargets(page, jobTargets);
+  await page.route("**://*/applications", async (route) => {
+    const request = route.request();
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    if (request.method() === "GET") {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: currentApplications, meta: {} }),
+      });
+      return;
+    }
+
+    expect(request.method()).toBe("POST");
+    expect(request.postDataJSON()).toEqual({
+      cvId: cvList[0].id,
+      companyName: "Northstar",
+      roleTitle: "Frontend Engineer",
+      status: "SAVED",
+      jobTargetId: jobTargets[0].id,
+      notes: "Tailor portfolio examples.",
+    });
+    currentApplications = [
+      {
+        id: "d575603f-cbf4-4462-b132-2573bd72651b",
+        userId: "user_1",
+        cvId: cvList[0].id,
+        jobTargetId: jobTargets[0].id,
+        companyName: "Northstar",
+        roleTitle: "Frontend Engineer",
+        status: "SAVED",
+        appliedAt: null,
+        notes: "Tailor portfolio examples.",
+        createdAt: "2026-05-23T11:00:00.000Z",
+        updatedAt: "2026-05-23T11:00:00.000Z",
+      },
+      ...currentApplications,
+    ];
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: currentApplications[0], meta: {} }),
+    });
+  });
+  await page.route("**://*/applications/*/follow-up", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers().authorization).toBe("Bearer valid-token");
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          applicationId: applications[0].id,
+          analysisId: "follow-up-1",
+          draft:
+            "Subject: Follow-up on Backend Engineer application\n\nHello Acme team,\n\nI wanted to follow up on my application.",
+          tone: "professional",
+          status: "INTERVIEWING",
+        },
+        meta: {},
+      }),
+    });
+  });
+  await page.route("**://*/applications/*", async (route) => {
+    const request = route.request();
+
+    if (request.method() === "PATCH") {
+      const body = request.postDataJSON();
+      if (body.status === "INTERVIEWING") {
+        currentApplications = currentApplications.map((application) =>
+          application.id === applications[0].id
+            ? { ...application, status: "INTERVIEWING" }
+            : application,
+        );
+      }
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: currentApplications[0], meta: {} }),
+      });
+      return;
+    }
+
+    expect(request.method()).toBe("DELETE");
+    currentApplications = currentApplications.filter(
+      (application) => application.id !== applications[0].id,
+    );
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: applications[0].id,
+          deletedAt: "2026-05-23T12:00:00.000Z",
+        },
+        meta: {},
+      }),
+    });
+  });
+
+  await page.goto("/dashboard/applications");
+  await expect(
+    page.getByRole("heading", { name: "Applications", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Backend Engineer" }),
+  ).toBeVisible();
+  await expect(page.getByText("Follow up next week.")).toBeVisible();
+
+  await page.getByLabel("CV").selectOption(cvList[0].id);
+  await page.getByLabel("Job target").selectOption(jobTargets[0].id);
+  await page.getByLabel("Company name").fill("Northstar");
+  await page.getByLabel("Role title").fill("Frontend Engineer");
+  await page.getByLabel("Notes").fill("Tailor portfolio examples.");
+  await page.getByRole("button", { name: "Save application" }).click();
+  await expect(page.getByText("Application saved.")).toBeVisible();
+  await expect(page.getByText("Frontend Engineer")).toBeVisible();
+
+  await page
+    .getByLabel(`Status`, { exact: true })
+    .first()
+    .selectOption("INTERVIEWING");
+  await expect(
+    page.getByRole("region", { name: "Interviewing applications" }),
+  ).toContainText("Backend Engineer");
+
+  await page
+    .getByRole("button", { name: "Generate follow-up for Backend Engineer" })
+    .click();
+  await expect(
+    page.getByText("Subject: Follow-up on Backend Engineer application"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Copy draft" }).click();
+  await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
 });
 
 test("/dashboard/cvs/[id] shows CV metadata and extracted text", async ({

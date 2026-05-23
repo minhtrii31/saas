@@ -110,6 +110,19 @@ export type InterviewPrepResult = {
   weakPointFocusAreas: string[];
 };
 
+export type ApplicationFollowUpInput = {
+  companyName: string;
+  roleTitle: string;
+  status: 'SAVED' | 'APPLIED' | 'INTERVIEWING' | 'OFFER' | 'REJECTED';
+  appliedAt?: string;
+  notes?: string;
+};
+
+export type ApplicationFollowUpResult = {
+  draft: string;
+  tone: string;
+};
+
 export type AnalysisProviderResponse<TResult> = {
   aiProvider: string;
   aiModel: string;
@@ -125,6 +138,8 @@ export type RewriteRefinementResponse =
   AnalysisProviderResponse<RewriteRefinementResult>;
 export type InterviewPrepResponse =
   AnalysisProviderResponse<InterviewPrepResult>;
+export type ApplicationFollowUpResponse =
+  AnalysisProviderResponse<ApplicationFollowUpResult>;
 
 export interface CvAnalysisProvider {
   readonly providerName: string;
@@ -133,6 +148,7 @@ export interface CvAnalysisProvider {
   readonly coverLetterModelName: string;
   readonly resumeRewriteModelName: string;
   readonly interviewPrepModelName: string;
+  readonly applicationFollowUpModelName: string;
   analyzeCv(extractedText: string): Promise<CvAnalysisResult>;
   matchJobDescription(
     extractedText: string,
@@ -154,4 +170,8 @@ export interface CvAnalysisProvider {
     extractedText: string,
     input: InterviewPrepInput,
   ): Promise<InterviewPrepResult>;
+  generateApplicationFollowUp(
+    extractedText: string,
+    input: ApplicationFollowUpInput,
+  ): Promise<ApplicationFollowUpResult>;
 }

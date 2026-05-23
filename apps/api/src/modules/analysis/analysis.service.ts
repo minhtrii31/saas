@@ -3,6 +3,8 @@ import { CV_ANALYSIS_PROVIDER } from './tokens/cv-analysis-provider.token';
 import type {
   CvAnalysisProvider,
   CvAnalysisResponse,
+  ApplicationFollowUpInput,
+  ApplicationFollowUpResponse,
   CoverLetterGenerationInput,
   CoverLetterResponse,
   InterviewPrepInput,
@@ -107,6 +109,22 @@ export class AnalysisService {
     return {
       aiProvider: this.cvAnalysisProvider.providerName,
       aiModel: this.cvAnalysisProvider.interviewPrepModelName,
+      result,
+    };
+  }
+
+  async generateApplicationFollowUp(
+    extractedText: string,
+    input: ApplicationFollowUpInput,
+  ): Promise<ApplicationFollowUpResponse> {
+    const result = await this.cvAnalysisProvider.generateApplicationFollowUp(
+      extractedText,
+      input,
+    );
+
+    return {
+      aiProvider: this.cvAnalysisProvider.providerName,
+      aiModel: this.cvAnalysisProvider.applicationFollowUpModelName,
       result,
     };
   }

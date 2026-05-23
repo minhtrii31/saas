@@ -640,6 +640,130 @@ describe('API PostgreSQL integration', () => {
     });
   });
 
+  it('persists applications and follow-up history through PostgreSQL', async () => {
+    const { accessToken, userId } = await registerAndLogin(
+      'applications.integration@example.com',
+    );
+    const { accessToken: otherAccessToken } = await registerAndLogin(
+      'applications-other.integration@example.com',
+    );
+    const cv = await prisma.cv.create({
+      data: {
+        userId,
+        title: 'Backend CV',
+        originalName: 'backend-cv.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        storageProvider: 'local',
+        storageKey: `cvs/${userId}/backend-cv.pdf`,
+        storageUrl: null,
+        extractedText:
+          'Backend engineer with TypeScript, NestJS, PostgreSQL, and API testing experience.',
+      },
+    });
+    const target = await prisma.jobTarget.create({
+      data: {
+        userId,
+        title: 'Backend Engineer',
+        companyName: 'Acme',
+        jobDescriptionText:
+          'Build APIs with TypeScript, NestJS, and PostgreSQL.',
+      },
+    });
+
+    const createResponse = await request(app.getHttpServer())
+      .post('/applications')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        cvId: cv.id,
+        jobTargetId: target.id,
+        companyName: ' Acme ',
+        roleTitle: ' Backend Engineer ',
+        status: 'APPLIED',
+        appliedAt: '2026-05-23T08:00:00.000Z',
+        notes: 'Follow up next week.',
+      })
+      .expect(201);
+
+    expect(createResponse.body.data).toMatchObject({
+      id: expect.any(String),
+      userId,
+      cvId: cv.id,
+      jobTargetId: target.id,
+      companyName: 'Acme',
+      roleTitle: 'Backend Engineer',
+      status: 'APPLIED',
+      appliedAt: '2026-05-23T08:00:00.000Z',
+      notes: 'Follow up next week.',
+    });
+
+    const applicationId = createResponse.body.data.id as string;
+
+    await request(app.getHttpServer())
+      .patch(`/applications/${applicationId}`)
+      .set('Authorization', `Bearer ${otherAccessToken}`)
+      .send({ status: 'OFFER' })
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .patch(`/applications/${applicationId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ status: 'INTERVIEWING' })
+      .expect(200);
+
+    const followUpResponse = await request(app.getHttpServer())
+      .post(`/applications/${applicationId}/follow-up`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(201);
+
+    expect(followUpResponse.body.data).toEqual({
+      applicationId,
+      analysisId: expect.any(String),
+      draft: expect.stringContaining('Subject: Follow-up on Backend Engineer'),
+      tone: 'professional',
+      status: 'INTERVIEWING',
+    });
+
+    await expect(
+      prisma.cvAnalysis.findFirstOrThrow({
+        where: {
+          id: followUpResponse.body.data.analysisId as string,
+          cvId: cv.id,
+          type: 'APPLICATION_FOLLOW_UP',
+        },
+      }),
+    ).resolves.toMatchObject({
+      aiProvider: 'mock',
+      aiModel: 'mock-application-follow-up-v1',
+    });
+    await expect(
+      prisma.usageRecord.findFirstOrThrow({
+        where: {
+          userId,
+          action: 'APPLICATION_FOLLOW_UP',
+          cvAnalysisId: followUpResponse.body.data.analysisId as string,
+        },
+      }),
+    ).resolves.toMatchObject({
+      creditsUsed: 1,
+    });
+
+    await request(app.getHttpServer())
+      .delete(`/applications/${applicationId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    await expect(
+      prisma.application.findFirstOrThrow({
+        where: {
+          id: applicationId,
+        },
+      }),
+    ).resolves.toMatchObject({
+      deletedAt: expect.any(Date),
+    });
+  });
+
   it('returns CV progress trends through PostgreSQL', async () => {
     const { accessToken, userId } = await registerAndLogin(
       'progress.integration@example.com',

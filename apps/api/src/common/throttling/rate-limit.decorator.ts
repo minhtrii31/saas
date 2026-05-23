@@ -37,6 +37,10 @@ export const rateLimits = {
     limit: 10,
     ttl: rateLimitWindowMs,
   },
+  applicationFollowUp: {
+    limit: 10,
+    ttl: rateLimitWindowMs,
+  },
 } as const;
 
 type RateLimitName = keyof typeof rateLimits;

@@ -66,6 +66,53 @@ export type CreateJobTargetRequest = {
 
 export type UpdateJobTargetRequest = Partial<CreateJobTargetRequest>;
 
+export type ApplicationStatus =
+  | "SAVED"
+  | "APPLIED"
+  | "INTERVIEWING"
+  | "OFFER"
+  | "REJECTED";
+
+export type ApplicationItem = {
+  id: string;
+  userId: string;
+  cvId: string;
+  jobTargetId?: string | null;
+  companyName: string;
+  roleTitle: string;
+  status: ApplicationStatus;
+  appliedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateApplicationRequest = {
+  cvId: string;
+  jobTargetId?: string;
+  companyName: string;
+  roleTitle: string;
+  status?: ApplicationStatus;
+  appliedAt?: string;
+  notes?: string;
+};
+
+export type UpdateApplicationRequest = Partial<CreateApplicationRequest>;
+
+export type ApplicationFollowUpDraft = {
+  applicationId: string;
+  draft: string;
+  tone: string;
+  status: ApplicationStatus;
+  analysisId: string;
+};
+
+export type ApplicationFollowUpResult = {
+  applicationId: string;
+  draft: string;
+  tone: string;
+};
+
 export type CvAnalysisResult = {
   score: number;
   scoringCategories?: {
@@ -164,7 +211,8 @@ export type CvAnalysis = {
     | "COVER_LETTER"
     | "RESUME_REWRITE"
     | "REWRITE_REFINEMENT"
-    | "INTERVIEW_PREP";
+    | "INTERVIEW_PREP"
+    | "APPLICATION_FOLLOW_UP";
   jobDescriptionText?: string;
   aiProvider: string;
   aiModel: string;
@@ -174,7 +222,8 @@ export type CvAnalysis = {
     | CoverLetterResult
     | ResumeRewriteResult
     | RewriteRefinementResult
-    | InterviewPrepResult;
+    | InterviewPrepResult
+    | ApplicationFollowUpResult;
   createdAt: string;
 };
 

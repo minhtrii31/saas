@@ -44,6 +44,11 @@ const navSections: NavSection[] = [
       { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
       { href: "/dashboard/cvs", label: "CV Repository", icon: FileText },
       { href: "/dashboard/job-targets", label: "Job Targets", icon: BookmarkCheck },
+      {
+        href: "/dashboard/applications",
+        label: "Applications",
+        icon: ClipboardList,
+      },
       { href: "/dashboard/progress", label: "Progress", icon: TrendingUp },
     ],
   },

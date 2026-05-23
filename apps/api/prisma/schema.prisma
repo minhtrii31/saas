@@ -13,6 +13,7 @@ enum AnalysisType {
   RESUME_REWRITE
   REWRITE_REFINEMENT
   INTERVIEW_PREP
+  APPLICATION_FOLLOW_UP
 
   @@map("analysis_type")
 }
@@ -24,8 +25,19 @@ enum UsageAction {
   RESUME_REWRITE
   REWRITE_REFINEMENT
   INTERVIEW_PREP
+  APPLICATION_FOLLOW_UP
 
   @@map("usage_action")
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  INTERVIEWING
+  OFFER
+  REJECTED
+
+  @@map("application_status")
 }
 
 model User {
@@ -35,6 +47,7 @@ model User {
   name          String?
   cvs           Cv[]
   jobTargets    JobTarget[]
+  applications  Application[]
   usageRecords  UsageRecord[]
   creditBalance Int           @default(0) @map("credit_balance")
 
@@ -61,6 +74,7 @@ model Cv {
 
   extractedText String?      @map("extracted_text")
   analyses      CvAnalysis[]
+  applications  Application[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -121,6 +135,7 @@ model JobTarget {
   title              String
   companyName        String @map("company_name")
   jobDescriptionText String @map("job_description_text")
+  applications       Application[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -129,4 +144,33 @@ model JobTarget {
   @@index([userId])
   @@index([deletedAt])
   @@map("job_targets")
+}
+
+model Application {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  cvId String @map("cv_id") @db.Uuid
+  cv   Cv     @relation(fields: [cvId], references: [id], onDelete: Restrict)
+
+  jobTargetId String?    @map("job_target_id") @db.Uuid
+  jobTarget   JobTarget? @relation(fields: [jobTargetId], references: [id], onDelete: Restrict)
+
+  companyName String            @map("company_name")
+  roleTitle   String            @map("role_title")
+  status      ApplicationStatus @default(SAVED)
+  appliedAt   DateTime?         @map("applied_at")
+  notes       String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([userId])
+  @@index([cvId])
+  @@index([jobTargetId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("applications")
 }

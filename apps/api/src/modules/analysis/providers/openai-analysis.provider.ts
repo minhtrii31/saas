@@ -5,6 +5,8 @@ import type {
   CoverLetterResult,
   CvAnalysisProvider,
   CvAnalysisResult,
+  ApplicationFollowUpInput,
+  ApplicationFollowUpResult,
   InterviewPrepInput,
   InterviewPrepResult,
   JdMatchResult,
@@ -64,6 +66,10 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
   }
 
   get interviewPrepModelName(): string {
+    return this.environmentService.openAiModel;
+  }
+
+  get applicationFollowUpModelName(): string {
     return this.environmentService.openAiModel;
   }
 
@@ -128,6 +134,42 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
     );
 
     return validateInterviewPrepResult(content);
+  }
+
+  async generateApplicationFollowUp(
+    extractedText: string,
+    input: ApplicationFollowUpInput,
+  ): Promise<ApplicationFollowUpResult> {
+    const content = await this.requestStructuredJson({
+      schemaName: 'application_follow_up',
+      systemPrompt:
+        'You write concise, professional job application follow-up emails grounded only in the provided CV and application context.',
+      userPrompt: [
+        `CV text:\n${extractedText}`,
+        `Company: ${input.companyName}`,
+        `Role: ${input.roleTitle}`,
+        `Current status: ${input.status}`,
+        input.appliedAt ? `Applied at: ${input.appliedAt}` : null,
+        input.notes ? `User notes: ${input.notes}` : null,
+        'Return a concise professional follow-up email draft. Do not invent interview details, names, or dates.',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+      jsonSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['draft', 'tone'],
+        properties: {
+          draft: { type: 'string' },
+          tone: { type: 'string' },
+        },
+      },
+    });
+
+    return {
+      draft: typeof content.draft === 'string' ? content.draft : '',
+      tone: typeof content.tone === 'string' ? content.tone : 'professional',
+    };
   }
 
   private async requestStructuredJson(

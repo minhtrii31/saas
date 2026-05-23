@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type {
   CvActionableInsights,
+  ApplicationFollowUpInput,
+  ApplicationFollowUpResult,
   CoverLetterGenerationInput,
   CoverLetterResult,
   CvAnalysisProvider,
@@ -28,6 +30,7 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
   readonly coverLetterModelName = 'mock-cover-letter-v1';
   readonly resumeRewriteModelName = 'mock-resume-rewrite-v1';
   readonly interviewPrepModelName = 'mock-interview-prep-v1';
+  readonly applicationFollowUpModelName = 'mock-application-follow-up-v1';
   private readonly cvAnalyzerModelName = 'mock-cv-analyzer-v1';
 
   get modelName(): string {
@@ -192,6 +195,53 @@ export class MockCvAnalysisProvider implements CvAnalysisProvider {
         cvProfile: this.profileText(extractedText),
       }),
     });
+  }
+
+  generateApplicationFollowUp(
+    extractedText: string,
+    input: ApplicationFollowUpInput,
+  ): Promise<ApplicationFollowUpResult> {
+    const skills = this.findKnownSkills(extractedText);
+    const anchor =
+      skills.length > 0
+        ? `My background in ${skills.slice(0, 2).join(' and ')} remains relevant to the role.`
+        : 'My background remains relevant to the role.';
+    const statusLine = this.buildFollowUpStatusLine(input);
+
+    return Promise.resolve({
+      draft: [
+        `Subject: Follow-up on ${input.roleTitle} application`,
+        '',
+        `Hello ${input.companyName} team,`,
+        '',
+        statusLine,
+        anchor,
+        input.notes
+          ? `For context, I noted: ${input.notes.slice(0, 160)}`
+          : 'I would welcome any update you can share on the process.',
+        '',
+        'Thank you for your time.',
+        '',
+        'Best regards,',
+        'Candidate',
+      ].join('\n'),
+      tone: 'professional',
+    });
+  }
+
+  private buildFollowUpStatusLine(input: ApplicationFollowUpInput): string {
+    switch (input.status) {
+      case 'SAVED':
+        return `I am preparing my application for the ${input.roleTitle} role at ${input.companyName}.`;
+      case 'APPLIED':
+        return `I wanted to follow up on my application for the ${input.roleTitle} role at ${input.companyName}.`;
+      case 'INTERVIEWING':
+        return `Thank you for the conversation about the ${input.roleTitle} role at ${input.companyName}; I wanted to follow up on next steps.`;
+      case 'OFFER':
+        return `Thank you for the offer for the ${input.roleTitle} role at ${input.companyName}; I appreciate the opportunity and wanted to confirm next steps.`;
+      case 'REJECTED':
+        return `Thank you for considering me for the ${input.roleTitle} role at ${input.companyName}; I would appreciate any feedback you are able to share.`;
+    }
   }
 
   private profileText(text: string) {
