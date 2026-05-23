@@ -735,13 +735,14 @@ test("/dashboard/applications tracks status and generates follow-up draft", asyn
 
   await page.goto("/dashboard/applications");
   await expect(
-    page.getByRole("heading", { name: "Applications", exact: true }),
+    page.getByRole("heading", { name: "Applications", exact: true }).first(),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Backend Engineer" }),
   ).toBeVisible();
   await expect(page.getByText("Follow up next week.")).toBeVisible();
 
+  await page.getByRole("button", { name: "New application" }).click();
   await page.getByLabel("CV").selectOption(cvList[0].id);
   await page.getByLabel("Job target").selectOption(jobTargets[0].id);
   await page.getByLabel("Company name").fill("Northstar");
@@ -749,15 +750,15 @@ test("/dashboard/applications tracks status and generates follow-up draft", asyn
   await page.getByLabel("Notes").fill("Tailor portfolio examples.");
   await page.getByRole("button", { name: "Save application" }).click();
   await expect(page.getByText("Application saved.")).toBeVisible();
-  await expect(page.getByText("Frontend Engineer")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Frontend Engineer" }),
+  ).toBeVisible();
 
   await page
-    .getByLabel(`Status`, { exact: true })
+    .getByLabel("Current status", { exact: true })
     .first()
     .selectOption("INTERVIEWING");
-  await expect(
-    page.getByRole("region", { name: "Interviewing applications" }),
-  ).toContainText("Backend Engineer");
+  await expect(page.getByText("Prepare for Acme").first()).toBeVisible();
 
   await page
     .getByRole("button", { name: "Generate follow-up for Backend Engineer" })
