@@ -9,6 +9,7 @@ import { EnvironmentService } from './config/environment.service';
 import { ApplicationsModule } from './modules/applications/applications.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CvsModule } from './modules/cvs/cvs.module';
+import { HealthModule } from './modules/health/health.module';
 import { JobTargetsModule } from './modules/job-targets/job-targets.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule,
     CvsModule,
+    HealthModule,
     JobTargetsModule,
     ApplicationsModule,
   ],
