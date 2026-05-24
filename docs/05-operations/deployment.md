@@ -42,10 +42,7 @@ Recommended settings:
 - Build command:
 
 ```sh
-npm install
-npm exec -w apps/api prisma generate
-npm run build -w apps/api
-npm exec -w apps/api prisma migrate deploy
+npm run render:build:api
 ```
 
 - Start command:
@@ -192,14 +189,12 @@ The API deployment must generate the Prisma client and apply existing migrations
 Use this order in Render's build command:
 
 ```sh
-npm install
-npm exec -w apps/api prisma generate
-npm run build -w apps/api
-npm exec -w apps/api prisma migrate deploy
+npm run render:build:api
 ```
 
 Operational notes:
 
+- `render:build:api` runs install, Prisma generation, API build, and migration deploy in sequence.
 - `prisma generate` creates the Prisma client used by the built NestJS app.
 - `prisma migrate deploy` applies committed migrations to the hosted PostgreSQL database.
 - Do not use `prisma migrate dev` in production.

@@ -13,7 +13,8 @@
     "check:web": "npm run test:e2e -w apps/web && npm run lint -w apps/web && npm run build -w apps/web",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "render:build:api": "npm install && npm exec -w apps/api -- prisma generate && npm run build -w apps/api && npm exec -w apps/api -- prisma migrate deploy"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
