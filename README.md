@@ -6,7 +6,7 @@ Nyx is an AI-assisted CV workspace for job seekers. It helps users analyze CV qu
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS, Playwright
 - Backend: NestJS, TypeScript, Prisma, PostgreSQL, Jest, Supertest
-- AI: provider abstraction with deterministic mock and OpenAI providers, reusable prompt builders, JSON schemas, and structured output validation for analysis, matching, cover letters, interview prep, resume rewrite, rewrite refinement, and application follow-ups
+- AI: provider abstraction with deterministic mock and OpenAI/OpenAI-compatible providers, reusable prompt builders, JSON schemas, and structured output validation for analysis, matching, cover letters, interview prep, resume rewrite, rewrite refinement, and application follow-ups
 - Usage: credit checks and usage ledger records for successful AI workflows
 - CI: GitHub Actions on push/PR with PostgreSQL 17 and mock AI
 
@@ -72,3 +72,5 @@ Start with:
 - [Route structure](docs/02-architecture/routes.md)
 - [Testing strategy](docs/03-engineering/testing.md)
 - [AI provider configuration](docs/04-ai/provider-configuration.md)
+
+OpenAI-compatible endpoints such as OpenRouter are configured through `AI_PROVIDER=openai`, `OPENAI_API_KEY`, `OPENAI_MODEL`, and optional `OPENAI_BASE_URL`. See the AI provider configuration doc for examples.

@@ -36,24 +36,38 @@ AI_PROVIDER=mock
 
 ### `AI_PROVIDER=openai`
 
-Use the OpenAI provider only when validating real AI behavior manually or in a controlled deployed environment.
+Use the OpenAI provider only when validating real AI behavior manually or in a controlled deployed environment. This provider can call OpenAI directly or another OpenAI-compatible chat completions endpoint.
 
 Behavior:
 
-- Sends the workflow input to OpenAI, such as CV text, job description text, saved job target context, interview focus, cover letter options, rewrite goals, refinement instructions, or application follow-up context.
+- Sends normalized workflow input to the configured OpenAI-compatible endpoint, such as CV text, job description text, saved job target context, interview focus, cover letter options, rewrite goals, refinement instructions, or application follow-up context.
 - Requires `OPENAI_API_KEY`.
 - Uses `OPENAI_MODEL` when set.
 - Falls back to the backend default model when `OPENAI_MODEL` is not set.
+- Uses the default OpenAI API endpoint when `OPENAI_BASE_URL` is not set.
 - Requests strict structured JSON and normalizes the returned fields before service code sees the result.
 - Returns a clean `AI_PROVIDER_ERROR` response when the provider fails or returns invalid structured output.
 
-Example:
+OpenAI example:
 
 ```env
 AI_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4.1-mini
 ```
+
+OpenRouter example:
+
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-or-...
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL=openai/gpt-4.1-mini
+OPENROUTER_SITE_URL=https://nyx.example
+OPENROUTER_SITE_NAME=Nyx
+```
+
+Other OpenAI-compatible endpoints can use the same provider by setting `OPENAI_BASE_URL` to the endpoint base URL that exposes `/chat/completions`.
 
 ### `OPENAI_API_KEY`
 
@@ -64,10 +78,57 @@ Never commit a real API key to the repository, documentation, test fixtures, scr
 
 ### `OPENAI_MODEL`
 
-Optional OpenAI model name used by the OpenAI provider.
+Optional model name used by the OpenAI provider.
 
 If this value is not provided, the backend uses its configured default model.
 Set it explicitly in environments where model choice affects cost, latency, output quality, or release validation.
+
+Example model names:
+
+- `gpt-4.1-mini`
+- `gpt-4.1`
+- `openai/gpt-4.1-mini` for OpenRouter
+- `anthropic/claude-sonnet-4` for OpenRouter, if the endpoint supports OpenAI-compatible structured outputs for the requested workflow
+
+### `OPENAI_BASE_URL`
+
+Optional base URL for OpenAI-compatible endpoints.
+
+When unset, the provider uses the default OpenAI API endpoint. When set, the provider sends chat completion requests to:
+
+```text
+<OPENAI_BASE_URL>/chat/completions
+```
+
+Example:
+
+```env
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+```
+
+### `OPENROUTER_SITE_URL`
+
+Optional OpenRouter attribution URL.
+
+When set, the provider sends it as the `HTTP-Referer` header. It is not required for OpenAI or other compatible endpoints.
+
+### `OPENROUTER_SITE_NAME`
+
+Optional OpenRouter attribution title.
+
+When set, the provider sends it as the `X-OpenRouter-Title` header. It is not required for OpenAI or other compatible endpoints.
+
+### `AI_MAX_CV_CHARS`
+
+Maximum normalized CV text characters sent to AI providers.
+
+The backend preserves full extracted CV text in the database and only truncates the provider input. When unset, this defaults to `8000`.
+
+### `AI_MAX_JD_CHARS`
+
+Maximum normalized job description text characters sent to AI providers.
+
+The backend preserves the submitted or saved job description text in persisted analysis records and only truncates the provider input. When unset, this defaults to `6000`.
 
 ## Testing Rules
 
@@ -86,13 +147,15 @@ Do not set `AI_PROVIDER=openai` in unit, integration, smoke, or E2E test environ
 - Do not call OpenAI directly from controllers.
 - Do not call OpenAI directly from CV workflow services.
 - Add future providers by implementing `CvAnalysisProvider` and wiring provider selection in the analysis module.
+- Use `OpenAiAnalysisProvider` for OpenAI-compatible endpoints when the endpoint supports the current structured JSON request shape.
 - Keep provider output structured and normalized before persistence.
+- Normalize and cap CV/JD provider input at the analysis service boundary; do not truncate persisted `extractedText` or saved job description history fields.
 - Persist provider/model metadata with analysis records for auditability.
 
 Current providers:
 
 - `MockCvAnalysisProvider`
-- `OpenAiAnalysisProvider`
+- `OpenAiAnalysisProvider` for OpenAI and OpenAI-compatible endpoints such as OpenRouter
 
 Interview prep accepts CV text plus role context from pasted text or a saved job target, with behavioral, technical, or mixed focus. The backend persists interview prep output as `INTERVIEW_PREP` history records after successful credit deduction.
 
@@ -109,7 +172,7 @@ Rewrite refinement accepts one current rewrite plus the original wording and one
 
 The backend persists refinement output as `REWRITE_REFINEMENT` history records.
 
-Future provider candidates remain Gemini, OpenRouter, or other compatible structured-output providers.
+Future provider candidates remain Gemini or providers that need a different request/response contract from the OpenAI-compatible path.
 
 ## Usage Cost Variables
 
@@ -128,6 +191,7 @@ All costs default to `1` credit when unset.
 ## Cost and Safety Notes
 
 - Real provider calls may incur usage charges.
+- CV and job description text is whitespace-normalized and capped before provider calls to control request size.
 - Uploaded CVs and job descriptions can contain personal or sensitive information.
 - Use real provider calls only when the environment, data handling, and access controls are appropriate.
 - Prefer synthetic or redacted data for manual provider testing.
