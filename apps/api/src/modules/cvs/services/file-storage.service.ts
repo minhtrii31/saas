@@ -6,15 +6,20 @@ import {
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
+import { EnvironmentService } from '../../../config/environment.service';
 import type { UploadedCvFile } from '../types/uploaded-cv-file';
 
 export interface UploadedFile {
+  storageProvider: 'local' | 'cloudinary';
   storageKey: string;
   storageUrl: string | null;
 }
 
 @Injectable()
 export class FileStorageService {
+  constructor(private readonly environmentService: EnvironmentService) {}
+
   async uploadLocal(
     userId: string,
     file: UploadedCvFile,
@@ -54,13 +59,81 @@ export class FileStorageService {
 
     const storageKey = path.posix.join('cvs', userId, filename);
     return {
+      storageProvider: 'local',
       storageKey,
       storageUrl: null,
     };
   }
 
-  async deleteFile(storageKey: string): Promise<void> {
+  async uploadCloudinary(
+    userId: string,
+    file: UploadedCvFile,
+  ): Promise<UploadedFile> {
+    cloudinary.config({
+      cloud_name: this.environmentService.cloudinaryCloudName,
+      api_key: this.environmentService.cloudinaryApiKey,
+      api_secret: this.environmentService.cloudinaryApiSecret,
+      secure: true,
+    });
+
+    const publicId = this.buildCloudinaryPublicId(userId, file.originalname);
+    const folder = this.environmentService.cloudinaryCvFolder;
+
     try {
+      const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder,
+            public_id: publicId,
+            resource_type: 'raw',
+            use_filename: false,
+            unique_filename: false,
+            overwrite: false,
+          },
+          (error, uploadResult) => {
+            if (error) {
+              reject(this.normalizeCloudinaryError(error));
+              return;
+            }
+
+            if (!uploadResult) {
+              reject(new Error('Cloudinary upload returned no result'));
+              return;
+            }
+
+            resolve(uploadResult);
+          },
+        );
+
+        stream.end(file.buffer);
+      });
+
+      return {
+        storageProvider: 'cloudinary',
+        storageKey: result.public_id,
+        storageUrl: result.secure_url,
+      };
+    } catch {
+      throw new InternalServerErrorException({
+        error: {
+          code: 'STORAGE_ERROR',
+          message: 'Failed to upload file to Cloudinary',
+        },
+        meta: {},
+      });
+    }
+  }
+
+  async deleteFile(
+    storageKey: string,
+    storageProvider: 'local' | 'cloudinary' = 'local',
+  ): Promise<void> {
+    try {
+      if (storageProvider === 'cloudinary') {
+        await cloudinary.uploader.destroy(storageKey, { resource_type: 'raw' });
+        return;
+      }
+
       const filePath = this.getLocalPath(storageKey);
       await fs.unlink(filePath);
     } catch {
@@ -113,5 +186,33 @@ export class FileStorageService {
       .substring(0, 200);
 
     return sanitized.length > 0 ? sanitized : 'file';
+  }
+
+  private buildCloudinaryPublicId(
+    userId: string,
+    originalName: string | undefined,
+  ): string {
+    const timestamp = Date.now();
+    const uuid = randomUUID();
+    const sanitized = this.sanitizeFilename(originalName ?? 'file');
+
+    return path.posix.join(userId, `${timestamp}-${uuid}-${sanitized}`);
+  }
+
+  private normalizeCloudinaryError(error: unknown): Error {
+    if (error instanceof Error) {
+      return error;
+    }
+
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'message' in error &&
+      typeof error.message === 'string'
+    ) {
+      return new Error(error.message);
+    }
+
+    return new Error('Cloudinary upload failed');
   }
 }

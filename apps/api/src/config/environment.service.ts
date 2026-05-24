@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 export type AiProviderName = 'mock' | 'openai';
+export type StorageProviderName = 'local' | 'cloudinary';
 
 @Injectable()
 export class EnvironmentService {
@@ -14,10 +15,29 @@ export class EnvironmentService {
   readonly aiMaxJdChars: number;
   readonly freeStarterCredits: number;
   readonly usageCosts: Record<string, number>;
+  readonly storageProvider: StorageProviderName;
+  readonly cloudinaryCloudName: string;
+  readonly cloudinaryApiKey: string;
+  readonly cloudinaryApiSecret: string;
+  readonly cloudinaryCvFolder: string;
 
   constructor() {
     this.require('JWT_SECRET');
     this.aiProvider = this.readAiProvider();
+    this.storageProvider = this.readStorageProvider();
+    this.cloudinaryCloudName =
+      this.storageProvider === 'cloudinary'
+        ? this.requireCloudinaryEnv('CLOUDINARY_CLOUD_NAME')
+        : this.optional('CLOUDINARY_CLOUD_NAME');
+    this.cloudinaryApiKey =
+      this.storageProvider === 'cloudinary'
+        ? this.requireCloudinaryEnv('CLOUDINARY_API_KEY')
+        : this.optional('CLOUDINARY_API_KEY');
+    this.cloudinaryApiSecret =
+      this.storageProvider === 'cloudinary'
+        ? this.requireCloudinaryEnv('CLOUDINARY_API_SECRET')
+        : this.optional('CLOUDINARY_API_SECRET');
+    this.cloudinaryCvFolder = this.optional('CLOUDINARY_CV_FOLDER', 'nyx/cvs');
     this.openAiApiKey =
       this.aiProvider === 'openai'
         ? this.requireOpenAiApiKey()
@@ -119,6 +139,28 @@ export class EnvironmentService {
 
     if (!value) {
       throw new Error('OPENAI_API_KEY is required when AI_PROVIDER=openai');
+    }
+
+    return value;
+  }
+
+  private readStorageProvider(): StorageProviderName {
+    const value = this.optional('STORAGE_PROVIDER', 'local')
+      .trim()
+      .toLowerCase();
+
+    if (value === 'local' || value === 'cloudinary') {
+      return value;
+    }
+
+    throw new Error('STORAGE_PROVIDER must be local or cloudinary');
+  }
+
+  private requireCloudinaryEnv(name: string): string {
+    const value = this.optional(name);
+
+    if (!value) {
+      throw new Error(`${name} is required when STORAGE_PROVIDER=cloudinary`);
     }
 
     return value;

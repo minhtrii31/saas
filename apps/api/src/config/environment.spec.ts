@@ -15,6 +15,11 @@ describe('environment validation', () => {
   const originalAiMaxJdChars = process.env.AI_MAX_JD_CHARS;
   const originalFreeStarterCredits = process.env.FREE_STARTER_CREDITS;
   const originalCvAnalysisCost = process.env.USAGE_COST_CV_ANALYSIS;
+  const originalStorageProvider = process.env.STORAGE_PROVIDER;
+  const originalCloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const originalCloudinaryApiKey = process.env.CLOUDINARY_API_KEY;
+  const originalCloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET;
+  const originalCloudinaryCvFolder = process.env.CLOUDINARY_CV_FOLDER;
 
   afterEach(() => {
     restoreEnv('JWT_SECRET', originalJwtSecret);
@@ -28,6 +33,11 @@ describe('environment validation', () => {
     restoreEnv('AI_MAX_JD_CHARS', originalAiMaxJdChars);
     restoreEnv('FREE_STARTER_CREDITS', originalFreeStarterCredits);
     restoreEnv('USAGE_COST_CV_ANALYSIS', originalCvAnalysisCost);
+    restoreEnv('STORAGE_PROVIDER', originalStorageProvider);
+    restoreEnv('CLOUDINARY_CLOUD_NAME', originalCloudinaryCloudName);
+    restoreEnv('CLOUDINARY_API_KEY', originalCloudinaryApiKey);
+    restoreEnv('CLOUDINARY_API_SECRET', originalCloudinaryApiSecret);
+    restoreEnv('CLOUDINARY_CV_FOLDER', originalCloudinaryCvFolder);
   });
 
   it('fails application startup when JWT_SECRET is missing', async () => {
@@ -220,6 +230,73 @@ describe('environment validation', () => {
         .useValue({})
         .compile(),
     ).rejects.toThrow('AI_MAX_CV_CHARS must be a positive integer');
+  });
+
+  it('defaults STORAGE_PROVIDER to local when unset', async () => {
+    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.AI_PROVIDER = 'mock';
+    delete process.env.STORAGE_PROVIDER;
+    delete process.env.CLOUDINARY_CLOUD_NAME;
+    delete process.env.CLOUDINARY_API_KEY;
+    delete process.env.CLOUDINARY_API_SECRET;
+
+    const module = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue({})
+      .compile();
+
+    expect(
+      module.get(EnvironmentService, { strict: false }).storageProvider,
+    ).toBe('local');
+  });
+
+  it('requires Cloudinary credentials when STORAGE_PROVIDER is cloudinary', async () => {
+    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.AI_PROVIDER = 'mock';
+    process.env.STORAGE_PROVIDER = 'cloudinary';
+    delete process.env.CLOUDINARY_CLOUD_NAME;
+    process.env.CLOUDINARY_API_KEY = 'cloudinary-key';
+    process.env.CLOUDINARY_API_SECRET = 'cloudinary-secret';
+
+    await expect(
+      Test.createTestingModule({
+        imports: [AppModule],
+      })
+        .overrideProvider(PrismaService)
+        .useValue({})
+        .compile(),
+    ).rejects.toThrow(
+      'CLOUDINARY_CLOUD_NAME is required when STORAGE_PROVIDER=cloudinary',
+    );
+  });
+
+  it('reads Cloudinary storage configuration from env', async () => {
+    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.AI_PROVIDER = 'mock';
+    process.env.STORAGE_PROVIDER = 'cloudinary';
+    process.env.CLOUDINARY_CLOUD_NAME = 'nyx-prod';
+    process.env.CLOUDINARY_API_KEY = 'cloudinary-key';
+    process.env.CLOUDINARY_API_SECRET = 'cloudinary-secret';
+    process.env.CLOUDINARY_CV_FOLDER = 'production/cvs';
+
+    const module = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue({})
+      .compile();
+
+    const environmentService = module.get(EnvironmentService, {
+      strict: false,
+    });
+
+    expect(environmentService.storageProvider).toBe('cloudinary');
+    expect(environmentService.cloudinaryCloudName).toBe('nyx-prod');
+    expect(environmentService.cloudinaryApiKey).toBe('cloudinary-key');
+    expect(environmentService.cloudinaryApiSecret).toBe('cloudinary-secret');
+    expect(environmentService.cloudinaryCvFolder).toBe('production/cvs');
   });
 });
 

@@ -1,6 +1,6 @@
 # Current Project Status
 
-Last verified: 2026-05-23
+Last verified: 2026-05-24
 
 ## Product summary
 
@@ -11,6 +11,7 @@ Nyx is an AI-assisted CV workspace for job seekers. The MVP helps users keep CVs
 - Branding: the product is now presented as **Nyx**, with a calm, task-oriented CV workspace direction.
 - Frontend: Next.js app under `apps/web` with productized home, auth screens, protected dashboard shell, task-oriented SaaS navigation, and focused workflow routes.
 - Backend: NestJS API under `apps/api` with modular `auth`, `cvs`, `job-targets`, `applications`, `analysis`, `usage`, `config`, and `prisma` modules.
+- File storage: CV uploads support local filesystem storage for development/tests and Cloudinary signed server-side uploads for production.
 - Database: Prisma models and migrations exist for `User`, `Cv`, `CvAnalysis`, `JobTarget`, `Application`, and `UsageRecord`; `CvAnalysis.type` supports `CV_ANALYSIS`, `JD_MATCH`, `COVER_LETTER`, `RESUME_REWRITE`, `REWRITE_REFINEMENT`, `INTERVIEW_PREP`, and `APPLICATION_FOLLOW_UP`.
 - AI: provider abstraction supports deterministic mock output and an OpenAI provider backed by reusable prompt builders, strict JSON schemas, and structured result handling for analysis, matching, cover letters, interview preparation, resume rewrite, rewrite refinement, and application follow-up drafts.
 - Usage: AI workflows check available credits before provider calls, deduct credits only after successful AI responses, and persist usage ledger records with the saved analysis where applicable.
@@ -94,7 +95,7 @@ The API uses centralized response wrapping and exception formatting. Controllers
 
 Current test counts:
 
-- API: 179 Jest/Supertest test cases.
+- API: 198 Jest/Supertest test cases.
 - Web: 52 Playwright test cases.
 
 Verification commands:
@@ -130,6 +131,11 @@ AI_PROVIDER=mock
 OPENAI_API_KEY=
 OPENAI_MODEL=
 CV_MAX_FILE_SIZE_BYTES=5242880
+STORAGE_PROVIDER=local
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CLOUDINARY_CV_FOLDER=nyx/cvs
 FREE_STARTER_CREDITS=10
 USAGE_COST_CV_ANALYSIS=1
 USAGE_COST_JD_MATCH=1
@@ -156,6 +162,7 @@ CI uses `DATABASE_URL_TEST=postgresql://cvai:cvai@localhost:5432/cv_ai_test?sche
 - Keep AI calls behind `CvAnalysisProvider`; do not call OpenAI directly from controllers or CV services.
 - Keep frontend route pages focused on page composition; shared UI belongs in `components/ui`, dashboard workflows in `components/dashboard`, and typed API calls in `lib/api`.
 - Keep automated tests on the mock AI provider.
+- Keep automated tests on local CV storage unless a focused test explicitly mocks Cloudinary.
 
 ## UX direction
 
@@ -164,7 +171,7 @@ Nyx should feel like a focused CV workbench, not a generic SaaS landing page. Pr
 ## Known limitations
 
 - No refresh-token flow or server-side session persistence; logout is client-side token removal.
-- Local file storage is implemented; S3/Cloudinary storage is still future work.
+- Local file storage remains available for development and tests. Production CV storage can use Cloudinary by setting `STORAGE_PROVIDER=cloudinary` with `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and `CLOUDINARY_CV_FOLDER`.
 - AI work is synchronous; Redis/BullMQ queues are not wired in.
 - Job description upload is not implemented; matching and cover letters use pasted text or saved job target text.
 - Job targets are saved text records, not scraped or uploaded job descriptions.

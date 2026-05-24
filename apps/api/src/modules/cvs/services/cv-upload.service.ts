@@ -29,21 +29,28 @@ export class CvUploadService {
     title?: string,
   ): Promise<CreatedCv> {
     const validFile = this.validateUploadFile(file);
-    const uploadResult = await this.fileStorageService.uploadLocal(
-      userId,
-      validFile,
-    );
+    const storageProvider = this.environmentService.storageProvider;
+    const uploadResult =
+      storageProvider === 'cloudinary'
+        ? await this.fileStorageService.uploadCloudinary(userId, validFile)
+        : await this.fileStorageService.uploadLocal(userId, validFile);
     const mimeType = validFile.mimetype as SupportedCvMimeType;
     let extractedText: string | null = null;
 
     if (mimeType === 'application/pdf') {
       try {
-        const filePath = this.fileStorageService.getLocalPath(
-          uploadResult.storageKey,
-        );
-        extractedText = await this.pdfTextExtractor.extractFromFile(filePath);
+        if (storageProvider === 'cloudinary') {
+          extractedText = await this.pdfTextExtractor.extractFromBuffer(
+            validFile.buffer,
+          );
+        } else {
+          const filePath = this.fileStorageService.getLocalPath(
+            uploadResult.storageKey,
+          );
+          extractedText = await this.pdfTextExtractor.extractFromFile(filePath);
+        }
       } catch {
-        await this.fileStorageService.deleteFile(uploadResult.storageKey);
+        await this.deleteUploadedFile(uploadResult);
         throw new UnprocessableEntityException({
           error: {
             code: 'PDF_TEXT_EXTRACTION_FAILED',
@@ -63,16 +70,31 @@ export class CvUploadService {
         originalName,
         mimeType,
         sizeBytes,
-        storageProvider: 'local',
+        storageProvider: uploadResult.storageProvider,
         storageKey: uploadResult.storageKey,
         storageUrl: uploadResult.storageUrl ?? null,
         extractedText,
       });
     } catch (error) {
       // Cleanup uploaded file if Cv creation fails
-      await this.fileStorageService.deleteFile(uploadResult.storageKey);
+      await this.deleteUploadedFile(uploadResult);
       throw error;
     }
+  }
+
+  private async deleteUploadedFile(uploadResult: {
+    storageProvider: 'local' | 'cloudinary';
+    storageKey: string;
+  }): Promise<void> {
+    if (uploadResult.storageProvider === 'cloudinary') {
+      await this.fileStorageService.deleteFile(
+        uploadResult.storageKey,
+        uploadResult.storageProvider,
+      );
+      return;
+    }
+
+    await this.fileStorageService.deleteFile(uploadResult.storageKey);
   }
 
   private validateUploadFile(file: UploadedCvFile | undefined): UploadedCvFile {

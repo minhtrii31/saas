@@ -6,6 +6,10 @@ import { PDFParse } from 'pdf-parse';
 export class PdfTextExtractor {
   async extractFromFile(filePath: string): Promise<string> {
     const buffer = await readFile(filePath);
+    return this.extractFromBuffer(buffer);
+  }
+
+  async extractFromBuffer(buffer: Buffer): Promise<string> {
     const parser = new PDFParse({ data: buffer });
 
     try {

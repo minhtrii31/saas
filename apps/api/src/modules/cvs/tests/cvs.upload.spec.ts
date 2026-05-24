@@ -11,6 +11,11 @@ import { PdfTextExtractor } from '../services/pdf-text-extractor.service';
 describe('POST /cvs/upload', () => {
   const originalJwtSecret = process.env.JWT_SECRET;
   const originalMaxFileSize = process.env.CV_MAX_FILE_SIZE_BYTES;
+  const originalStorageProvider = process.env.STORAGE_PROVIDER;
+  const originalCloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const originalCloudinaryApiKey = process.env.CLOUDINARY_API_KEY;
+  const originalCloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET;
+  const originalCloudinaryCvFolder = process.env.CLOUDINARY_CV_FOLDER;
   const validPdfBuffer = Buffer.from('%PDF-1.7\n%test pdf content');
   const validDocxBuffer = Buffer.from(
     'PK\u0003\u0004[Content_Types].xml word/document.xml',
@@ -20,8 +25,14 @@ describe('POST /cvs/upload', () => {
   let fileStorageService: FileStorageService;
   let pdfTextExtractor: PdfTextExtractor;
   let uploadLocalSpy: jest.SpiedFunction<FileStorageService['uploadLocal']>;
+  let uploadCloudinarySpy: jest.SpiedFunction<
+    FileStorageService['uploadCloudinary']
+  >;
   let extractFromFileSpy: jest.SpiedFunction<
     PdfTextExtractor['extractFromFile']
+  >;
+  let extractFromBufferSpy: jest.SpiedFunction<
+    PdfTextExtractor['extractFromBuffer']
   >;
   let prisma: {
     user: {
@@ -35,6 +46,11 @@ describe('POST /cvs/upload', () => {
   beforeEach(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
     process.env.CV_MAX_FILE_SIZE_BYTES = '5242880'; // 5MB
+    process.env.STORAGE_PROVIDER = 'local';
+    delete process.env.CLOUDINARY_CLOUD_NAME;
+    delete process.env.CLOUDINARY_API_KEY;
+    delete process.env.CLOUDINARY_API_SECRET;
+    delete process.env.CLOUDINARY_CV_FOLDER;
 
     prisma = {
       user: {
@@ -64,9 +80,18 @@ describe('POST /cvs/upload', () => {
     uploadLocalSpy = jest
       .spyOn(fileStorageService, 'uploadLocal')
       .mockResolvedValue({
+        storageProvider: 'local',
         storageKey:
           'cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
         storageUrl: null,
+      });
+    uploadCloudinarySpy = jest
+      .spyOn(fileStorageService, 'uploadCloudinary')
+      .mockResolvedValue({
+        storageProvider: 'cloudinary',
+        storageKey: 'nyx/cvs/user-id/cloudinary-resume',
+        storageUrl:
+          'https://res.cloudinary.com/test/raw/upload/nyx/cvs/user-id/cloudinary-resume.pdf',
       });
     jest
       .spyOn(fileStorageService, 'getLocalPath')
@@ -76,11 +101,19 @@ describe('POST /cvs/upload', () => {
     extractFromFileSpy = jest
       .spyOn(pdfTextExtractor, 'extractFromFile')
       .mockResolvedValue('Extracted CV text');
+    extractFromBufferSpy = jest
+      .spyOn(pdfTextExtractor, 'extractFromBuffer')
+      .mockResolvedValue('Extracted CV text');
   });
 
   afterEach(async () => {
     process.env.JWT_SECRET = originalJwtSecret;
     process.env.CV_MAX_FILE_SIZE_BYTES = originalMaxFileSize;
+    restoreEnv('STORAGE_PROVIDER', originalStorageProvider);
+    restoreEnv('CLOUDINARY_CLOUD_NAME', originalCloudinaryCloudName);
+    restoreEnv('CLOUDINARY_API_KEY', originalCloudinaryApiKey);
+    restoreEnv('CLOUDINARY_API_SECRET', originalCloudinaryApiSecret);
+    restoreEnv('CLOUDINARY_CV_FOLDER', originalCloudinaryCvFolder);
     jest.restoreAllMocks();
     await app.close();
   });
@@ -287,6 +320,7 @@ describe('POST /cvs/upload', () => {
       meta: {},
     });
     expect(uploadLocalSpy).toHaveBeenCalledTimes(10);
+    expect(uploadCloudinarySpy).not.toHaveBeenCalled();
     expect(prisma.cv.create).toHaveBeenCalledTimes(10);
   });
 
@@ -343,6 +377,7 @@ describe('POST /cvs/upload', () => {
     expect(extractFromFileSpy).toHaveBeenCalledWith(
       '/app/uploads/cvs/user-id/123456-550e8400-e29b-41d4-a716-446655440000-resume.pdf',
     );
+    expect(extractFromBufferSpy).not.toHaveBeenCalled();
     expect(prisma.cv.create).toHaveBeenCalledWith({
       data: {
         userId,
@@ -497,6 +532,93 @@ describe('POST /cvs/upload', () => {
     expect(prisma.cv.create).not.toHaveBeenCalled();
   });
 
+  it('creates CV record from Cloudinary upload with public id and secure URL', async () => {
+    await app.close();
+    process.env.STORAGE_PROVIDER = 'cloudinary';
+    process.env.CLOUDINARY_CLOUD_NAME = 'nyx-test';
+    process.env.CLOUDINARY_API_KEY = 'cloudinary-key';
+    process.env.CLOUDINARY_API_SECRET = 'cloudinary-secret';
+    process.env.CLOUDINARY_CV_FOLDER = 'nyx/cvs';
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue(prisma)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    await app.init();
+    tokenService = app.get(TokenService);
+    fileStorageService = app.get(FileStorageService);
+    pdfTextExtractor = app.get(PdfTextExtractor);
+    uploadCloudinarySpy = jest
+      .spyOn(fileStorageService, 'uploadCloudinary')
+      .mockResolvedValue({
+        storageProvider: 'cloudinary',
+        storageKey: 'nyx/cvs/user-id/cloudinary-resume',
+        storageUrl:
+          'https://res.cloudinary.com/test/raw/upload/nyx/cvs/user-id/cloudinary-resume.pdf',
+      });
+    uploadLocalSpy = jest.spyOn(fileStorageService, 'uploadLocal');
+    extractFromBufferSpy = jest
+      .spyOn(pdfTextExtractor, 'extractFromBuffer')
+      .mockResolvedValue('Extracted CV text');
+    extractFromFileSpy = jest.spyOn(pdfTextExtractor, 'extractFromFile');
+
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const createdAt = new Date('2026-05-22T10:30:00.000Z');
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      createdAt,
+    });
+
+    prisma.cv.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: '57db9a57-197d-40b5-8be5-5a5dfe398912',
+        ...data,
+        createdAt,
+      }),
+    );
+
+    const response = await request(app.getHttpServer())
+      .post('/cvs/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', validPdfBuffer, 'resume.pdf')
+      .expect(201);
+
+    expect(response.body.data).toEqual(
+      expect.objectContaining({
+        storageProvider: 'cloudinary',
+        storageKey: 'nyx/cvs/user-id/cloudinary-resume',
+        storageUrl:
+          'https://res.cloudinary.com/test/raw/upload/nyx/cvs/user-id/cloudinary-resume.pdf',
+        extractedText: 'Extracted CV text',
+      }),
+    );
+    expect(uploadCloudinarySpy).toHaveBeenCalledWith(
+      userId,
+      expect.objectContaining({ originalname: 'resume.pdf' }),
+    );
+    expect(uploadLocalSpy).not.toHaveBeenCalled();
+    expect(extractFromBufferSpy).toHaveBeenCalledWith(validPdfBuffer);
+    expect(extractFromFileSpy).not.toHaveBeenCalled();
+    expect(prisma.cv.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          storageProvider: 'cloudinary',
+          storageKey: 'nyx/cvs/user-id/cloudinary-resume',
+          storageUrl:
+            'https://res.cloudinary.com/test/raw/upload/nyx/cvs/user-id/cloudinary-resume.pdf',
+        }),
+      }),
+    );
+  });
+
   it('cleans up the stored file when CV creation fails', async () => {
     const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
     const accessToken = tokenService.signAccessToken(userId);
@@ -522,4 +644,69 @@ describe('POST /cvs/upload', () => {
 
     expect(deleteSpy).toHaveBeenCalledWith(storageKey);
   });
+
+  it('cleans up the Cloudinary asset when CV creation fails after upload', async () => {
+    await app.close();
+    process.env.STORAGE_PROVIDER = 'cloudinary';
+    process.env.CLOUDINARY_CLOUD_NAME = 'nyx-test';
+    process.env.CLOUDINARY_API_KEY = 'cloudinary-key';
+    process.env.CLOUDINARY_API_SECRET = 'cloudinary-secret';
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue(prisma)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    await app.init();
+    tokenService = app.get(TokenService);
+    fileStorageService = app.get(FileStorageService);
+    pdfTextExtractor = app.get(PdfTextExtractor);
+
+    jest.spyOn(fileStorageService, 'uploadCloudinary').mockResolvedValue({
+      storageProvider: 'cloudinary',
+      storageKey: 'nyx/cvs/user-id/cloudinary-resume',
+      storageUrl:
+        'https://res.cloudinary.com/test/raw/upload/nyx/cvs/user-id/cloudinary-resume.pdf',
+    });
+    jest
+      .spyOn(pdfTextExtractor, 'extractFromBuffer')
+      .mockResolvedValue('Extracted CV text');
+    const deleteSpy = jest
+      .spyOn(fileStorageService, 'deleteFile')
+      .mockResolvedValue();
+
+    const userId = '43a84c6a-4bcf-47c1-a1e1-215ba79c9404';
+    const accessToken = tokenService.signAccessToken(userId);
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: userId,
+      email: 'user@example.com',
+      createdAt: new Date('2026-05-22T10:30:00.000Z'),
+    });
+    prisma.cv.create.mockRejectedValue(new Error('database unavailable'));
+
+    await request(app.getHttpServer())
+      .post('/cvs/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', validPdfBuffer, 'resume.pdf')
+      .expect(500);
+
+    expect(deleteSpy).toHaveBeenCalledWith(
+      'nyx/cvs/user-id/cloudinary-resume',
+      'cloudinary',
+    );
+  });
 });
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}
