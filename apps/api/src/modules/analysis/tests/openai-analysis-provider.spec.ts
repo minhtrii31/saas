@@ -6,6 +6,9 @@ describe('OpenAiAnalysisProvider', () => {
   const originalAiProvider = process.env.AI_PROVIDER;
   const originalOpenAiApiKey = process.env.OPENAI_API_KEY;
   const originalOpenAiModel = process.env.OPENAI_MODEL;
+  const originalOpenAiBaseUrl = process.env.OPENAI_BASE_URL;
+  const originalOpenRouterSiteUrl = process.env.OPENROUTER_SITE_URL;
+  const originalOpenRouterSiteName = process.env.OPENROUTER_SITE_NAME;
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -13,6 +16,9 @@ describe('OpenAiAnalysisProvider', () => {
     process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.OPENAI_MODEL = 'gpt-test-model';
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.OPENROUTER_SITE_URL;
+    delete process.env.OPENROUTER_SITE_NAME;
   });
 
   afterEach(() => {
@@ -20,6 +26,9 @@ describe('OpenAiAnalysisProvider', () => {
     process.env.AI_PROVIDER = originalAiProvider;
     process.env.OPENAI_API_KEY = originalOpenAiApiKey;
     process.env.OPENAI_MODEL = originalOpenAiModel;
+    restoreEnv('OPENAI_BASE_URL', originalOpenAiBaseUrl);
+    restoreEnv('OPENROUTER_SITE_URL', originalOpenRouterSiteUrl);
+    restoreEnv('OPENROUTER_SITE_NAME', originalOpenRouterSiteName);
     global.fetch = originalFetch;
     jest.restoreAllMocks();
   });
@@ -102,6 +111,61 @@ describe('OpenAiAnalysisProvider', () => {
         json_schema: expect.objectContaining({
           strict: true,
           name: 'cv_analysis',
+        }),
+      }),
+    );
+  });
+
+  it('uses the default OpenAI endpoint when OPENAI_BASE_URL is not set', async () => {
+    global.fetch = successfulAnalysisFetch();
+
+    const provider = new OpenAiAnalysisProvider(new EnvironmentService());
+
+    await provider.analyzeCv('CV text');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/chat/completions',
+      expect.any(Object),
+    );
+  });
+
+  it('uses a custom OpenAI-compatible base URL when configured', async () => {
+    process.env.OPENAI_BASE_URL = 'https://openrouter.ai/api/v1';
+    process.env.OPENAI_MODEL = 'openai/gpt-4.1-mini';
+    global.fetch = successfulAnalysisFetch();
+
+    const provider = new OpenAiAnalysisProvider(new EnvironmentService());
+
+    await provider.analyzeCv('CV text');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+
+    const fetchMock = global.fetch as jest.Mock;
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(requestBody.model).toBe('openai/gpt-4.1-mini');
+  });
+
+  it('sends optional OpenRouter headers when configured', async () => {
+    process.env.OPENAI_BASE_URL = 'https://openrouter.ai/api/v1/';
+    process.env.OPENROUTER_SITE_URL = 'https://nyx.example';
+    process.env.OPENROUTER_SITE_NAME = 'Nyx CV Workspace';
+    global.fetch = successfulAnalysisFetch();
+
+    const provider = new OpenAiAnalysisProvider(new EnvironmentService());
+
+    await provider.analyzeCv('CV text');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/chat/completions',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'HTTP-Referer': 'https://nyx.example',
+          'X-OpenRouter-Title': 'Nyx CV Workspace',
         }),
       }),
     );
@@ -320,3 +384,48 @@ describe('OpenAiAnalysisProvider', () => {
     expect(requestBody.response_format.json_schema.name).toBe('interview_prep');
   });
 });
+
+function successfulAnalysisFetch(): jest.Mock {
+  return jest.fn().mockResolvedValue({
+    ok: true,
+    json: jest.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              score: 80,
+              scoringCategories: {
+                atsReadiness: 80,
+                readability: 80,
+                impact: 80,
+                keywordOptimization: 80,
+                structure: 80,
+                experienceQuality: 80,
+              },
+              strengths: ['Clear scope'],
+              weaknesses: ['Needs metrics'],
+              actionableInsights: {
+                missingQuantifiedAchievements: ['Add delivery metrics'],
+                weakActionVerbs: ['Replace helped'],
+                missingSections: ['Add summary'],
+                overlyGenericWording: ['Remove generic phrases'],
+                formattingConcerns: ['Use shorter bullets'],
+                keywordGaps: ['Add backend keywords'],
+              },
+              suggestions: ['Add numbers'],
+            }),
+          },
+        },
+      ],
+    }),
+  });
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}

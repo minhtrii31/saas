@@ -43,6 +43,13 @@ type OpenAiChatCompletionResponse = {
   }>;
 };
 
+type OpenAiHeaders = {
+  Authorization: string;
+  'Content-Type': string;
+  'HTTP-Referer'?: string;
+  'X-OpenRouter-Title'?: string;
+};
+
 @Injectable()
 export class OpenAiAnalysisProvider implements CvAnalysisProvider {
   readonly providerName = 'openai';
@@ -176,37 +183,31 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
     prompt: StructuredPrompt,
   ): Promise<JsonObject> {
     try {
-      const response = await fetch(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.environmentService.openAiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: this.environmentService.openAiModel,
-            messages: [
-              {
-                role: 'system',
-                content: prompt.systemPrompt,
-              },
-              {
-                role: 'user',
-                content: prompt.userPrompt,
-              },
-            ],
-            response_format: {
-              type: 'json_schema',
-              json_schema: {
-                name: prompt.schemaName,
-                strict: true,
-                schema: prompt.jsonSchema,
-              },
+      const response = await fetch(this.chatCompletionsUrl(), {
+        method: 'POST',
+        headers: this.requestHeaders(),
+        body: JSON.stringify({
+          model: this.environmentService.openAiModel,
+          messages: [
+            {
+              role: 'system',
+              content: prompt.systemPrompt,
             },
-          }),
-        },
-      );
+            {
+              role: 'user',
+              content: prompt.userPrompt,
+            },
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: prompt.schemaName,
+              strict: true,
+              schema: prompt.jsonSchema,
+            },
+          },
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`OpenAI request failed with status ${response.status}`);
@@ -229,5 +230,30 @@ export class OpenAiAnalysisProvider implements CvAnalysisProvider {
         meta: {},
       });
     }
+  }
+
+  private chatCompletionsUrl(): string {
+    const baseUrl =
+      this.environmentService.openAiBaseUrl || 'https://api.openai.com/v1';
+
+    return `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  }
+
+  private requestHeaders(): OpenAiHeaders {
+    const headers: OpenAiHeaders = {
+      Authorization: `Bearer ${this.environmentService.openAiApiKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    if (this.environmentService.openRouterSiteUrl) {
+      headers['HTTP-Referer'] = this.environmentService.openRouterSiteUrl;
+    }
+
+    if (this.environmentService.openRouterSiteName) {
+      headers['X-OpenRouter-Title'] =
+        this.environmentService.openRouterSiteName;
+    }
+
+    return headers;
   }
 }

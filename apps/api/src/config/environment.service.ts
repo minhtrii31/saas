@@ -7,6 +7,11 @@ export class EnvironmentService {
   readonly aiProvider: AiProviderName;
   readonly openAiApiKey: string;
   readonly openAiModel: string;
+  readonly openAiBaseUrl: string;
+  readonly openRouterSiteUrl: string;
+  readonly openRouterSiteName: string;
+  readonly aiMaxCvChars: number;
+  readonly aiMaxJdChars: number;
   readonly freeStarterCredits: number;
   readonly usageCosts: Record<string, number>;
 
@@ -18,6 +23,11 @@ export class EnvironmentService {
         ? this.requireOpenAiApiKey()
         : this.optional('OPENAI_API_KEY');
     this.openAiModel = this.optional('OPENAI_MODEL', 'gpt-4.1-mini');
+    this.openAiBaseUrl = this.optional('OPENAI_BASE_URL');
+    this.openRouterSiteUrl = this.optional('OPENROUTER_SITE_URL');
+    this.openRouterSiteName = this.optional('OPENROUTER_SITE_NAME');
+    this.aiMaxCvChars = this.positiveInt('AI_MAX_CV_CHARS', 8000);
+    this.aiMaxJdChars = this.positiveInt('AI_MAX_JD_CHARS', 6000);
     this.freeStarterCredits = this.nonNegativeInt('FREE_STARTER_CREDITS', 10);
     this.usageCosts = {
       CV_ANALYSIS: this.nonNegativeInt('USAGE_COST_CV_ANALYSIS', 1),
@@ -75,6 +85,20 @@ export class EnvironmentService {
     const parsed = Number(value);
     if (!Number.isInteger(parsed) || parsed < 0) {
       throw new Error(`${name} must be a non-negative integer`);
+    }
+
+    return parsed;
+  }
+
+  private positiveInt(name: string, defaultValue: number): number {
+    const value = this.optional(name);
+    if (!value) {
+      return defaultValue;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`${name} must be a positive integer`);
     }
 
     return parsed;

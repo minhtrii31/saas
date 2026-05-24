@@ -360,4 +360,97 @@ describe('AnalysisService', () => {
       jobDescriptionText: 'job description',
     });
   });
+
+  it('normalizes and truncates CV text before provider calls', async () => {
+    const analyzeCv = jest.fn().mockResolvedValue({
+      score: 72,
+      strengths: ['Clear technical stack'],
+      weaknesses: ['Needs quantified achievements'],
+      suggestions: ['Add measurable outcomes'],
+    });
+    const provider = createProvider({ analyzeCv });
+    const service = new AnalysisService(provider, {
+      aiMaxCvChars: 18,
+      aiMaxJdChars: 6000,
+    } as never);
+
+    await service.analyzeCv('  Senior\n\nTypeScript\tEngineer with APIs  ');
+
+    expect(analyzeCv).toHaveBeenCalledWith('Senior TypeScript');
+  });
+
+  it('normalizes and truncates CV and JD text before JD matching', async () => {
+    const matchJobDescription = jest.fn().mockResolvedValue({
+      matchingScore: 75,
+      matchedSkills: ['TypeScript', 'NestJS'],
+      missingSkills: ['Redis'],
+      suggestions: ['Add Redis experience'],
+    });
+    const provider = createProvider({ matchJobDescription });
+    const service = new AnalysisService(provider, {
+      aiMaxCvChars: 12,
+      aiMaxJdChars: 13,
+    } as never);
+
+    await service.matchJobDescription(
+      '  CV\n\nwith   TypeScript and NestJS  ',
+      '  JD\tneeds\n\nTypeScript and Redis  ',
+    );
+
+    expect(matchJobDescription).toHaveBeenCalledWith(
+      'CV with Type',
+      'JD needs Type',
+    );
+  });
+
+  it('normalizes cover letter JD input without mutating the caller input', async () => {
+    const generateCoverLetter = jest.fn().mockResolvedValue({
+      coverLetter: 'Dear Example Corp, I am excited to apply.',
+      tone: 'professional',
+      highlights: ['TypeScript experience'],
+    });
+    const provider = createProvider({ generateCoverLetter });
+    const service = new AnalysisService(provider, {
+      aiMaxCvChars: 8000,
+      aiMaxJdChars: 16,
+    } as never);
+    const input = {
+      jobDescriptionText: '  Build\n\nAPIs with TypeScript and Redis  ',
+      companyName: 'Example Corp',
+      roleTitle: 'Backend Engineer',
+    };
+
+    await service.generateCoverLetter('  CV\ntext  ', input);
+
+    expect(generateCoverLetter).toHaveBeenCalledWith('CV text', {
+      jobDescriptionText: 'Build APIs with',
+      companyName: 'Example Corp',
+      roleTitle: 'Backend Engineer',
+    });
+    expect(input.jobDescriptionText).toBe(
+      '  Build\n\nAPIs with TypeScript and Redis  ',
+    );
+  });
 });
+
+function createProvider(
+  overrides: Partial<CvAnalysisProvider>,
+): CvAnalysisProvider {
+  return {
+    providerName: 'mock',
+    modelName: 'mock-cv-analyzer-v1',
+    jdMatcherModelName: 'mock-jd-matcher-v1',
+    coverLetterModelName: 'mock-cover-letter-v1',
+    resumeRewriteModelName: 'mock-resume-rewrite-v1',
+    interviewPrepModelName: 'mock-interview-prep-v1',
+    applicationFollowUpModelName: 'mock-application-follow-up-v1',
+    analyzeCv: jest.fn(),
+    matchJobDescription: jest.fn(),
+    generateCoverLetter: jest.fn(),
+    rewriteResume: jest.fn(),
+    refineRewrite: jest.fn(),
+    generateInterviewPrep: jest.fn(),
+    generateApplicationFollowUp: jest.fn(),
+    ...overrides,
+  };
+}
