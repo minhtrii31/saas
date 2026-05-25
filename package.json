@@ -1,6 +1,7 @@
 {
   "name": "saas",
   "private": true,
+  "license": "UNLICENSED",
   "workspaces": [
     "apps/*",
     "packages/*"
